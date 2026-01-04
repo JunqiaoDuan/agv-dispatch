@@ -1,0 +1,6 @@
+@AgvDispatch.Host_HostAddress = http://localhost:5223
+
+GET {{AgvDispatch.Host_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
