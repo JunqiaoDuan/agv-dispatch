@@ -5,4 +5,5 @@
   <Project Path="AgvDispatch.Shared/AgvDispatch.Shared.csproj" Id="c1ee6f2b-ff33-4b13-be32-823f691d50cb" />
   <Project Path="AgvDispatch.Simulator/AgvDispatch.Simulator.csproj" Id="f502a791-9bb1-47ea-b7e9-55fec711e88c" />
   <Project Path="AgvDispatch.Web/AgvDispatch.Web.csproj" Id="b73ede7f-cf40-4e33-ac02-7daab0a516e8" />
+  <Project Path="AgvDispathc.Infrastructure/AgvDispathc.Infrastructure.csproj" Id="25c483da-490e-48ea-8ac1-23ce5d4fa639" />
 </Solution>

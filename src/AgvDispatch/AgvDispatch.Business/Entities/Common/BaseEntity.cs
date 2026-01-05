@@ -1,8 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using AgvDispatch.Shared.Repository;
 
 namespace AgvDispatch.Business.Entities.Common;
 
-public abstract class BaseEntity
+public abstract class BaseEntity : IAggregateRoot
 {
     [Key]
     public Guid Id { get; set; }

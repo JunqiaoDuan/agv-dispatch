@@ -1,0 +1,38 @@
+using AgvDispatch.Business.Entities.AgvAggregate;
+using AgvDispatch.Business.Entities.MapAggregate;
+using AgvDispatch.Business.Entities.RouteAggregate;
+using AgvDispatch.Business.Entities.StationAggregate;
+using Microsoft.EntityFrameworkCore;
+using System.Reflection;
+
+namespace AgvDispatch.Infrastructure.Db.EF;
+
+public class AgvDispatchContext : DbContext
+{
+    public AgvDispatchContext()
+    {
+    }
+
+    public AgvDispatchContext(DbContextOptions<AgvDispatchContext> options)
+        : base(options)
+    {
+    }
+
+    #region Tables
+
+    public DbSet<Map> Maps { get; set; }
+    public DbSet<MapNode> MapNodes { get; set; }
+    public DbSet<MapEdge> MapEdges { get; set; }
+    public DbSet<Station> Stations { get; set; }
+    public DbSet<Route> Routes { get; set; }
+    public DbSet<RouteSegment> RouteSegments { get; set; }
+    public DbSet<Agv> Agvs { get; set; }
+
+    #endregion
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+        builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+    }
+}
