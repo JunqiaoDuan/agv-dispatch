@@ -1,18 +1,17 @@
 namespace AgvDispatch.Shared.Enums;
 
 /// <summary>
-/// 路径点到达动作
+/// 地图边类型
 /// </summary>
-public enum WaypointAction
+public enum EdgeType
 {
     /// <summary>
-    /// 无动作，直接通过
+    /// 直线
     /// </summary>
-    None = 0,
+    Line = 10,
 
     /// <summary>
-    /// 停车
+    /// 弧线
     /// </summary>
-    Stop = 10,
-
+    Arc = 20,
 }

@@ -5,6 +5,8 @@ namespace AgvDispatch.Shared.Enums;
 /// </summary>
 public enum StationType
 {
+    // ===== 业务站点 (10-89) =====
+
     /// <summary>
     /// 取货点
     /// </summary>
@@ -23,5 +25,13 @@ public enum StationType
     /// <summary>
     /// 待命点
     /// </summary>
-    Standby = 40
+    Standby = 40,
+
+    // ===== 系统控制点 (90+) =====
+
+    /// <summary>
+    /// 交叉口防撞等待点
+    /// </summary>
+    Intersection = 90,
+
 }

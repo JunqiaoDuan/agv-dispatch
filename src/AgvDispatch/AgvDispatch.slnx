@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="AgvDispatch.Business/AgvDispatch.Business.csproj" Id="10df560b-0b9b-49d9-a232-33bebaed7fc8" />
+  <Project Path="AgvDispatch.DbUpper/AgvDispatch.DbUpper.csproj" Id="4a8c879b-42cd-440b-87f8-d2da18625c21" />
   <Project Path="AgvDispatch.Host/AgvDispatch.Host.csproj" />
   <Project Path="AgvDispatch.Shared/AgvDispatch.Shared.csproj" Id="c1ee6f2b-ff33-4b13-be32-823f691d50cb" />
   <Project Path="AgvDispatch.Simulator/AgvDispatch.Simulator.csproj" Id="f502a791-9bb1-47ea-b7e9-55fec711e88c" />
