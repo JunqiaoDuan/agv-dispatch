@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AgvDispathc.Infrastructure\AgvDispathc.Infrastructure.csproj" />
+    <ProjectReference Include="..\AgvDispatch.Web\AgvDispatch.Web.csproj" />
   </ItemGroup>
 
 </Project>

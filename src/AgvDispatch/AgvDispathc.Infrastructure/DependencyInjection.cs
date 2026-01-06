@@ -12,7 +12,8 @@ public static class DependencyInjection
     {
         // 注册 PostgreSQL DbContext
         services.AddDbContext<AgvDispatchContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
+                   .UseSnakeCaseNamingConvention());
 
         // 注册泛型仓储
         services.AddScoped(typeof(IRepository<>), typeof(EFRepository<>));

@@ -1,0 +1,214 @@
+@using AgvDispatch.Shared.DTOs.Agvs
+@using AgvDispatch.Web.Services
+@inject IAgvClient AgvClient
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formValid">
+            <MudStack Spacing="3">
+                @if (!IsEdit)
+                {
+                    <MudTextField @bind-Value="_model.AgvCode"
+                                  Label="小车编号"
+                                  Placeholder="例如: V001"
+                                  Required="true"
+                                  RequiredError="请输入小车编号"
+                                  Disabled="_loadingCode"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Refresh"
+                                  OnAdornmentClick="GenerateNextCode" />
+                }
+                else
+                {
+                    <MudTextField Value="@_model.AgvCode"
+                                  Label="小车编号"
+                                  Disabled="true" />
+                }
+
+                <MudTextField @bind-Value="_model.DisplayName"
+                              Label="小车名称"
+                              Placeholder="例如: 1号车"
+                              Required="true"
+                              RequiredError="请输入小车名称" />
+
+                <MudTextField @bind-Value="_model.Password"
+                              Label="@(IsEdit ? "新密码（留空则不修改）" : "MQTT 密码")"
+                              InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                              Required="@(!IsEdit)"
+                              RequiredError="请输入密码"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                              OnAdornmentClick="TogglePasswordVisibility" />
+
+                <MudNumericField @bind-Value="_model.SortNo"
+                                 Label="排序号"
+                                 Min="0" />
+
+                <MudTextField @bind-Value="_model.Description"
+                              Label="描述"
+                              Lines="2" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">取消</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(!_formValid || _saving)"
+                   OnClick="Submit">
+            @if (_saving)
+            {
+                <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+            }
+            @(IsEdit ? "保存" : "创建")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    [Parameter]
+    public Guid? AgvId { get; set; }
+
+    private MudForm? _form;
+    private bool _formValid;
+    private bool _saving;
+    private bool _loadingCode;
+    private bool _showPassword;
+    private AgvFormModel _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEdit && AgvId.HasValue)
+        {
+            await LoadAgv();
+        }
+        else
+        {
+            await GenerateNextCode();
+        }
+    }
+
+    private async Task LoadAgv()
+    {
+        try
+        {
+            var agv = await AgvClient.GetByIdAsync(AgvId!.Value);
+            if (agv != null)
+            {
+                _model = new AgvFormModel
+                {
+                    AgvCode = agv.AgvCode,
+                    DisplayName = agv.DisplayName,
+                    SortNo = agv.SortNo,
+                    Description = agv.Description
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task GenerateNextCode()
+    {
+        if (IsEdit) return;
+
+        _loadingCode = true;
+        try
+        {
+            var code = await AgvClient.GetNextCodeAsync();
+            if (code != null)
+            {
+                _model.AgvCode = code;
+            }
+        }
+        catch
+        {
+            // 忽略错误，使用默认值
+        }
+        finally
+        {
+            _loadingCode = false;
+        }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        _showPassword = !_showPassword;
+    }
+
+    private async Task Submit()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formValid) return;
+        }
+
+        _saving = true;
+        try
+        {
+            string? error;
+
+            if (IsEdit && AgvId.HasValue)
+            {
+                var request = new UpdateAgvRequest
+                {
+                    DisplayName = _model.DisplayName,
+                    NewPassword = string.IsNullOrWhiteSpace(_model.Password) ? null : _model.Password,
+                    SortNo = _model.SortNo,
+                    Description = _model.Description
+                };
+                error = await AgvClient.UpdateAsync(AgvId.Value, request);
+            }
+            else
+            {
+                var request = new CreateAgvRequest
+                {
+                    AgvCode = _model.AgvCode,
+                    DisplayName = _model.DisplayName,
+                    Password = _model.Password,
+                    SortNo = _model.SortNo,
+                    Description = _model.Description
+                };
+                error = await AgvClient.CreateAsync(request);
+            }
+
+            if (error == null)
+            {
+                MudDialog?.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"操作失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+
+    private class AgvFormModel
+    {
+        public string AgvCode { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public int SortNo { get; set; }
+        public string? Description { get; set; }
+    }
+}

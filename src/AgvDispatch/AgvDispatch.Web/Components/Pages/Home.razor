@@ -1,7 +1,171 @@
-﻿@page "/"
+@page "/"
+@using AgvDispatch.Shared.DTOs.Agvs
+@using AgvDispatch.Web.Services
+@rendermode InteractiveServer
+@inject IAgvClient AgvClient
 
-<PageTitle>Home</PageTitle>
+<PageTitle>首页 - AGV 调度系统</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudText Typo="Typo.h4" Class="mb-4">系统概览</MudText>
 
-Welcome to your new app.
+<MudGrid>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">小车总数</MudText>
+                    <MudText Typo="Typo.h4">@_stats.TotalAgvs</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Primary" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">在线小车</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Success">@_stats.OnlineAgvs</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.WifiTethering" Color="Color.Success" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">运行中</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Primary">@_stats.RunningAgvs</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Primary" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">故障小车</MudText>
+                    <MudText Typo="Typo.h4" Color="@(_stats.ErrorAgvs > 0 ? Color.Error : Color.Default)">@_stats.ErrorAgvs</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.Error" Color="@(_stats.ErrorAgvs > 0 ? Color.Error : Color.Default)" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudGrid Class="mt-4">
+    <MudItem xs="12" md="12">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">小车状态</MudText>
+            @if (_loading)
+            {
+                <MudProgressLinear Indeterminate="true" />
+            }
+            else if (_agvList.Any())
+            {
+                <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                    <thead>
+                        <tr>
+                            <th>编号</th>
+                            <th>名称</th>
+                            <th>状态</th>
+                            <th>电量</th>
+                            <th>位置</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var agv in _agvList)
+                        {
+                            <tr>
+                                <td>@agv.AgvCode</td>
+                                <td>@agv.DisplayName</td>
+                                <td>
+                                    <MudChip T="string" Color="@GetStatusColor(agv.AgvStatus)" Size="Size.Small">
+                                        @agv.AgvStatus.ToDisplayText()
+                                    </MudChip>
+                                </td>
+                                <td>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudProgressLinear Color="@GetBatteryColor(agv.Battery)" Value="@agv.Battery" Style="width: 50px;" />
+                                        <MudText Typo="Typo.caption">@agv.Battery%</MudText>
+                                    </MudStack>
+                                </td>
+                                <td>(@agv.PositionX.ToString("F0"), @agv.PositionY.ToString("F0"))</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
+            else
+            {
+                <MudText Color="Color.Default">暂无小车数据</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+
+</MudGrid>
+
+@code {
+    private List<AgvListItemDto> _agvList = new();
+    private bool _loading = true;
+    private DashboardStats _stats = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _agvList = await AgvClient.GetAllAsync();
+            _stats = new DashboardStats
+            {
+                TotalAgvs = _agvList.Count,
+                OnlineAgvs = _agvList.Count(x => x.AgvStatus != AgvStatus.Offline),
+                RunningAgvs = _agvList.Count(x => x.AgvStatus == AgvStatus.Running),
+                ErrorAgvs = _agvList.Count(x => x.AgvStatus == AgvStatus.Error)
+            };
+        }
+        catch
+        {
+            // 忽略错误，显示空数据
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Color GetStatusColor(AgvStatus status) => status switch
+    {
+        AgvStatus.Offline => Color.Default,
+        AgvStatus.Idle => Color.Success,
+        AgvStatus.Running => Color.Primary,
+        AgvStatus.Charging => Color.Warning,
+        AgvStatus.Error => Color.Error,
+        _ => Color.Default
+    };
+
+    private Color GetBatteryColor(int battery) => battery switch
+    {
+        <= 20 => Color.Error,
+        <= 50 => Color.Warning,
+        _ => Color.Success
+    };
+
+    private class DashboardStats
+    {
+        public int TotalAgvs { get; set; }
+        public int OnlineAgvs { get; set; }
+        public int RunningAgvs { get; set; }
+        public int ErrorAgvs { get; set; }
+    }
+}
