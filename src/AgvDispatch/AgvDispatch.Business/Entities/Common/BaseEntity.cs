@@ -28,7 +28,7 @@ public abstract class BaseEntity : IAggregateRoot
 
         CreatedBy = userId;
         CreatedByName = userName;
-        CreationDate = DateTimeOffset.Now;
+        CreationDate = DateTimeOffset.UtcNow;
 
         ModifiedBy = null;
         ModifiedByName = null;
@@ -39,7 +39,7 @@ public abstract class BaseEntity : IAggregateRoot
     {
         ModifiedBy = userId;
         ModifiedByName = userName;
-        ModifiedDate = DateTimeOffset.Now;
+        ModifiedDate = DateTimeOffset.UtcNow;
     }
 
     public void OnDelete(string reasonOfInvalid, Guid? userId = null, string? userName = null)
@@ -49,6 +49,6 @@ public abstract class BaseEntity : IAggregateRoot
 
         ModifiedBy = userId;
         ModifiedByName = userName;
-        ModifiedDate = DateTimeOffset.Now;
+        ModifiedDate = DateTimeOffset.UtcNow;
     }
 }
