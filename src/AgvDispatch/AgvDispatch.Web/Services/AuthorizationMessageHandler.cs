@@ -10,11 +10,16 @@ namespace AgvDispatch.Web.Services;
 public class AuthorizationMessageHandler : DelegatingHandler
 {
     private readonly IAuthStateService _authStateService;
+    private readonly IUnauthorizedRedirectService _unauthorizedRedirectService;
     private readonly ILogger<AuthorizationMessageHandler> _logger;
 
-    public AuthorizationMessageHandler(IAuthStateService authStateService, ILogger<AuthorizationMessageHandler> logger)
+    public AuthorizationMessageHandler(
+        IAuthStateService authStateService,
+        IUnauthorizedRedirectService unauthorizedRedirectService,
+        ILogger<AuthorizationMessageHandler> logger)
     {
         _authStateService = authStateService;
+        _unauthorizedRedirectService = unauthorizedRedirectService;
         _logger = logger;
     }
 
@@ -38,6 +43,7 @@ public class AuthorizationMessageHandler : DelegatingHandler
         if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             _logger.LogWarning("[AuthHandler] API 返回 401: {Uri}", request.RequestUri);
+            _unauthorizedRedirectService.NotifyUnauthorized();
         }
 
         return response;

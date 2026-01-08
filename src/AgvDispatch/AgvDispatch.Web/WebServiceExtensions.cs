@@ -20,6 +20,9 @@ public static class WebServiceExtensions
         // 注册 Token 管理服务（用于存储和获取 JWT Token）
         services.AddScoped<IAuthStateService, AuthStateService>();
 
+        // 注册未授权重定向服务（用于401时跳转到登录页，使用Singleton确保全局共享）
+        services.AddSingleton<IUnauthorizedRedirectService, UnauthorizedRedirectService>();
+
         // 注册授权消息处理器（自动附加 JWT Token 到 API 请求）
         services.AddScoped<AuthorizationMessageHandler>();
 

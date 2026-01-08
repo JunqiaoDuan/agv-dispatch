@@ -1,6 +1,9 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject IAuthStateService AuthStateService
+@inject IUnauthorizedRedirectService UnauthorizedRedirectService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <MudThemeProvider @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -66,6 +69,11 @@
     private bool _isDarkMode = false;
     private UserInfoDto? _currentUser;
 
+    protected override void OnInitialized()
+    {
+        UnauthorizedRedirectService.OnUnauthorized += HandleUnauthorized;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -73,6 +81,15 @@
             _currentUser = await AuthStateService.GetCurrentUserAsync();
             StateHasChanged();
         }
+    }
+
+    private void HandleUnauthorized()
+    {
+        InvokeAsync(async () =>
+        {
+            await AuthStateService.LogoutAsync();
+            await JS.InvokeVoidAsync("appHelpers.redirectTo", "/login");
+        });
     }
 
     private void ToggleDrawer()
@@ -89,5 +106,10 @@
     {
         await AuthStateService.LogoutAsync();
         Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        UnauthorizedRedirectService.OnUnauthorized -= HandleUnauthorized;
     }
 }
