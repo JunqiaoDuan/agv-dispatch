@@ -114,10 +114,16 @@
     private List<AgvListItemDto> _agvList = new();
     private bool _loading = true;
     private DashboardStats _stats = new();
+    private bool _initialized;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadData();
+        if (firstRender && !_initialized)
+        {
+            _initialized = true;
+            await LoadData();
+            StateHasChanged();
+        }
     }
 
     private async Task LoadData()

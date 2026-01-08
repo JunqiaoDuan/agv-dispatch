@@ -56,15 +56,12 @@ public static class AuthExtensions
                 },
                 OnChallenge = context =>
                 {
-                    // 只对 API 路由返回 401
+                    // 非 API 路由不返回 401
                     var path = context.Request.Path.Value ?? "";
                     if (!path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
                     {
                         context.HandleResponse();
-                        return Task.CompletedTask;
                     }
-
-                    Log.Warning("[JwtBearer] API 认证质询: {Path}", context.Request.Path);
                     return Task.CompletedTask;
                 }
             };

@@ -41,6 +41,10 @@ public class AuthStateService : IAuthStateService
     private const string TokenKey = "auth_token";
     private const string UserKey = "auth_user";
 
+    // 使用静态缓存，解决 HttpClientFactory 实例隔离问题
+    private static string? _staticCachedToken;
+    private static UserInfoDto? _staticCachedUser;
+
     public AuthStateService(ProtectedLocalStorage localStorage, ILogger<AuthStateService> logger)
     {
         _localStorage = localStorage;
@@ -51,6 +55,10 @@ public class AuthStateService : IAuthStateService
     {
         _logger.LogInformation("[AuthState] 用户登录: {Username}", loginResponse.User.Username);
 
+        // 保存到静态缓存
+        _staticCachedToken = loginResponse.Token;
+        _staticCachedUser = loginResponse.User;
+
         await _localStorage.SetAsync(TokenKey, loginResponse.Token);
         await _localStorage.SetAsync(UserKey, loginResponse.User);
     }
@@ -59,44 +67,64 @@ public class AuthStateService : IAuthStateService
     {
         _logger.LogInformation("[AuthState] 用户登出");
 
+        // 清除静态缓存
+        _staticCachedToken = null;
+        _staticCachedUser = null;
+
         await _localStorage.DeleteAsync(TokenKey);
         await _localStorage.DeleteAsync(UserKey);
     }
 
     public async Task<string?> GetTokenAsync()
     {
+        // 优先从静态缓存获取
+        if (!string.IsNullOrEmpty(_staticCachedToken))
+        {
+            return _staticCachedToken;
+        }
+
         try
         {
             var result = await _localStorage.GetAsync<string>(TokenKey);
-            if (result.Success)
+            if (result.Success && !string.IsNullOrEmpty(result.Value))
             {
-                _logger.LogDebug("[AuthState] 成功获取 Token");
+                _staticCachedToken = result.Value;
+                return result.Value;
             }
-            return result.Success ? result.Value : null;
+            return null;
         }
         catch (InvalidOperationException)
         {
-            // 预渲染期间无法访问 LocalStorage，这是正常情况
-            _logger.LogDebug("[AuthState] 预渲染期间无法访问 LocalStorage");
-            return null;
+            // JS interop 不可用时返回静态缓存（可能为null）
+            return _staticCachedToken;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[AuthState] 获取 Token 异常: {Message}", ex.Message);
-            return null;
+            _logger.LogError(ex, "[AuthState] 获取 Token 异常");
+            return _staticCachedToken;
         }
     }
 
     public async Task<UserInfoDto?> GetCurrentUserAsync()
     {
+        if (_staticCachedUser != null)
+        {
+            return _staticCachedUser;
+        }
+
         try
         {
             var result = await _localStorage.GetAsync<UserInfoDto>(UserKey);
-            return result.Success ? result.Value : null;
+            if (result.Success)
+            {
+                _staticCachedUser = result.Value;
+                return result.Value;
+            }
+            return null;
         }
         catch
         {
-            return null;
+            return _staticCachedUser;
         }
     }
 }

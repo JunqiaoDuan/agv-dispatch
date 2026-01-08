@@ -301,7 +301,7 @@
                 Snackbar.Add($"欢迎回来，{response.Data.User.DisplayName ?? response.Data.User.Username}！", Severity.Success);
 
                 var returnUrl = string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl;
-                Navigation.NavigateTo(returnUrl, forceLoad: true);
+                Navigation.NavigateTo(returnUrl);
             }
             else
             {
