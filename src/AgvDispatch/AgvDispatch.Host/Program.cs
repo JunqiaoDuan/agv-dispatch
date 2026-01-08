@@ -6,15 +6,15 @@ using AgvDispatch.Web;
 using AgvDispatch.Web.Components;
 using Serilog;
 
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(new ConfigurationBuilder()
-        .AddJsonFile("appsettings.json")
-        .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
-        .Build())
-    .CreateLogger();
-
 try
 {
+    var configuration = new ConfigurationBuilder()
+        .AddJsonFile("appsettings.json")
+        .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
+        .Build();
+
+    LoggingExtensions.ConfigureSerilog(configuration);
+
     Log.Information("启动 AGV Dispatch 服务...");
 
     var builder = WebApplication.CreateBuilder(args);
@@ -64,6 +64,7 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "应用程序启动失败");
+    throw;
 }
 finally
 {
