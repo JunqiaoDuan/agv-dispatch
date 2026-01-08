@@ -17,15 +17,23 @@ public static class WebServiceExtensions
 
         services.AddMudServices();
 
+        // 注册 Token 管理服务（用于存储和获取 JWT Token）
+        services.AddScoped<IAuthStateService, AuthStateService>();
+
+        // 注册授权消息处理器（自动附加 JWT Token 到 API 请求）
+        services.AddScoped<AuthorizationMessageHandler>();
+
         // 添加 HttpClient 用于调用后端 API
         services.AddHttpClient("AgvApi", client =>
         {
             client.BaseAddress = new Uri(apiBaseUrl);
-        });
+        }).AddHttpMessageHandler<AuthorizationMessageHandler>();
+
         services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("AgvApi"));
 
         // 注册业务服务
         services.AddScoped<IAgvClient, AgvClient>();
+        services.AddScoped<IAuthClient, AuthClient>();
 
         return services;
     }

@@ -2,6 +2,7 @@ using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Business.Entities.MapAggregate;
 using AgvDispatch.Business.Entities.RouteAggregate;
 using AgvDispatch.Business.Entities.StationAggregate;
+using AgvDispatch.Business.Entities.UserAggregate;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
@@ -27,6 +28,7 @@ public class AgvDispatchContext : DbContext
     public DbSet<Route> Routes { get; set; }
     public DbSet<RouteSegment> RouteSegments { get; set; }
     public DbSet<Agv> Agvs { get; set; }
+    public DbSet<User> Users { get; set; }
 
     #endregion
 

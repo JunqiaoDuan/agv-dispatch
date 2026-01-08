@@ -116,10 +116,16 @@
     private List<AgvListItemDto> _filteredList = new();
     private bool _loading = true;
     private string _searchText = string.Empty;
+    private bool _initialized;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadAgvs();
+        if (firstRender && !_initialized)
+        {
+            _initialized = true;
+            await LoadAgvs();
+            StateHasChanged();
+        }
     }
 
     private async Task LoadAgvs()
