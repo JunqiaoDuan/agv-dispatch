@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using AgvDispatch.Business.Entities.Common;
 using AgvDispatch.Shared.Enums;
 
@@ -7,7 +6,7 @@ namespace AgvDispatch.Business.Entities.AgvAggregate;
 /// <summary>
 /// AGV小车实体
 /// </summary>
-public class Agv : BaseEntity
+public class Agv : BaseEntity, IHasPassword
 {
     /// <summary>
     /// 小车编号，如 V001
@@ -88,34 +87,4 @@ public class Agv : BaseEntity
     /// 描述
     /// </summary>
     public string? Description { get; set; }
-
-    /// <summary>
-    /// 设置密码（自动生成盐值并哈希）
-    /// </summary>
-    public void SetPassword(string password)
-    {
-        var saltBytes = RandomNumberGenerator.GetBytes(32);
-        PasswordSalt = Convert.ToBase64String(saltBytes);
-        PasswordHash = HashPassword(password, saltBytes);
-    }
-
-    /// <summary>
-    /// 验证密码
-    /// </summary>
-    public bool VerifyPassword(string password)
-    {
-        if (string.IsNullOrEmpty(PasswordSalt) || string.IsNullOrEmpty(PasswordHash))
-            return false;
-
-        var saltBytes = Convert.FromBase64String(PasswordSalt);
-        var hash = HashPassword(password, saltBytes);
-        return hash == PasswordHash;
-    }
-
-    private static string HashPassword(string password, byte[] salt)
-    {
-        using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 100000, HashAlgorithmName.SHA256);
-        var hashBytes = pbkdf2.GetBytes(32);
-        return Convert.ToBase64String(hashBytes);
-    }
 }
