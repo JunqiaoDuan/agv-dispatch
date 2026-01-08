@@ -10,7 +10,8 @@
       "Bash(find:*)",
       "Bash(cat:*)",
       "Bash(dotnet add:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(del \"E:\\Repos\\Release\\agv-dispatch\\src\\AgvDispatch\\AgvDispatch.Host\\Services\\DatabaseSeeder.cs\")"
     ]
   }
 }

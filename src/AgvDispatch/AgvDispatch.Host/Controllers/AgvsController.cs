@@ -1,16 +1,19 @@
 using AgvDispatch.Business.Entities.AgvAggregate;
+using AgvDispatch.Business.Entities.Common;
 using AgvDispatch.Business.Specifications.Agvs;
 using AgvDispatch.Shared.DTOs;
 using AgvDispatch.Shared.DTOs.Agvs;
 using AgvDispatch.Shared.Enums;
 using AgvDispatch.Shared.Extensions;
 using AgvDispatch.Shared.Repository;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AgvDispatch.Host.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class AgvsController : ControllerBase
 {
     private readonly IRepository<Agv> _agvRepository;
@@ -88,6 +91,7 @@ public class AgvsController : ControllerBase
     /// 创建小车
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<ApiResponse<AgvDetailDto>>> Create([FromBody] CreateAgvRequest request)
     {
         // 验证编号唯一性
@@ -127,6 +131,7 @@ public class AgvsController : ControllerBase
     /// 更新小车
     /// </summary>
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<ApiResponse<AgvDetailDto>>> Update(Guid id, [FromBody] UpdateAgvRequest request)
     {
         var spec = new AgvByIdSpec(id);
@@ -162,6 +167,7 @@ public class AgvsController : ControllerBase
     /// 删除小车（软删除）
     /// </summary>
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(Guid id)
     {
         var spec = new AgvByIdSpec(id);

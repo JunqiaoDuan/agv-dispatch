@@ -1,4 +1,6 @@
+using AgvDispatch.Host.Extensions;
 using AgvDispatch.Host.Middlewares;
+using AgvDispatch.Host.Services;
 using AgvDispatch.Infrastructure;
 using AgvDispatch.Web;
 using AgvDispatch.Web.Components;
@@ -24,6 +26,9 @@ try
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
 
+    // 注册认证服务 (JWT)
+    builder.Services.AddAuthServices(builder.Configuration);
+
     // 注册 Infrastructure 服务 (EF Core + PostgreSQL)
     builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -45,6 +50,7 @@ try
 
     app.UseHttpsRedirection();
 
+    app.UseAuthentication();
     app.UseAuthorization();
 
     // 配置 API
