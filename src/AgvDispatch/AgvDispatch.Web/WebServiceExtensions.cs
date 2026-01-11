@@ -37,6 +37,9 @@ public static class WebServiceExtensions
         // 注册业务服务
         services.AddScoped<IAgvClient, AgvClient>();
         services.AddScoped<IAuthClient, AuthClient>();
+        services.AddScoped<IMapClient, MapClient>();
+        services.AddScoped<IRouteClient, RouteClient>();
+        services.AddScoped<IStationClient, StationClient>();
 
         return services;
     }
