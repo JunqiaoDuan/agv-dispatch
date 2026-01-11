@@ -61,10 +61,14 @@ public class MapsController : ControllerBase
         {
             var nodeCount = await _nodeRepository.CountAsync(new MapNodeCountSpec(map.Id));
             var edgeCount = await _edgeRepository.CountAsync(new MapEdgeCountSpec(map.Id));
+            var routeCount = await _routeRepository.CountAsync(new RouteByMapIdSpec(map.Id));
+            var stationCount = await _stationRepository.CountAsync(new StationCountSpec(map.Id));
 
             var dto = map.MapTo<MapListItemDto>();
             dto.NodeCount = nodeCount;
             dto.EdgeCount = edgeCount;
+            dto.RouteCount = routeCount;
+            dto.StationCount = stationCount;
             items.Add(dto);
         }
 

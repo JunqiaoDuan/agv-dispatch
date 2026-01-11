@@ -15,5 +15,7 @@ public class MapListItemDto
     public int SortNo { get; set; }
     public int NodeCount { get; set; }
     public int EdgeCount { get; set; }
+    public int RouteCount { get; set; }
+    public int StationCount { get; set; }
     public DateTimeOffset? CreationDate { get; set; }
 }

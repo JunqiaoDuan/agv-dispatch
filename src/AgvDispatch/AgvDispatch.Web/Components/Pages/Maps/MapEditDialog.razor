@@ -1,0 +1,229 @@
+@using AgvDispatch.Shared.DTOs.Maps
+@using AgvDispatch.Web.Services
+@inject IMapClient MapClient
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formValid">
+            <MudStack Spacing="3">
+                @if (!IsEdit)
+                {
+                    <MudTextField @bind-Value="_model.MapCode"
+                                  Label="地图编号"
+                                  Placeholder="例如: M001"
+                                  Required="true"
+                                  RequiredError="请输入地图编号"
+                                  Disabled="_loadingCode"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Refresh"
+                                  OnAdornmentClick="GenerateNextCode" />
+                }
+                else
+                {
+                    <MudTextField Value="@_model.MapCode"
+                                  Label="地图编号"
+                                  Disabled="true" />
+                }
+
+                <MudTextField @bind-Value="_model.DisplayName"
+                              Label="地图名称"
+                              Placeholder="例如: 主车间"
+                              Required="true"
+                              RequiredError="请输入地图名称" />
+
+                <MudStack Row="true" Spacing="2">
+                    <MudNumericField @bind-Value="_model.Width"
+                                     Label="宽度(cm)"
+                                     Min="1"
+                                     Required="true"
+                                     RequiredError="请输入宽度" />
+                    <MudNumericField @bind-Value="_model.Height"
+                                     Label="高度(cm)"
+                                     Min="1"
+                                     Required="true"
+                                     RequiredError="请输入高度" />
+                </MudStack>
+
+                <MudNumericField @bind-Value="_model.SortNo"
+                                 Label="排序号"
+                                 Min="0" />
+
+                @if (IsEdit)
+                {
+                    <MudSwitch @bind-Value="_model.IsActive"
+                               Label="启用状态"
+                               Color="Color.Success" />
+                }
+
+                <MudTextField @bind-Value="_model.Description"
+                              Label="描述"
+                              Lines="2" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">取消</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(!_formValid || _saving)"
+                   OnClick="Submit">
+            @if (_saving)
+            {
+                <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+            }
+            @(IsEdit ? "保存" : "创建")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    [Parameter]
+    public Guid? MapId { get; set; }
+
+    private MudForm? _form;
+    private bool _formValid;
+    private bool _saving;
+    private bool _loadingCode;
+    private MapFormModel _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEdit && MapId.HasValue)
+        {
+            await LoadMap();
+        }
+        else
+        {
+            _model.Width = 10000;
+            _model.Height = 8000;
+            await GenerateNextCode();
+        }
+    }
+
+    private async Task LoadMap()
+    {
+        try
+        {
+            var map = await MapClient.GetByIdAsync(MapId!.Value);
+            if (map != null)
+            {
+                _model = new MapFormModel
+                {
+                    MapCode = map.MapCode,
+                    DisplayName = map.DisplayName,
+                    Description = map.Description,
+                    Width = map.Width,
+                    Height = map.Height,
+                    IsActive = map.IsActive,
+                    SortNo = map.SortNo
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task GenerateNextCode()
+    {
+        if (IsEdit) return;
+
+        _loadingCode = true;
+        try
+        {
+            var code = await MapClient.GetNextCodeAsync();
+            if (code != null)
+            {
+                _model.MapCode = code;
+            }
+        }
+        catch
+        {
+            // 忽略错误
+        }
+        finally
+        {
+            _loadingCode = false;
+        }
+    }
+
+    private async Task Submit()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formValid) return;
+        }
+
+        _saving = true;
+        try
+        {
+            string? error;
+
+            if (IsEdit && MapId.HasValue)
+            {
+                var request = new UpdateMapRequest
+                {
+                    DisplayName = _model.DisplayName,
+                    Description = _model.Description,
+                    Width = _model.Width,
+                    Height = _model.Height,
+                    IsActive = _model.IsActive,
+                    SortNo = _model.SortNo
+                };
+                error = await MapClient.UpdateAsync(MapId.Value, request);
+            }
+            else
+            {
+                var request = new CreateMapRequest
+                {
+                    MapCode = _model.MapCode,
+                    DisplayName = _model.DisplayName,
+                    Description = _model.Description,
+                    Width = _model.Width,
+                    Height = _model.Height,
+                    SortNo = _model.SortNo
+                };
+                error = await MapClient.CreateAsync(request);
+            }
+
+            if (error == null)
+            {
+                MudDialog?.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"操作失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+
+    private class MapFormModel
+    {
+        public string MapCode { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public decimal Width { get; set; }
+        public decimal Height { get; set; }
+        public bool IsActive { get; set; } = true;
+        public int SortNo { get; set; }
+    }
+}
