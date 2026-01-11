@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/docs/">
+    <File Path="../../docs/方案-地图配置与路线管理.md" />
+    <File Path="../../docs/方案-架构设计.md" />
+    <File Path="../../docs/方案-用户登录.md" />
+  </Folder>
   <Project Path="AgvDispatch.Business/AgvDispatch.Business.csproj" Id="10df560b-0b9b-49d9-a232-33bebaed7fc8" />
   <Project Path="AgvDispatch.DbUpper/AgvDispatch.DbUpper.csproj" Id="4a8c879b-42cd-440b-87f8-d2da18625c21" />
   <Project Path="AgvDispatch.Host/AgvDispatch.Host.csproj" />
