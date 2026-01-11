@@ -33,5 +33,23 @@ public enum StationType
     /// 交叉口防撞等待点
     /// </summary>
     Intersection = 90,
+}
 
+/// <summary>
+/// StationType 扩展方法
+/// </summary>
+public static class StationTypeExtensions
+{
+    /// <summary>
+    /// 获取站点类型显示文本
+    /// </summary>
+    public static string ToDisplayText(this StationType type) => type switch
+    {
+        StationType.Pickup => "取货点",
+        StationType.Dropoff => "卸货点",
+        StationType.Charge => "充电站",
+        StationType.Standby => "待命点",
+        StationType.Intersection => "交叉口等待点",
+        _ => "未知"
+    };
 }

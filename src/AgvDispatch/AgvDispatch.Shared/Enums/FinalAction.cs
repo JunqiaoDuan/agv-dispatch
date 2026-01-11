@@ -25,3 +25,21 @@ public enum FinalAction
     /// </summary>
     Unload = 30,
 }
+
+/// <summary>
+/// FinalAction 扩展方法
+/// </summary>
+public static class FinalActionExtensions
+{
+    /// <summary>
+    /// 获取动作显示文本
+    /// </summary>
+    public static string ToDisplayText(this FinalAction action) => action switch
+    {
+        FinalAction.None => "无动作",
+        FinalAction.Stop => "停车",
+        FinalAction.Load => "装货",
+        FinalAction.Unload => "卸货",
+        _ => "未知"
+    };
+}

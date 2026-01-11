@@ -15,3 +15,19 @@ public enum EdgeType
     /// </summary>
     Arc = 20,
 }
+
+/// <summary>
+/// EdgeType 扩展方法
+/// </summary>
+public static class EdgeTypeExtensions
+{
+    /// <summary>
+    /// 获取边类型显示文本
+    /// </summary>
+    public static string ToDisplayText(this EdgeType type) => type switch
+    {
+        EdgeType.Line => "直线",
+        EdgeType.Arc => "弧线",
+        _ => "未知"
+    };
+}

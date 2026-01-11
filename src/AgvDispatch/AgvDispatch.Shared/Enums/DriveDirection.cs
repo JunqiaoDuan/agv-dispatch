@@ -15,3 +15,19 @@ public enum DriveDirection
     /// </summary>
     Backward = 2,
 }
+
+/// <summary>
+/// DriveDirection 扩展方法
+/// </summary>
+public static class DriveDirectionExtensions
+{
+    /// <summary>
+    /// 获取行驶方向显示文本
+    /// </summary>
+    public static string ToDisplayText(this DriveDirection direction) => direction switch
+    {
+        DriveDirection.Forward => "正向",
+        DriveDirection.Backward => "反向",
+        _ => "未知"
+    };
+}
