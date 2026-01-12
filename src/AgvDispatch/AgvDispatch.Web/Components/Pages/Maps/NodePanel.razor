@@ -1,0 +1,384 @@
+@using AgvDispatch.Shared.DTOs.MapNodes
+@using AgvDispatch.Web.Services
+@inject IMapClient MapClient
+@inject ISnackbar Snackbar
+
+<div class="panel-section-header">
+    <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+        <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+        @GetTitle()
+    </MudText>
+    @if (Mode != PanelMode.Create)
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                       Size="Size.Small"
+                       OnClick="OnClose" />
+    }
+</div>
+
+@if (Mode == PanelMode.View && Node != null)
+{
+    @* 查看模式 *@
+    <MudStack Spacing="2" Class="mt-2">
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">编号</MudText>
+            <MudText Typo="Typo.body2"><strong>@Node.NodeCode</strong></MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">名称</MudText>
+            <MudText Typo="Typo.body2">@Node.DisplayName</MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">坐标</MudText>
+            <MudText Typo="Typo.body2">(@Node.X.ToString("F0"), @Node.Y.ToString("F0")) cm</MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">排序号</MudText>
+            <MudText Typo="Typo.body2">@Node.SortNo</MudText>
+        </div>
+        @if (!string.IsNullOrEmpty(Node.Remark))
+        {
+            <div class="info-row">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">备注</MudText>
+                <MudText Typo="Typo.body2">@Node.Remark</MudText>
+            </div>
+        }
+
+        <MudDivider Class="my-2" />
+
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Edit"
+                       OnClick="SwitchToEdit">
+                编辑
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Error"
+                       Size="Size.Small"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="Delete">
+                删除
+            </MudButton>
+        </MudStack>
+    </MudStack>
+}
+else
+{
+    @* 新建/编辑模式 *@
+    <MudForm @ref="_form" @bind-IsValid="_formValid" Class="mt-2">
+        <MudStack Spacing="3">
+            @if (Mode == PanelMode.Create)
+            {
+                <MudTextField @bind-Value="_model.NodeCode"
+                              Label="节点编号"
+                              Placeholder="例如: N001"
+                              Required="true"
+                              RequiredError="请输入节点编号"
+                              Disabled="_loadingCode"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.Refresh"
+                              OnAdornmentClick="GenerateNextCode" />
+            }
+            else
+            {
+                <MudTextField Value="@_model.NodeCode"
+                              Label="节点编号"
+                              Disabled="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            }
+
+            <MudTextField @bind-Value="_model.DisplayName"
+                          Label="节点名称"
+                          Placeholder="例如: 入口点"
+                          Required="true"
+                          RequiredError="请输入节点名称"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense" />
+
+            <MudStack Row="true" Spacing="2">
+                <MudNumericField @bind-Value="_model.X"
+                                 Label="X坐标(cm)"
+                                 Required="true"
+                                 RequiredError="请输入X坐标"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense" />
+                <MudNumericField @bind-Value="_model.Y"
+                                 Label="Y坐标(cm)"
+                                 Required="true"
+                                 RequiredError="请输入Y坐标"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense" />
+            </MudStack>
+
+            <MudNumericField @bind-Value="_model.SortNo"
+                             Label="排序号"
+                             Min="0"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense" />
+
+            <MudTextField @bind-Value="_model.Remark"
+                          Label="备注"
+                          Lines="2"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense" />
+
+            <MudDivider Class="my-1" />
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           FullWidth="true"
+                           Disabled="@(!_formValid || _saving)"
+                           OnClick="Save">
+                    @if (_saving)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    }
+                    @(Mode == PanelMode.Create ? "创建" : "保存")
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Default"
+                           Size="Size.Small"
+                           FullWidth="true"
+                           OnClick="Cancel">
+                    取消
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudForm>
+}
+
+<style>
+    .info-row {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public PanelMode Mode { get; set; } = PanelMode.View;
+
+    [Parameter]
+    public Guid MapId { get; set; }
+
+    [Parameter]
+    public MapNodeListItemDto? Node { get; set; }
+
+    [Parameter]
+    public decimal? InitialX { get; set; }
+
+    [Parameter]
+    public decimal? InitialY { get; set; }
+
+    [Parameter]
+    public EventCallback OnSaved { get; set; }
+
+    [Parameter]
+    public EventCallback OnDeleted { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelled { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private MudForm? _form;
+    private bool _formValid;
+    private bool _saving;
+    private bool _loadingCode;
+    private NodeFormModel _model = new();
+    private PanelMode _currentMode;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // 当模式或节点变化时重新初始化
+        if (_currentMode != Mode 
+            || (Mode == PanelMode.Edit && Node != null && _model.NodeCode != Node.NodeCode))
+        {
+            _currentMode = Mode;
+            await InitializeModel();
+        }
+    }
+
+    private async Task InitializeModel()
+    {
+        if (Mode == PanelMode.Edit && Node != null)
+        {
+            _model = new NodeFormModel
+            {
+                NodeCode = Node.NodeCode,
+                DisplayName = Node.DisplayName,
+                X = Node.X,
+                Y = Node.Y,
+                Remark = Node.Remark,
+                SortNo = Node.SortNo
+            };
+        }
+        else if (Mode == PanelMode.Create)
+        {
+            _model = new NodeFormModel
+            {
+                X = InitialX ?? 0,
+                Y = InitialY ?? 0
+            };
+            await GenerateNextCode();
+        }
+    }
+
+    private string GetTitle() => Mode switch
+    {
+        PanelMode.Create => "新建节点",
+        PanelMode.Edit => "编辑节点",
+        _ => "节点属性"
+    };
+
+    private void SwitchToEdit()
+    {
+        if (Node != null)
+        {
+            _model = new NodeFormModel
+            {
+                NodeCode = Node.NodeCode,
+                DisplayName = Node.DisplayName,
+                X = Node.X,
+                Y = Node.Y,
+                Remark = Node.Remark,
+                SortNo = Node.SortNo
+            };
+            _currentMode = PanelMode.Edit;
+            Mode = PanelMode.Edit;
+        }
+    }
+
+    private async Task GenerateNextCode()
+    {
+        if (Mode != PanelMode.Create) return;
+
+        _loadingCode = true;
+        try
+        {
+            var code = await MapClient.GetNextNodeCodeAsync(MapId);
+            if (code != null)
+            {
+                _model.NodeCode = code;
+                if (string.IsNullOrEmpty(_model.DisplayName))
+                {
+                    _model.DisplayName = code;
+                }
+            }
+        }
+        catch
+        {
+            // 忽略错误
+        }
+        finally
+        {
+            _loadingCode = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formValid) return;
+        }
+
+        _saving = true;
+        try
+        {
+            string? error;
+
+            if (Mode == PanelMode.Edit && Node != null)
+            {
+                var request = new UpdateMapNodeRequest
+                {
+                    DisplayName = _model.DisplayName,
+                    X = _model.X,
+                    Y = _model.Y,
+                    Remark = _model.Remark,
+                    SortNo = _model.SortNo
+                };
+                error = await MapClient.UpdateNodeAsync(MapId, Node.Id, request);
+            }
+            else
+            {
+                var request = new CreateMapNodeRequest
+                {
+                    NodeCode = _model.NodeCode,
+                    DisplayName = _model.DisplayName,
+                    X = _model.X,
+                    Y = _model.Y,
+                    Remark = _model.Remark,
+                    SortNo = _model.SortNo
+                };
+                error = await MapClient.CreateNodeAsync(MapId, request);
+            }
+
+            if (error == null)
+            {
+                Snackbar.Add(Mode == PanelMode.Create ? "节点创建成功" : "节点更新成功", Severity.Success);
+                await OnSaved.InvokeAsync();
+            }
+            else
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"操作失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task Cancel()
+    {
+        if (Mode == PanelMode.Edit && Node != null)
+        {
+            // 编辑模式取消回到查看模式
+            _currentMode = PanelMode.View;
+            Mode = PanelMode.View;
+        }
+        else
+        {
+            await OnCancelled.InvokeAsync();
+        }
+    }
+
+    private async Task Delete()
+    {
+        await OnDeleted.InvokeAsync();
+    }
+
+    private class NodeFormModel
+    {
+        public string NodeCode { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public decimal X { get; set; }
+        public decimal Y { get; set; }
+        public string? Remark { get; set; }
+        public int SortNo { get; set; }
+    }
+
+    public enum PanelMode
+    {
+        View,
+        Create,
+        Edit
+    }
+}

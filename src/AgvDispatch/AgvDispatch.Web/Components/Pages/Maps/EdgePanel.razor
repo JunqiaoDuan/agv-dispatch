@@ -1,0 +1,444 @@
+@using AgvDispatch.Shared.DTOs.MapEdges
+@using AgvDispatch.Shared.DTOs.MapNodes
+@using AgvDispatch.Shared.Enums
+@using AgvDispatch.Web.Services
+@inject IMapClient MapClient
+@inject ISnackbar Snackbar
+
+<div class="panel-section-header">
+    <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+        <MudIcon Icon="@Icons.Material.Filled.Timeline" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+        @GetTitle()
+    </MudText>
+    @if (Mode != PanelMode.Create)
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                       Size="Size.Small"
+                       OnClick="OnClose" />
+    }
+</div>
+
+@if (Mode == PanelMode.View && Edge != null)
+{
+    @* 查看模式 *@
+    <MudStack Spacing="2" Class="mt-2">
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">编号</MudText>
+            <MudText Typo="Typo.body2"><strong>@Edge.EdgeCode</strong></MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">起点</MudText>
+            <MudText Typo="Typo.body2">@Edge.StartNodeCode</MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">终点</MudText>
+            <MudText Typo="Typo.body2">@Edge.EndNodeCode</MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">类型</MudText>
+            <MudText Typo="Typo.body2">@Edge.EdgeType.ToDisplayText()</MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">双向</MudText>
+            <MudText Typo="Typo.body2">@(Edge.IsBidirectional ? "是" : "否")</MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">距离</MudText>
+            <MudText Typo="Typo.body2">@Edge.Distance.ToString("F0") cm</MudText>
+        </div>
+        @if (Edge.EdgeType == EdgeType.Arc && Edge.ArcViaX.HasValue && Edge.ArcViaY.HasValue)
+        {
+            <div class="info-row">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">弧线经过点</MudText>
+                <MudText Typo="Typo.body2">(@Edge.ArcViaX.Value.ToString("F0"), @Edge.ArcViaY.Value.ToString("F0")) cm</MudText>
+            </div>
+        }
+
+        <MudDivider Class="my-2" />
+
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Edit"
+                       OnClick="SwitchToEdit">
+                编辑
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Error"
+                       Size="Size.Small"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="Delete">
+                删除
+            </MudButton>
+        </MudStack>
+    </MudStack>
+}
+else
+{
+    @* 新建/编辑模式 *@
+    <MudForm @ref="_form" @bind-IsValid="_formValid" Class="mt-2">
+        <MudStack Spacing="3">
+            @if (Mode == PanelMode.Create)
+            {
+                <MudTextField @bind-Value="_model.EdgeCode"
+                              Label="边编号"
+                              Placeholder="例如: E001"
+                              Required="true"
+                              RequiredError="请输入边编号"
+                              Disabled="_loadingCode"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.Refresh"
+                              OnAdornmentClick="GenerateNextCode" />
+
+                <MudSelect T="Guid?" @bind-Value="_model.StartNodeId"
+                           Label="起点节点"
+                           Placeholder="请选择起点节点"
+                           Required="true"
+                           RequiredError="请选择起点节点"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    @foreach (var node in Nodes)
+                    {
+                        <MudSelectItem T="Guid?" Value="@node.Id">
+                            @node.NodeCode - @node.DisplayName
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="Guid?" @bind-Value="_model.EndNodeId"
+                           Label="终点节点"
+                           Placeholder="请选择终点节点"
+                           Required="true"
+                           RequiredError="请选择终点节点"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    @foreach (var node in Nodes)
+                    {
+                        <MudSelectItem T="Guid?" Value="@node.Id">
+                            @node.NodeCode - @node.DisplayName
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else
+            {
+                <MudTextField Value="@_model.EdgeCode"
+                              Label="边编号"
+                              Disabled="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+                <MudTextField Value="@GetNodeDisplay(_model.StartNodeId)"
+                              Label="起点节点"
+                              Disabled="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+                <MudTextField Value="@GetNodeDisplay(_model.EndNodeId)"
+                              Label="终点节点"
+                              Disabled="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            }
+
+            <MudSelect T="EdgeType" @bind-Value="_model.EdgeType"
+                       Label="边类型"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense">
+                <MudSelectItem T="EdgeType" Value="EdgeType.Line">直线</MudSelectItem>
+                <MudSelectItem T="EdgeType" Value="EdgeType.Arc">弧线</MudSelectItem>
+            </MudSelect>
+
+            <MudSwitch @bind-Value="_model.IsBidirectional"
+                       Label="双向通行"
+                       Color="Color.Primary" />
+
+            @if (_model.EdgeType == EdgeType.Arc)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-2">弧线经过点坐标</MudText>
+                <MudStack Row="true" Spacing="2">
+                    <MudNumericField @bind-Value="_model.ArcViaX"
+                                     Label="经过点X(cm)"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                    <MudNumericField @bind-Value="_model.ArcViaY"
+                                     Label="经过点Y(cm)"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                </MudStack>
+            }
+
+            <MudDivider Class="my-1" />
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           FullWidth="true"
+                           Disabled="@(!_formValid || _saving)"
+                           OnClick="Save">
+                    @if (_saving)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    }
+                    @(Mode == PanelMode.Create ? "创建" : "保存")
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Default"
+                           Size="Size.Small"
+                           FullWidth="true"
+                           OnClick="Cancel">
+                    取消
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudForm>
+}
+
+<style>
+    .info-row {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public PanelMode Mode { get; set; } = PanelMode.View;
+
+    [Parameter]
+    public Guid MapId { get; set; }
+
+    [Parameter]
+    public MapEdgeListItemDto? Edge { get; set; }
+
+    [Parameter]
+    public List<MapNodeListItemDto> Nodes { get; set; } = [];
+
+    [Parameter]
+    public Guid? InitialStartNodeId { get; set; }
+
+    [Parameter]
+    public Guid? InitialEndNodeId { get; set; }
+
+    [Parameter]
+    public EventCallback OnSaved { get; set; }
+
+    [Parameter]
+    public EventCallback OnDeleted { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelled { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private MudForm? _form;
+    private bool _formValid;
+    private bool _saving;
+    private bool _loadingCode;
+    private EdgeFormModel _model = new();
+    private PanelMode _currentMode;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_currentMode != Mode || (Mode == PanelMode.Edit && Edge != null && _model.EdgeCode != Edge.EdgeCode))
+        {
+            _currentMode = Mode;
+            await InitializeModel();
+        }
+    }
+
+    private async Task InitializeModel()
+    {
+        if (Mode == PanelMode.Edit && Edge != null)
+        {
+            _model = new EdgeFormModel
+            {
+                EdgeCode = Edge.EdgeCode,
+                StartNodeId = Edge.StartNodeId,
+                EndNodeId = Edge.EndNodeId,
+                EdgeType = Edge.EdgeType,
+                IsBidirectional = Edge.IsBidirectional,
+                ArcViaX = Edge.ArcViaX,
+                ArcViaY = Edge.ArcViaY
+            };
+        }
+        else if (Mode == PanelMode.Create)
+        {
+            _model = new EdgeFormModel
+            {
+                StartNodeId = InitialStartNodeId,
+                EndNodeId = InitialEndNodeId
+            };
+            await GenerateNextCode();
+        }
+    }
+
+    private string GetTitle() => Mode switch
+    {
+        PanelMode.Create => "新建边",
+        PanelMode.Edit => "编辑边",
+        _ => "边属性"
+    };
+
+    private string GetNodeDisplay(Guid? nodeId)
+    {
+        if (nodeId == null) return "";
+        var node = Nodes.FirstOrDefault(n => n.Id == nodeId.Value);
+        return node != null ? $"{node.NodeCode} - {node.DisplayName}" : "";
+    }
+
+    private void SwitchToEdit()
+    {
+        if (Edge != null)
+        {
+            _model = new EdgeFormModel
+            {
+                EdgeCode = Edge.EdgeCode,
+                StartNodeId = Edge.StartNodeId,
+                EndNodeId = Edge.EndNodeId,
+                EdgeType = Edge.EdgeType,
+                IsBidirectional = Edge.IsBidirectional,
+                ArcViaX = Edge.ArcViaX,
+                ArcViaY = Edge.ArcViaY
+            };
+            _currentMode = PanelMode.Edit;
+            Mode = PanelMode.Edit;
+        }
+    }
+
+    private async Task GenerateNextCode()
+    {
+        if (Mode != PanelMode.Create) return;
+
+        _loadingCode = true;
+        try
+        {
+            var code = await MapClient.GetNextEdgeCodeAsync(MapId);
+            if (code != null)
+            {
+                _model.EdgeCode = code;
+            }
+        }
+        catch
+        {
+            // 忽略错误
+        }
+        finally
+        {
+            _loadingCode = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formValid) return;
+        }
+
+        if (Mode == PanelMode.Create && _model.StartNodeId == _model.EndNodeId)
+        {
+            Snackbar.Add("起点和终点不能相同", Severity.Warning);
+            return;
+        }
+
+        if (Mode == PanelMode.Create && (_model.StartNodeId == null || _model.EndNodeId == null))
+        {
+            Snackbar.Add("请选择起点和终点节点", Severity.Warning);
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            string? error;
+
+            if (Mode == PanelMode.Edit && Edge != null)
+            {
+                var request = new UpdateMapEdgeRequest
+                {
+                    EdgeType = _model.EdgeType,
+                    IsBidirectional = _model.IsBidirectional,
+                    ArcViaX = _model.ArcViaX,
+                    ArcViaY = _model.ArcViaY
+                };
+                error = await MapClient.UpdateEdgeAsync(MapId, Edge.Id, request);
+            }
+            else
+            {
+                var request = new CreateMapEdgeRequest
+                {
+                    EdgeCode = _model.EdgeCode,
+                    StartNodeId = _model.StartNodeId!.Value,
+                    EndNodeId = _model.EndNodeId!.Value,
+                    EdgeType = _model.EdgeType,
+                    IsBidirectional = _model.IsBidirectional,
+                    ArcViaX = _model.ArcViaX,
+                    ArcViaY = _model.ArcViaY
+                };
+                error = await MapClient.CreateEdgeAsync(MapId, request);
+            }
+
+            if (error == null)
+            {
+                Snackbar.Add(Mode == PanelMode.Create ? "边创建成功" : "边更新成功", Severity.Success);
+                await OnSaved.InvokeAsync();
+            }
+            else
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"操作失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task Cancel()
+    {
+        if (Mode == PanelMode.Edit && Edge != null)
+        {
+            _currentMode = PanelMode.View;
+            Mode = PanelMode.View;
+        }
+        else
+        {
+            await OnCancelled.InvokeAsync();
+        }
+    }
+
+    private async Task Delete()
+    {
+        await OnDeleted.InvokeAsync();
+    }
+
+    private class EdgeFormModel
+    {
+        public string EdgeCode { get; set; } = string.Empty;
+        public Guid? StartNodeId { get; set; }
+        public Guid? EndNodeId { get; set; }
+        public EdgeType EdgeType { get; set; } = EdgeType.Line;
+        public bool IsBidirectional { get; set; } = true;
+        public decimal? ArcViaX { get; set; }
+        public decimal? ArcViaY { get; set; }
+    }
+
+    public enum PanelMode
+    {
+        View,
+        Create,
+        Edit
+    }
+}

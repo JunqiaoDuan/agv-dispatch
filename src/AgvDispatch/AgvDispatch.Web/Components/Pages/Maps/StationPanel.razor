@@ -1,0 +1,420 @@
+@using AgvDispatch.Shared.DTOs.MapNodes
+@using AgvDispatch.Shared.DTOs.Stations
+@using AgvDispatch.Shared.Enums
+@using AgvDispatch.Web.Services
+@inject IStationClient StationClient
+@inject ISnackbar Snackbar
+
+<div class="panel-section-header">
+    <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+        <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+        @GetTitle()
+    </MudText>
+    @if (Mode != PanelMode.Create)
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                       Size="Size.Small"
+                       OnClick="OnClose" />
+    }
+</div>
+
+@if (Mode == PanelMode.View && Station != null)
+{
+    @* 查看模式 *@
+    <MudStack Spacing="2" Class="mt-2">
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">编号</MudText>
+            <MudText Typo="Typo.body2"><strong>@Station.StationCode</strong></MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">名称</MudText>
+            <MudText Typo="Typo.body2">@Station.DisplayName</MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">类型</MudText>
+            <MudChip T="string" Size="Size.Small" Color="@GetStationTypeColor(Station.StationType)">
+                @Station.StationType.ToDisplayText()
+            </MudChip>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">关联节点</MudText>
+            <MudText Typo="Typo.body2">@Station.NodeCode</MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">坐标</MudText>
+            <MudText Typo="Typo.body2">(@Station.X.ToString("F0"), @Station.Y.ToString("F0")) cm</MudText>
+        </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">排序号</MudText>
+            <MudText Typo="Typo.body2">@Station.SortNo</MudText>
+        </div>
+        @if (!string.IsNullOrEmpty(Station.Description))
+        {
+            <div class="info-row">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">描述</MudText>
+                <MudText Typo="Typo.body2">@Station.Description</MudText>
+            </div>
+        }
+
+        <MudDivider Class="my-2" />
+
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Edit"
+                       OnClick="SwitchToEdit">
+                编辑
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Error"
+                       Size="Size.Small"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="Delete">
+                删除
+            </MudButton>
+        </MudStack>
+    </MudStack>
+}
+else
+{
+    @* 新建/编辑模式 *@
+    <MudForm @ref="_form" @bind-IsValid="_formValid" Class="mt-2">
+        <MudStack Spacing="3">
+            @if (Mode == PanelMode.Create)
+            {
+                <MudTextField @bind-Value="_model.StationCode"
+                              Label="站点编号"
+                              Placeholder="例如: S001"
+                              Required="true"
+                              RequiredError="请输入站点编号"
+                              Disabled="_loadingCode"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.Refresh"
+                              OnAdornmentClick="GenerateNextCode" />
+            }
+            else
+            {
+                <MudTextField Value="@_model.StationCode"
+                              Label="站点编号"
+                              Disabled="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            }
+
+            <MudTextField @bind-Value="_model.DisplayName"
+                          Label="站点名称"
+                          Placeholder="例如: 取料站A"
+                          Required="true"
+                          RequiredError="请输入站点名称"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense" />
+
+            <MudSelect T="StationType" @bind-Value="_model.StationType"
+                       Label="站点类型"
+                       Required="true"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense">
+                <MudSelectItem T="StationType" Value="StationType.Pickup">取货点</MudSelectItem>
+                <MudSelectItem T="StationType" Value="StationType.Dropoff">卸货点</MudSelectItem>
+                <MudSelectItem T="StationType" Value="StationType.Charge">充电站</MudSelectItem>
+                <MudSelectItem T="StationType" Value="StationType.Standby">待命点</MudSelectItem>
+                <MudSelectItem T="StationType" Value="StationType.Intersection">交叉口等待点</MudSelectItem>
+            </MudSelect>
+
+            @if (Mode == PanelMode.Create)
+            {
+                <MudSelect T="Guid" @bind-Value="_model.NodeId"
+                           Label="关联节点"
+                           Required="true"
+                           RequiredError="请选择关联节点"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    @foreach (var node in Nodes)
+                    {
+                        <MudSelectItem T="Guid" Value="node.Id">
+                            @node.NodeCode - @node.DisplayName (@node.X.ToString("F0"), @node.Y.ToString("F0"))
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else
+            {
+                <MudTextField Value="@_selectedNodeDisplay"
+                              Label="关联节点"
+                              Disabled="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            }
+
+            <MudNumericField @bind-Value="_model.SortNo"
+                             Label="排序号"
+                             Min="0"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense" />
+
+            <MudTextField @bind-Value="_model.Description"
+                          Label="描述"
+                          Lines="2"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense" />
+
+            <MudDivider Class="my-1" />
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           FullWidth="true"
+                           Disabled="@(!_formValid || _saving)"
+                           OnClick="Save">
+                    @if (_saving)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    }
+                    @(Mode == PanelMode.Create ? "创建" : "保存")
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Default"
+                           Size="Size.Small"
+                           FullWidth="true"
+                           OnClick="Cancel">
+                    取消
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudForm>
+}
+
+<style>
+    .info-row {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public PanelMode Mode { get; set; } = PanelMode.View;
+
+    [Parameter]
+    public Guid MapId { get; set; }
+
+    [Parameter]
+    public StationListItemDto? Station { get; set; }
+
+    [Parameter]
+    public List<MapNodeListItemDto> Nodes { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnSaved { get; set; }
+
+    [Parameter]
+    public EventCallback OnDeleted { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelled { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private MudForm? _form;
+    private bool _formValid;
+    private bool _saving;
+    private bool _loadingCode;
+    private StationFormModel _model = new();
+    private string _selectedNodeDisplay = string.Empty;
+    private PanelMode _currentMode;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_currentMode != Mode || (Mode == PanelMode.Edit && Station != null && _model.StationCode != Station.StationCode))
+        {
+            _currentMode = Mode;
+            await InitializeModel();
+        }
+    }
+
+    private async Task InitializeModel()
+    {
+        if (Mode == PanelMode.Edit && Station != null)
+        {
+            _model = new StationFormModel
+            {
+                StationCode = Station.StationCode,
+                DisplayName = Station.DisplayName,
+                StationType = Station.StationType,
+                NodeId = Station.NodeId,
+                Description = Station.Description,
+                SortNo = Station.SortNo
+            };
+            _selectedNodeDisplay = $"{Station.NodeCode} - {Station.NodeName}";
+        }
+        else if (Mode == PanelMode.Create)
+        {
+            _model = new StationFormModel();
+            await GenerateNextCode();
+            if (Nodes.Count > 0)
+            {
+                _model.NodeId = Nodes[0].Id;
+            }
+        }
+    }
+
+    private string GetTitle() => Mode switch
+    {
+        PanelMode.Create => "新建站点",
+        PanelMode.Edit => "编辑站点",
+        _ => "站点属性"
+    };
+
+    private void SwitchToEdit()
+    {
+        if (Station != null)
+        {
+            _model = new StationFormModel
+            {
+                StationCode = Station.StationCode,
+                DisplayName = Station.DisplayName,
+                StationType = Station.StationType,
+                NodeId = Station.NodeId,
+                Description = Station.Description,
+                SortNo = Station.SortNo
+            };
+            _selectedNodeDisplay = $"{Station.NodeCode} - {Station.NodeName}";
+            _currentMode = PanelMode.Edit;
+            Mode = PanelMode.Edit;
+        }
+    }
+
+    private async Task GenerateNextCode()
+    {
+        if (Mode != PanelMode.Create) return;
+
+        _loadingCode = true;
+        try
+        {
+            var code = await StationClient.GetNextCodeAsync(MapId);
+            if (code != null)
+            {
+                _model.StationCode = code;
+            }
+        }
+        catch
+        {
+            // 忽略错误
+        }
+        finally
+        {
+            _loadingCode = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_formValid) return;
+        }
+
+        _saving = true;
+        try
+        {
+            string? error;
+
+            if (Mode == PanelMode.Edit && Station != null)
+            {
+                var request = new UpdateStationRequest
+                {
+                    DisplayName = _model.DisplayName,
+                    StationType = _model.StationType,
+                    Description = _model.Description,
+                    SortNo = _model.SortNo
+                };
+                error = await StationClient.UpdateAsync(MapId, Station.Id, request);
+            }
+            else
+            {
+                var request = new CreateStationRequest
+                {
+                    NodeId = _model.NodeId,
+                    StationCode = _model.StationCode,
+                    DisplayName = _model.DisplayName,
+                    StationType = _model.StationType,
+                    Description = _model.Description,
+                    SortNo = _model.SortNo
+                };
+                error = await StationClient.CreateAsync(MapId, request);
+            }
+
+            if (error == null)
+            {
+                Snackbar.Add(Mode == PanelMode.Create ? "站点创建成功" : "站点更新成功", Severity.Success);
+                await OnSaved.InvokeAsync();
+            }
+            else
+            {
+                Snackbar.Add(error, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"操作失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task Cancel()
+    {
+        if (Mode == PanelMode.Edit && Station != null)
+        {
+            _currentMode = PanelMode.View;
+            Mode = PanelMode.View;
+        }
+        else
+        {
+            await OnCancelled.InvokeAsync();
+        }
+    }
+
+    private async Task Delete()
+    {
+        await OnDeleted.InvokeAsync();
+    }
+
+    private static Color GetStationTypeColor(StationType type) => type switch
+    {
+        StationType.Pickup => Color.Success,
+        StationType.Dropoff => Color.Warning,
+        StationType.Charge => Color.Info,
+        StationType.Standby => Color.Default,
+        StationType.Intersection => Color.Secondary,
+        _ => Color.Default
+    };
+
+    private class StationFormModel
+    {
+        public string StationCode { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public StationType StationType { get; set; } = StationType.Pickup;
+        public Guid NodeId { get; set; }
+        public string? Description { get; set; }
+        public int SortNo { get; set; }
+    }
+
+    public enum PanelMode
+    {
+        View,
+        Create,
+        Edit
+    }
+}

@@ -49,7 +49,7 @@ public class MapRenderOptions
     /// <summary>
     /// 节点半径
     /// </summary>
-    public float NodeRadius { get; set; } = 6f;
+    public float NodeRadius { get; set; } = 1f;
 
     /// <summary>
     /// 节点颜色
