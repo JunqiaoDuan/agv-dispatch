@@ -1063,7 +1063,8 @@
         {
             await Task.Yield(); // 让 UI 更新
 
-            var result = _validator.Validate(_nodes, _edges);
+            // 传递 map 和 stations 参数以启用新增的验证
+            var result = _validator.Validate(_nodes, _edges, _map, _stations);
 
             var parameters = new DialogParameters<MapValidationDialog>
             {

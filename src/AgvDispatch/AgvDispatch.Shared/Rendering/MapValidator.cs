@@ -1,5 +1,8 @@
 using AgvDispatch.Shared.DTOs.MapEdges;
 using AgvDispatch.Shared.DTOs.MapNodes;
+using AgvDispatch.Shared.DTOs.Maps;
+using AgvDispatch.Shared.DTOs.Stations;
+using AgvDispatch.Shared.Enums;
 
 namespace AgvDispatch.Shared.Rendering;
 
@@ -11,7 +14,11 @@ public class MapValidator
     /// <summary>
     /// 验证地图
     /// </summary>
-    public MapValidationResult Validate(List<MapNodeListItemDto> nodes, List<MapEdgeListItemDto> edges)
+    public MapValidationResult Validate(
+        List<MapNodeListItemDto> nodes,
+        List<MapEdgeListItemDto> edges,
+        MapDetailDto? map = null,
+        List<StationListItemDto>? stations = null)
     {
         var result = new MapValidationResult
         {
@@ -26,11 +33,36 @@ public class MapValidator
         ValidateSelfLoopEdges(edges, result);
         ValidateDuplicateEdges(edges, result);
 
+        // 新增：几何/空间验证
+        if (map != null)
+        {
+            ValidateNodesOutOfBounds(nodes, map, result);
+        }
+
+        // 新增：站点关联验证
+        if (stations != null)
+        {
+            ValidateStationNodeAssociation(nodes, stations, result);
+        }
+
         // 警告级别验证
         ValidateDeadEndNoExit(nodes, edges, result);
         ValidateDeadEndNoEntry(nodes, edges, result);
         ValidateUnreachableNodes(nodes, edges, result);
         ValidateNoReturnNodes(nodes, edges, result);
+
+        // 新增：几何/空间警告
+        ValidateOverlappingNodes(nodes, result);
+        ValidateEdgeDistanceAccuracy(nodes, edges, result);
+
+        // 新增：连通性增强验证
+        ValidateConnectedComponents(nodes, edges, result);
+
+        // 新增：关键节点连通性
+        if (stations != null)
+        {
+            ValidateCriticalNodeConnectivity(nodes, edges, stations, result);
+        }
 
         // 设置连通性状态
         result.ConnectivityStatus = result.Errors.Count == 0 && result.Warnings.Count == 0
@@ -332,6 +364,303 @@ public class MapValidator
         }
 
         return visited;
+    }
+
+    // ========== 新增验证方法 ==========
+
+    /// <summary>
+    /// 验证节点是否超出地图边界
+    /// </summary>
+    private void ValidateNodesOutOfBounds(
+        List<MapNodeListItemDto> nodes,
+        MapDetailDto map,
+        MapValidationResult result)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.X < 0 || node.X > map.Width || node.Y < 0 || node.Y > map.Height)
+            {
+                result.Errors.Add(new ValidationIssue
+                {
+                    Rule = "节点超出边界",
+                    Message = $"节点 {node.NodeCode} 坐标 ({node.X}, {node.Y}) 超出地图边界 ({map.Width} x {map.Height})",
+                    ElementId = node.Id,
+                    ElementCode = node.NodeCode,
+                    ElementType = "node"
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证节点位置重叠（距离过近）
+    /// </summary>
+    private void ValidateOverlappingNodes(
+        List<MapNodeListItemDto> nodes,
+        MapValidationResult result)
+    {
+        const decimal minDistance = 0.1m; // 最小节点间距（厘米）
+
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            for (int j = i + 1; j < nodes.Count; j++)
+            {
+                var node1 = nodes[i];
+                var node2 = nodes[j];
+
+                var distance = CalculateDistance(node1.X, node1.Y, node2.X, node2.Y);
+
+                if (distance < minDistance)
+                {
+                    result.Warnings.Add(new ValidationIssue
+                    {
+                        Rule = "节点位置重叠",
+                        Message = $"节点 {node1.NodeCode} 和 {node2.NodeCode} 位置过近 (距离: {distance:F2}cm < {minDistance}cm)",
+                        ElementId = node1.Id,
+                        ElementCode = node1.NodeCode,
+                        ElementType = "node"
+                    });
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证边距离计算是否准确
+    /// </summary>
+    private void ValidateEdgeDistanceAccuracy(
+        List<MapNodeListItemDto> nodes,
+        List<MapEdgeListItemDto> edges,
+        MapValidationResult result)
+    {
+        const decimal tolerance = 0.01m; // 允许的误差百分比（1%）
+
+        var nodeDict = nodes.ToDictionary(n => n.Id);
+
+        foreach (var edge in edges)
+        {
+            if (!nodeDict.TryGetValue(edge.StartNodeId, out var startNode) ||
+                !nodeDict.TryGetValue(edge.EndNodeId, out var endNode))
+            {
+                continue; // 节点不存在的情况已在其他验证中处理
+            }
+
+            var straightDistance = CalculateDistance(startNode.X, startNode.Y, endNode.X, endNode.Y);
+
+            // 对于曲线边（有弧度），验证路径长度的合理范围
+            if (edge.Curvature.HasValue && edge.Curvature.Value != 0)
+            {
+                // 曲线边的长度应该：
+                // - 最小值：直线距离（不能比直线更短）
+                // - 最大值：2倍直线距离（半圆弧长约为1.57倍，2倍是安全上限）
+                var minAllowedDistance = straightDistance;
+                var maxAllowedDistance = straightDistance * 2;
+
+                if (edge.Distance < minAllowedDistance)
+                {
+                    result.Warnings.Add(new ValidationIssue
+                    {
+                        Rule = "曲线边距离不合理",
+                        Message = $"曲线边 {edge.EdgeCode} 存储距离 ({edge.Distance:F2}cm) 小于直线距离 ({straightDistance:F2}cm)，不符合曲线特性",
+                        ElementId = edge.Id,
+                        ElementCode = edge.EdgeCode,
+                        ElementType = "edge"
+                    });
+                }
+                else if (edge.Distance > maxAllowedDistance)
+                {
+                    result.Warnings.Add(new ValidationIssue
+                    {
+                        Rule = "曲线边距离不合理",
+                        Message = $"曲线边 {edge.EdgeCode} 存储距离 ({edge.Distance:F2}cm) 超过直线距离的2倍 ({maxAllowedDistance:F2}cm)，曲率可能过大",
+                        ElementId = edge.Id,
+                        ElementCode = edge.EdgeCode,
+                        ElementType = "edge"
+                    });
+                }
+                continue; // 曲线边不做精确匹配验证
+            }
+
+            // 直线边：精确验证存储距离与实际距离
+            var difference = Math.Abs(straightDistance - edge.Distance);
+            var percentDifference = straightDistance > 0 ? difference / straightDistance : 0;
+
+            if (percentDifference > tolerance)
+            {
+                result.Warnings.Add(new ValidationIssue
+                {
+                    Rule = "边距离不准确",
+                    Message = $"边 {edge.EdgeCode} 存储距离 ({edge.Distance:F2}cm) 与实际计算距离 ({straightDistance:F2}cm) 差异过大 ({percentDifference:P1})",
+                    ElementId = edge.Id,
+                    ElementCode = edge.EdgeCode,
+                    ElementType = "edge"
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证站点关联的节点是否有效
+    /// </summary>
+    private void ValidateStationNodeAssociation(
+        List<MapNodeListItemDto> nodes,
+        List<StationListItemDto> stations,
+        MapValidationResult result)
+    {
+        var nodeIds = nodes.Select(n => n.Id).ToHashSet();
+
+        foreach (var station in stations)
+        {
+            if (!nodeIds.Contains(station.NodeId))
+            {
+                result.Errors.Add(new ValidationIssue
+                {
+                    Rule = "站点关联节点无效",
+                    Message = $"站点 {station.StationCode} 关联的节点 (ID: {station.NodeId}) 不存在于当前地图",
+                    ElementId = station.Id,
+                    ElementCode = station.StationCode,
+                    ElementType = "station"
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证关键节点（如充电站）的连通性
+    /// </summary>
+    private void ValidateCriticalNodeConnectivity(
+        List<MapNodeListItemDto> nodes,
+        List<MapEdgeListItemDto> edges,
+        List<StationListItemDto> stations,
+        MapValidationResult result)
+    {
+        // 识别关键站点类型
+        var criticalStationTypes = new[]
+        {
+            StationType.Charge, // 充电站
+            StationType.Standby // 待命点
+        };
+
+        var criticalStations = stations
+            .Where(s => criticalStationTypes.Contains(s.StationType))
+            .ToList();
+
+        if (criticalStations.Count == 0)
+        {
+            return; // 没有关键站点，跳过验证
+        }
+
+        // 构建邻接表
+        var adjacencyList = BuildAdjacencyList(nodes, edges);
+
+        // 检查每个关键站点是否可以相互到达
+        foreach (var station in criticalStations)
+        {
+            var reachable = BfsReachable(station.NodeId, adjacencyList);
+
+            // 检查是否可以到达其他关键站点
+            var unreachableStations = criticalStations
+                .Where(s => s.Id != station.Id && !reachable.Contains(s.NodeId))
+                .ToList();
+
+            if (unreachableStations.Any())
+            {
+                var unreachableNames = string.Join(", ", unreachableStations.Select(s => s.StationCode));
+                result.Errors.Add(new ValidationIssue
+                {
+                    Rule = "关键站点不连通",
+                    Message = $"关键站点 {station.StationCode} ({station.StationType.ToDisplayText()}) 无法到达: {unreachableNames}",
+                    ElementId = station.Id,
+                    ElementCode = station.StationCode,
+                    ElementType = "station"
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// 检测多连通分量（互不连通的子图）
+    /// </summary>
+    private void ValidateConnectedComponents(
+        List<MapNodeListItemDto> nodes,
+        List<MapEdgeListItemDto> edges,
+        MapValidationResult result)
+    {
+        if (nodes.Count == 0) return;
+
+        var adjacencyList = BuildAdjacencyList(nodes, edges);
+        var visited = new HashSet<Guid>();
+        var components = new List<List<Guid>>();
+
+        // 使用 DFS 找出所有连通分量
+        foreach (var node in nodes)
+        {
+            if (!visited.Contains(node.Id))
+            {
+                var component = new List<Guid>();
+                DfsVisit(node.Id, adjacencyList, visited, component);
+                components.Add(component);
+            }
+        }
+
+        // 如果有多个连通分量，报告警告
+        if (components.Count > 1)
+        {
+            var componentDetails = components
+                .Select((comp, index) =>
+                {
+                    var nodeNames = comp.Take(3)
+                        .Select(id => nodes.First(n => n.Id == id).NodeCode)
+                        .ToList();
+                    var nodeDisplay = string.Join(", ", nodeNames);
+                    if (comp.Count > 3)
+                    {
+                        nodeDisplay += $" 等 {comp.Count} 个节点";
+                    }
+                    return $"子图{index + 1}: {nodeDisplay}";
+                })
+                .ToList();
+
+            result.Warnings.Add(new ValidationIssue
+            {
+                Rule = "多连通分量",
+                Message = $"地图包含 {components.Count} 个互不连通的子图。{string.Join("; ", componentDetails)}",
+            });
+        }
+    }
+
+    /// <summary>
+    /// 深度优先遍历
+    /// </summary>
+    private void DfsVisit(
+        Guid nodeId,
+        Dictionary<Guid, List<Guid>> adjacencyList,
+        HashSet<Guid> visited,
+        List<Guid> component)
+    {
+        visited.Add(nodeId);
+        component.Add(nodeId);
+
+        if (adjacencyList.TryGetValue(nodeId, out var neighbors))
+        {
+            foreach (var neighbor in neighbors)
+            {
+                if (!visited.Contains(neighbor))
+                {
+                    DfsVisit(neighbor, adjacencyList, visited, component);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 计算两点之间的欧几里得距离
+    /// </summary>
+    private decimal CalculateDistance(decimal x1, decimal y1, decimal x2, decimal y2)
+    {
+        var dx = x2 - x1;
+        var dy = y2 - y1;
+        return (decimal)Math.Sqrt((double)(dx * dx + dy * dy));
     }
 }
 
