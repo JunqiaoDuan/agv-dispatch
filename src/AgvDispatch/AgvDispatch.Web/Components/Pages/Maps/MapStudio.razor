@@ -221,7 +221,7 @@
 
         @* 中间画布 *@
         <div class="studio-canvas" @ref="_canvasContainer">
-            <div class="canvas-wrapper @(_isPanning ? "panning" : "")"
+            <div class="canvas-wrapper @(_isPanning ? "panning" : _isPickingCoordinate ? "picking" : "")"
                  @onmousedown="OnCanvasMouseDown"
                  @onmousemove="OnCanvasMouseMove"
                  @onmouseup="OnCanvasMouseUp"
@@ -286,7 +286,8 @@
                         <NodePanel Mode="NodePanel.PanelMode.Create"
                                    MapId="MapId"
                                    OnSaved="OnNodeSaved"
-                                   OnCancelled="CloseNodePanel" />
+                                   OnCancelled="CloseNodePanel"
+                                   OnPickCoordinate="StartPickingCoordinate" />
                     }
                     else if (_edgePanelMode == EdgePanel.PanelMode.Create)
                     {
@@ -294,7 +295,8 @@
                                    MapId="MapId"
                                    Nodes="_nodes"
                                    OnSaved="OnEdgeSaved"
-                                   OnCancelled="CloseEdgePanel" />
+                                   OnCancelled="CloseEdgePanel"
+                                   OnPickCoordinate="StartPickingCoordinate" />
                     }
                     else if (_selectedNode != null)
                     {
@@ -303,7 +305,8 @@
                                    Node="_selectedNode"
                                    OnSaved="OnNodeSaved"
                                    OnDeleted="DeleteSelectedNode"
-                                   OnClose="ClearSelection" />
+                                   OnClose="ClearSelection"
+                                   OnPickCoordinate="StartPickingCoordinate" />
                     }
                     else if (_selectedEdge != null)
                     {
@@ -313,7 +316,8 @@
                                    Nodes="_nodes"
                                    OnSaved="OnEdgeSaved"
                                    OnDeleted="DeleteSelectedEdge"
-                                   OnClose="ClearSelection" />
+                                   OnClose="ClearSelection"
+                                   OnPickCoordinate="StartPickingCoordinate" />
                     }
                     else
                     {
@@ -518,6 +522,10 @@
         cursor: grabbing;
     }
 
+    .canvas-wrapper.picking {
+        cursor: crosshair;
+    }
+
     .canvas-tools {
         position: absolute;
         bottom: 16px;
@@ -648,6 +656,10 @@
     private bool _isPanning;
     private float _panStartX, _panStartY;
     private float _panStartOffsetX, _panStartOffsetY;
+
+    // 坐标拾取相关
+    private bool _isPickingCoordinate;
+    private Action<decimal, decimal>? _coordinatePickCallback;
 
     private bool _initialized;
     private bool _validating;
@@ -830,6 +842,17 @@
 
     private void OnCanvasMouseDown(MouseEventArgs e)
     {
+        // 坐标拾取模式 - 左键点击
+        if (_isPickingCoordinate && e.Button == 0)
+        {
+            var (mapX, mapY) = CoordinateHelper.ScreenToMap((float)e.OffsetX, (float)e.OffsetY, _scale, _offsetX, _offsetY);
+            _coordinatePickCallback?.Invoke((decimal)mapX, (decimal)mapY);
+            _isPickingCoordinate = false;
+            _coordinatePickCallback = null;
+            StateHasChanged();
+            return;
+        }
+
         // 中键拖拽平移
         if (e.Button == 1)
         {
@@ -903,6 +926,13 @@
         _offsetX = 50;
         _offsetY = 50;
         RenderSvg();
+    }
+
+    private void StartPickingCoordinate(Action<decimal, decimal> callback)
+    {
+        _isPickingCoordinate = true;
+        _coordinatePickCallback = callback;
+        StateHasChanged();
     }
 
     #region 节点/边面板操作

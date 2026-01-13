@@ -168,14 +168,26 @@ else
             {
                 <MudText Typo="Typo.subtitle2" Class="mt-2">弧线路径点坐标</MudText>
                 <MudStack Row="true" Spacing="2">
-                    <MudNumericField @bind-Value="_model.ArcViaX"
-                                     Label="路径点X(cm)"
-                                     Variant="Variant.Outlined"
-                                     Margin="Margin.Dense" />
-                    <MudNumericField @bind-Value="_model.ArcViaY"
-                                     Label="路径点Y(cm)"
-                                     Variant="Variant.Outlined"
-                                     Margin="Margin.Dense" />
+                    <MudStack Style="flex: 1;">
+                        <MudNumericField @bind-Value="_model.ArcViaX"
+                                         Label="路径点X(cm)"
+                                         Variant="Variant.Outlined"
+                                         Margin="Margin.Dense" />
+                    </MudStack>
+                    <MudStack Style="flex: 1;">
+                        <MudNumericField @bind-Value="_model.ArcViaY"
+                                         Label="路径点Y(cm)"
+                                         Variant="Variant.Outlined"
+                                         Margin="Margin.Dense" />
+                    </MudStack>
+                    <MudTooltip Text="从地图拾取坐标">
+                        <MudIconButton Icon="@Icons.Material.Filled.MyLocation"
+                                       Color="Color.Primary"
+                                       Variant="Variant.Outlined"
+                                       Size="Size.Medium"
+                                       OnClick="PickArcViaCoordinate"
+                                       Style="margin-top: 4px;" />
+                    </MudTooltip>
                 </MudStack>
             }
             else if (_model.EdgeType == EdgeType.ArcWithCurvature)
@@ -261,6 +273,9 @@ else
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public Action<Action<decimal, decimal>>? OnPickCoordinate { get; set; }
 
     private MudForm? _form;
     private bool _formValid;
@@ -452,6 +467,16 @@ else
     private async Task Delete()
     {
         await OnDeleted.InvokeAsync();
+    }
+
+    private void PickArcViaCoordinate()
+    {
+        OnPickCoordinate?.Invoke((x, y) =>
+        {
+            _model.ArcViaX = x;
+            _model.ArcViaY = y;
+            InvokeAsync(StateHasChanged);
+        });
     }
 
     private class EdgeFormModel

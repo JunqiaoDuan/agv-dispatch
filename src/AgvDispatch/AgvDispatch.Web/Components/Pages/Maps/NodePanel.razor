@@ -103,18 +103,30 @@ else
                           Margin="Margin.Dense" />
 
             <MudStack Row="true" Spacing="2">
-                <MudNumericField @bind-Value="_model.X"
-                                 Label="X坐标(cm)"
-                                 Required="true"
-                                 RequiredError="请输入X坐标"
-                                 Variant="Variant.Outlined"
-                                 Margin="Margin.Dense" />
-                <MudNumericField @bind-Value="_model.Y"
-                                 Label="Y坐标(cm)"
-                                 Required="true"
-                                 RequiredError="请输入Y坐标"
-                                 Variant="Variant.Outlined"
-                                 Margin="Margin.Dense" />
+                <MudStack Style="flex: 1;">
+                    <MudNumericField @bind-Value="_model.X"
+                                     Label="X坐标(cm)"
+                                     Required="true"
+                                     RequiredError="请输入X坐标"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                </MudStack>
+                <MudStack Style="flex: 1;">
+                    <MudNumericField @bind-Value="_model.Y"
+                                     Label="Y坐标(cm)"
+                                     Required="true"
+                                     RequiredError="请输入Y坐标"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                </MudStack>
+                <MudTooltip Text="从地图拾取坐标">
+                    <MudIconButton Icon="@Icons.Material.Filled.MyLocation"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Outlined"
+                                   Size="Size.Medium"
+                                   OnClick="PickCoordinate"
+                                   Style="margin-top: 4px;" />
+                </MudTooltip>
             </MudStack>
 
             <MudNumericField @bind-Value="_model.SortNo"
@@ -191,6 +203,9 @@ else
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public Action<Action<decimal, decimal>>? OnPickCoordinate { get; set; }
 
     private MudForm? _form;
     private bool _formValid;
@@ -363,6 +378,16 @@ else
     private async Task Delete()
     {
         await OnDeleted.InvokeAsync();
+    }
+
+    private void PickCoordinate()
+    {
+        OnPickCoordinate?.Invoke((x, y) =>
+        {
+            _model.X = x;
+            _model.Y = y;
+            InvokeAsync(StateHasChanged);
+        });
     }
 
     private class NodeFormModel
