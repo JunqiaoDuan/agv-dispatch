@@ -335,6 +335,7 @@ else
             {
                 StartNodeId = InitialStartNodeId,
                 EndNodeId = InitialEndNodeId,
+                IsBidirectional = false,  // 默认不双向通行
                 Curvature = 0m  // 默认曲率为0
             };
             await GenerateNextCode();
@@ -507,7 +508,7 @@ else
         public Guid? StartNodeId { get; set; }
         public Guid? EndNodeId { get; set; }
         public EdgeType EdgeType { get; set; } = EdgeType.Line;
-        public bool IsBidirectional { get; set; } = true;
+        public bool IsBidirectional { get; set; } = false;
         public decimal? ArcViaX { get; set; }
         public decimal? ArcViaY { get; set; }
         public decimal Curvature { get; set; } = 0m;  // 非 nullable，默认为 0
