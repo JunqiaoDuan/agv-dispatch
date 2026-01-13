@@ -139,16 +139,36 @@ else
                               Disabled="true"
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense" />
-                <MudTextField Value="@GetNodeDisplay(_model.StartNodeId)"
-                              Label="起点节点"
-                              Disabled="true"
-                              Variant="Variant.Outlined"
-                              Margin="Margin.Dense" />
-                <MudTextField Value="@GetNodeDisplay(_model.EndNodeId)"
-                              Label="终点节点"
-                              Disabled="true"
-                              Variant="Variant.Outlined"
-                              Margin="Margin.Dense" />
+
+                <MudSelect T="Guid?" @bind-Value="_model.StartNodeId"
+                           Label="起点节点"
+                           Placeholder="请选择起点节点"
+                           Required="true"
+                           RequiredError="请选择起点节点"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    @foreach (var node in Nodes)
+                    {
+                        <MudSelectItem T="Guid?" Value="@node.Id">
+                            @node.NodeCode - @node.DisplayName
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="Guid?" @bind-Value="_model.EndNodeId"
+                           Label="终点节点"
+                           Placeholder="请选择终点节点"
+                           Required="true"
+                           RequiredError="请选择终点节点"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    @foreach (var node in Nodes)
+                    {
+                        <MudSelectItem T="Guid?" Value="@node.Id">
+                            @node.NodeCode - @node.DisplayName
+                        </MudSelectItem>
+                    }
+                </MudSelect>
             }
 
             <MudSelect T="EdgeType" @bind-Value="_model.EdgeType"
@@ -386,13 +406,13 @@ else
             if (!_formValid) return;
         }
 
-        if (Mode == PanelMode.Create && _model.StartNodeId == _model.EndNodeId)
+        if (_model.StartNodeId == _model.EndNodeId)
         {
             Snackbar.Add("起点和终点不能相同", Severity.Warning);
             return;
         }
 
-        if (Mode == PanelMode.Create && (_model.StartNodeId == null || _model.EndNodeId == null))
+        if (_model.StartNodeId == null || _model.EndNodeId == null)
         {
             Snackbar.Add("请选择起点和终点节点", Severity.Warning);
             return;
@@ -407,6 +427,8 @@ else
             {
                 var request = new UpdateMapEdgeRequest
                 {
+                    StartNodeId = _model.StartNodeId.Value,
+                    EndNodeId = _model.EndNodeId.Value,
                     EdgeType = _model.EdgeType,
                     IsBidirectional = _model.IsBidirectional,
                     ArcViaX = _model.ArcViaX,

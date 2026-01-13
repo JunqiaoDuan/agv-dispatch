@@ -521,12 +521,27 @@ public class MapsController : ControllerBase
             return NotFound(ApiResponse<MapEdgeListItemDto>.Fail("边不存在"));
         }
 
-        // 获取节点信息重新计算距离
-        var startNodeSpec = new MapNodeByIdSpec(edge.StartNodeId);
+        // 验证起点和终点节点存在
+        var startNodeSpec = new MapNodeByIdSpec(request.StartNodeId);
         var startNode = await _nodeRepository.FirstOrDefaultAsync(startNodeSpec);
-        var endNodeSpec = new MapNodeByIdSpec(edge.EndNodeId);
-        var endNode = await _nodeRepository.FirstOrDefaultAsync(endNodeSpec);
+        if (startNode == null || startNode.MapId != mapId)
+        {
+            return BadRequest(ApiResponse<MapEdgeListItemDto>.Fail("起点节点不存在"));
+        }
 
+        var endNodeSpec = new MapNodeByIdSpec(request.EndNodeId);
+        var endNode = await _nodeRepository.FirstOrDefaultAsync(endNodeSpec);
+        if (endNode == null || endNode.MapId != mapId)
+        {
+            return BadRequest(ApiResponse<MapEdgeListItemDto>.Fail("终点节点不存在"));
+        }
+
+        if (request.StartNodeId == request.EndNodeId)
+        {
+            return BadRequest(ApiResponse<MapEdgeListItemDto>.Fail("起点和终点不能相同"));
+        }
+
+        // 用于计算距离的请求对象
         var createRequest = new CreateMapEdgeRequest
         {
             EdgeType = request.EdgeType,
@@ -535,16 +550,15 @@ public class MapsController : ControllerBase
             Curvature = request.Curvature
         };
 
+        // 更新边的所有属性
+        edge.StartNodeId = request.StartNodeId;
+        edge.EndNodeId = request.EndNodeId;
         edge.EdgeType = request.EdgeType;
         edge.IsBidirectional = request.IsBidirectional;
         edge.ArcViaX = request.ArcViaX;
         edge.ArcViaY = request.ArcViaY;
         edge.Curvature = request.Curvature;
-
-        if (startNode != null && endNode != null)
-        {
-            edge.Distance = CalculateDistance(startNode, endNode, createRequest);
-        }
+        edge.Distance = CalculateDistance(startNode, endNode, createRequest);
 
         edge.OnUpdate();
 
@@ -554,16 +568,10 @@ public class MapsController : ControllerBase
         _logger.LogInformation("更新边成功: {EdgeCode}", edge.EdgeCode);
 
         var dto = edge.MapTo<MapEdgeListItemDto>();
-        if (startNode != null)
-        {
-            dto.StartNodeCode = startNode.NodeCode;
-            dto.StartNodeName = startNode.DisplayName;
-        }
-        if (endNode != null)
-        {
-            dto.EndNodeCode = endNode.NodeCode;
-            dto.EndNodeName = endNode.DisplayName;
-        }
+        dto.StartNodeCode = startNode.NodeCode;
+        dto.StartNodeName = startNode.DisplayName;
+        dto.EndNodeCode = endNode.NodeCode;
+        dto.EndNodeName = endNode.DisplayName;
 
         return Ok(ApiResponse<MapEdgeListItemDto>.Ok(dto, "更新成功"));
     }

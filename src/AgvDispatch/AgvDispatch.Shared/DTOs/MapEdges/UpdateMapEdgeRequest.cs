@@ -7,6 +7,10 @@ namespace AgvDispatch.Shared.DTOs.MapEdges;
 /// </summary>
 public class UpdateMapEdgeRequest
 {
+    public Guid StartNodeId { get; set; }
+
+    public Guid EndNodeId { get; set; }
+
     public EdgeType EdgeType { get; set; } = EdgeType.Line;
 
     public bool IsBidirectional { get; set; } = true;
