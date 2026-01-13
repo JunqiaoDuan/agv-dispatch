@@ -125,6 +125,11 @@ public class MapRenderOptions
     /// </summary>
     public bool ShowEdgeLabels { get; set; } = false;
 
+    /// <summary>
+    /// 是否显示箭头
+    /// </summary>
+    public bool ShowArrows { get; set; } = false;
+
     #endregion
 
     #region 标签与文字

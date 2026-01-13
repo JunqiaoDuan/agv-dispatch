@@ -234,28 +234,31 @@ public class MapRenderer
 
         #region 绘制方向箭头（在边的1/3位置）
 
-        var arrowSize = _options.ArrowSize * visualScale;
-
-        if (edge.IsBidirectional)
+        if (_options.ShowArrows)
         {
-            // 双向边：在1/3和2/3位置各画一个箭头
-            // 前1/3位置：箭头指向起点（反向）
-            var arrow1X = x1 + (x2 - x1) * 0.33f;
-            var arrow1Y = y1 + (y2 - y1) * 0.33f;
-            var angle1 = angle + (float)Math.PI; // 反向
-            sb.Append(RenderArrowAtPosition(arrow1X, arrow1Y, angle1, arrowSize, color));
+            var arrowSize = _options.ArrowSize * visualScale;
 
-            // 后1/3位置：箭头指向终点（正向）
-            var arrow2X = x1 + (x2 - x1) * 0.67f;
-            var arrow2Y = y1 + (y2 - y1) * 0.67f;
-            sb.Append(RenderArrowAtPosition(arrow2X, arrow2Y, angle, arrowSize, color));
-        }
-        else
-        {
-            // 单向边：在1/3位置画一个指向终点的箭头
-            var arrowX = x1 + (x2 - x1) * 0.33f;
-            var arrowY = y1 + (y2 - y1) * 0.33f;
-            sb.Append(RenderArrowAtPosition(arrowX, arrowY, angle, arrowSize, color));
+            if (edge.IsBidirectional)
+            {
+                // 双向边：在1/3和2/3位置各画一个箭头
+                // 前1/3位置：箭头指向起点（反向）
+                var arrow1X = x1 + (x2 - x1) * 0.33f;
+                var arrow1Y = y1 + (y2 - y1) * 0.33f;
+                var angle1 = angle + (float)Math.PI; // 反向
+                sb.Append(RenderArrowAtPosition(arrow1X, arrow1Y, angle1, arrowSize, color));
+
+                // 后1/3位置：箭头指向终点（正向）
+                var arrow2X = x1 + (x2 - x1) * 0.67f;
+                var arrow2Y = y1 + (y2 - y1) * 0.67f;
+                sb.Append(RenderArrowAtPosition(arrow2X, arrow2Y, angle, arrowSize, color));
+            }
+            else
+            {
+                // 单向边：在1/3位置画一个指向终点的箭头
+                var arrowX = x1 + (x2 - x1) * 0.33f;
+                var arrowY = y1 + (y2 - y1) * 0.33f;
+                sb.Append(RenderArrowAtPosition(arrowX, arrowY, angle, arrowSize, color));
+            }
         }
 
         #endregion

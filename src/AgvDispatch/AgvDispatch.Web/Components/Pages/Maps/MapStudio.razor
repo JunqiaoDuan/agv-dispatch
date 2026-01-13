@@ -108,6 +108,12 @@
                                        Color="Color.Primary"
                                        Size="Size.Small"
                                        Label="边文字" />
+                            <MudSwitch T="bool"
+                                       Value="_renderOptions.ShowArrows"
+                                       ValueChanged="@((bool v) => ToggleArrows(v))"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       Label="箭头" />
                         </MudStack>
                     </div>
 
@@ -1124,6 +1130,12 @@
     private void ToggleEdgeLabels(bool value)
     {
         _renderOptions.ShowEdgeLabels = value;
+        RenderSvg();
+    }
+
+    private void ToggleArrows(bool value)
+    {
+        _renderOptions.ShowArrows = value;
         RenderSvg();
     }
 
