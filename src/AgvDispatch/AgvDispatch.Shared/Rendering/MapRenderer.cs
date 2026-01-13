@@ -82,9 +82,6 @@ public class MapRenderer
         sb.AppendLine($"  <marker id=\"arrow\" markerWidth=\"{F(arrowSize)}\" markerHeight=\"{F(arrowSize)}\" refX=\"{F(arrowRefX)}\" refY=\"{F(arrowRefY)}\" orient=\"auto\" markerUnits=\"userSpaceOnUse\">");
         sb.AppendLine($"    <path d=\"M0,0 L{F(arrowSize)},{F(arrowRefY)} L0,{F(arrowSize)} L{F(arrowSize * 0.2f)},{F(arrowRefY)} Z\" fill=\"{_options.EdgeColor}\"/>");
         sb.AppendLine("  </marker>");
-        sb.AppendLine($"  <marker id=\"arrow-selected\" markerWidth=\"{F(arrowSize)}\" markerHeight=\"{F(arrowSize)}\" refX=\"{F(arrowRefX)}\" refY=\"{F(arrowRefY)}\" orient=\"auto\" markerUnits=\"userSpaceOnUse\">");
-        sb.AppendLine($"    <path d=\"M0,0 L{F(arrowSize)},{F(arrowRefY)} L0,{F(arrowSize)} L{F(arrowSize * 0.2f)},{F(arrowRefY)} Z\" fill=\"{_options.SelectedEdgeColor}\"/>");
-        sb.AppendLine("  </marker>");
         sb.AppendLine($"  <marker id=\"arrow-highlighted\" markerWidth=\"{F(arrowSize)}\" markerHeight=\"{F(arrowSize)}\" refX=\"{F(arrowRefX)}\" refY=\"{F(arrowRefY)}\" orient=\"auto\" markerUnits=\"userSpaceOnUse\">");
         sb.AppendLine($"    <path d=\"M0,0 L{F(arrowSize)},{F(arrowRefY)} L0,{F(arrowSize)} L{F(arrowSize * 0.2f)},{F(arrowRefY)} Z\" fill=\"{_options.HighlightedEdgeColor}\"/>");
         sb.AppendLine("  </marker>");
@@ -194,13 +191,7 @@ public class MapRenderer
         float width;
         string markerId;
 
-        if (isSelected)
-        {
-            color = _options.SelectedEdgeColor;
-            width = _options.HighlightedEdgeWidth * visualScale;
-            markerId = "arrow-selected";
-        }
-        else if (isHighlighted)
+        if (isHighlighted)
         {
             color = _options.HighlightedEdgeColor;
             width = _options.HighlightedEdgeWidth * visualScale;
@@ -225,6 +216,25 @@ public class MapRenderer
         var shortenedY2 = y2 - (float)Math.Sin(angle) * nodeRadius;
 
         var markerAttr = edge.IsBidirectional ? "" : $"marker-end=\"url(#{markerId})\"";
+
+        // 选中时先绘制黄色底边作为边框效果
+        if (isSelected)
+        {
+            var highlightWidth = width + _options.SelectedEdgeHighlightWidth * visualScale * 2;
+
+            if (edge.EdgeType == EdgeType.Arc && edge.ArcViaX.HasValue && edge.ArcViaY.HasValue)
+            {
+                var viaX = (float)edge.ArcViaX.Value;
+                var viaY = (float)edge.ArcViaY.Value;
+                sb.AppendLine($"  <polyline points=\"{F(shortenedX1)},{F(shortenedY1)} {F(viaX)},{F(viaY)} {F(shortenedX2)},{F(shortenedY2)}\" " +
+                    $"fill=\"none\" stroke=\"{_options.SelectedEdgeHighlightColor}\" stroke-width=\"{F(highlightWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
+            }
+            else
+            {
+                sb.AppendLine($"  <line x1=\"{F(shortenedX1)}\" y1=\"{F(shortenedY1)}\" x2=\"{F(shortenedX2)}\" y2=\"{F(shortenedY2)}\" " +
+                    $"stroke=\"{_options.SelectedEdgeHighlightColor}\" stroke-width=\"{F(highlightWidth)}\" stroke-linecap=\"round\"/>");
+            }
+        }
 
         if (edge.EdgeType == EdgeType.Arc && edge.ArcViaX.HasValue && edge.ArcViaY.HasValue)
         {
@@ -263,6 +273,37 @@ public class MapRenderer
 
         #endregion
 
+        #region 绘制边标签
+
+        if (_options.ShowEdgeLabels)
+        {
+            var midX = (x1 + x2) / 2;
+            var midY = (y1 + y2) / 2;
+            var fontSize = _options.LabelFontSize * visualScale;
+            var labelOffset = _options.LabelOffset * visualScale;
+
+            // 复用之前计算的 angle，用于调整标签位置
+            var isVerticalish = Math.Abs(Math.Cos(angle)) < 0.5; // 接近垂直的边
+
+            // 标签位置偏移（避免与边重叠）
+            var labelX = midX;
+            var labelY = midY - labelOffset;
+
+            // 如果是垂直的边，标签放在右侧
+            if (isVerticalish)
+            {
+                labelX = midX + labelOffset;
+                labelY = midY;
+            }
+
+            // 边标签文字
+            sb.AppendLine($"  <text x=\"{F(labelX)}\" y=\"{F(labelY + fontSize * 0.35f)}\" " +
+                $"text-anchor=\"middle\" fill=\"{_options.LabelColor}\" " +
+                $"font-size=\"{F(fontSize)}\" font-family=\"sans-serif\">{edge.EdgeCode}</text>");
+        }
+
+        #endregion
+
         return sb.ToString();
     }
 
@@ -281,11 +322,18 @@ public class MapRenderer
         var radius = _options.NodeRadius * visualScale;
         var borderWidth = _options.NodeBorderWidth * visualScale;
         var fontSize = _options.LabelFontSize * visualScale;
-        var fillColor = isSelected ? _options.SelectedNodeColor : _options.NodeColor;
 
-        // 节点圆形
+        // 选中时先绘制黄色高亮圈
+        if (isSelected)
+        {
+            var highlightRadius = radius + _options.SelectedNodeHighlightWidth * visualScale;
+            sb.AppendLine($"  <circle cx=\"{F(x)}\" cy=\"{F(y)}\" r=\"{F(highlightRadius)}\" " +
+                $"fill=\"none\" stroke=\"{_options.SelectedNodeHighlightColor}\" stroke-width=\"{F(_options.SelectedNodeHighlightWidth * visualScale)}\"/>");
+        }
+
+        // 节点圆形（保持原色）
         sb.AppendLine($"  <circle cx=\"{F(x)}\" cy=\"{F(y)}\" r=\"{F(radius)}\" " +
-            $"fill=\"{fillColor}\" stroke=\"{_options.NodeBorderColor}\" stroke-width=\"{F(borderWidth)}\" " +
+            $"fill=\"{_options.NodeColor}\" stroke=\"{_options.NodeBorderColor}\" stroke-width=\"{F(borderWidth)}\" " +
             $"data-type=\"node\" data-id=\"{node.Id}\" class=\"map-node\"/>");
 
         // 节点标签
@@ -316,31 +364,34 @@ public class MapRenderer
         var fontSize = _options.LabelFontSize * visualScale;
         var labelOffset = _options.LabelOffset * visualScale;
 
-        // 根据站点类型获取颜色和图标
-        var (color, borderColor) = GetStationColors(station.StationType, isSelected);
+        // 根据站点类型获取颜色和图标（不因选中而改变）
+        var (color, borderColor) = GetStationColors(station.StationType, false);
+
+        // 选中时先绘制黄色边框
+        if (isSelected)
+        {
+            var highlightRadius = size * 0.8f; // 适度的边框大小
+            sb.AppendLine($"  <circle cx=\"{F(x)}\" cy=\"{F(y)}\" r=\"{F(highlightRadius)}\" " +
+                $"fill=\"none\" stroke=\"{_options.SelectedStationHighlightColor}\" stroke-width=\"{F(_options.SelectedStationHighlightWidth * visualScale)}\"/>");
+        }
 
         // 绘制站点图标
         sb.Append(RenderStationIcon(station.StationType, x, y, size, color, borderColor, visualScale));
 
-        // 站点名称标签（显示在图标下方）
-        var labelY = y + size + labelOffset;
-        sb.AppendLine($"  <text x=\"{F(x)}\" y=\"{F(labelY)}\" " +
-            $"text-anchor=\"middle\" fill=\"{color}\" " +
-            $"font-size=\"{F(fontSize)}\" font-family=\"sans-serif\" font-weight=\"bold\">{station.DisplayName}</text>");
-
-        // 站点编号（显示在名称下方）
-        var codeY = labelY + fontSize + labelOffset * 0.3f;
-        sb.AppendLine($"  <text x=\"{F(x)}\" y=\"{F(codeY)}\" " +
-            $"text-anchor=\"middle\" fill=\"#666666\" " +
-            $"font-size=\"{F(fontSize * 0.85f)}\" font-family=\"sans-serif\">{station.StationCode}</text>");
-
-        // 选中时绘制高亮圈
-        if (isSelected)
+        // 站点标签（受配置控制）
+        if (_options.ShowStationLabels)
         {
-            var highlightRadius = size * 1.5f;
-            sb.AppendLine($"  <circle cx=\"{F(x)}\" cy=\"{F(y)}\" r=\"{F(highlightRadius)}\" " +
-                $"fill=\"none\" stroke=\"{color}\" stroke-width=\"{F(_options.StationHighlightWidth * visualScale)}\" " +
-                $"stroke-dasharray=\"3,3\" opacity=\"0.7\"/>");
+            // 站点名称标签（显示在图标下方）
+            var labelY = y + size + labelOffset;
+            sb.AppendLine($"  <text x=\"{F(x)}\" y=\"{F(labelY)}\" " +
+                $"text-anchor=\"middle\" fill=\"{color}\" " +
+                $"font-size=\"{F(fontSize)}\" font-family=\"sans-serif\" font-weight=\"bold\">{station.DisplayName}</text>");
+
+            // 站点编号（显示在名称下方）
+            var codeY = labelY + fontSize + labelOffset * 0.3f;
+            sb.AppendLine($"  <text x=\"{F(x)}\" y=\"{F(codeY)}\" " +
+                $"text-anchor=\"middle\" fill=\"#666666\" " +
+                $"font-size=\"{F(fontSize * 0.85f)}\" font-family=\"sans-serif\">{station.StationCode}</text>");
         }
 
         return sb.ToString();

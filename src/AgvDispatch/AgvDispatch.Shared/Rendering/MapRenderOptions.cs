@@ -54,17 +54,12 @@ public class MapRenderOptions
     /// <summary>
     /// 节点颜色
     /// </summary>
-    public string NodeColor { get; set; } = "#2196F3";
-
-    /// <summary>
-    /// 选中节点颜色
-    /// </summary>
-    public string SelectedNodeColor { get; set; } = "#FF9800";
+    public string NodeColor { get; set; } = "#666666";
 
     /// <summary>
     /// 节点边框颜色
     /// </summary>
-    public string NodeBorderColor { get; set; } = "#1976D2";
+    public string NodeBorderColor { get; set; } = "#555555";
 
     /// <summary>
     /// 节点边框宽度
@@ -72,9 +67,19 @@ public class MapRenderOptions
     public float NodeBorderWidth { get; set; } = 1.5f;
 
     /// <summary>
+    /// 选中节点高亮颜色（黄色边框）
+    /// </summary>
+    public string SelectedNodeHighlightColor { get; set; } = "#FFC107";
+
+    /// <summary>
+    /// 选中节点高亮边框宽度
+    /// </summary>
+    public float SelectedNodeHighlightWidth { get; set; } = 2f;
+
+    /// <summary>
     /// 是否显示节点标签
     /// </summary>
-    public bool ShowNodeLabels { get; set; } = true;
+    public bool ShowNodeLabels { get; set; } = false;
 
     #endregion
 
@@ -91,9 +96,14 @@ public class MapRenderOptions
     public string EdgeColor { get; set; } = "#757575";
 
     /// <summary>
-    /// 选中边颜色
+    /// 选中边高亮颜色（黄色边框）
     /// </summary>
-    public string SelectedEdgeColor { get; set; } = "#FF9800";
+    public string SelectedEdgeHighlightColor { get; set; } = "#FFC107";
+
+    /// <summary>
+    /// 选中边高亮边框宽度增量
+    /// </summary>
+    public float SelectedEdgeHighlightWidth { get; set; } = 1.5f;
 
     /// <summary>
     /// 高亮边颜色（路线）
@@ -149,9 +159,19 @@ public class MapRenderOptions
     public float StationBorderWidth { get; set; } = 1.5f;
 
     /// <summary>
+    /// 站点选中高亮颜色（黄色边框）
+    /// </summary>
+    public string SelectedStationHighlightColor { get; set; } = "#FFC107";
+
+    /// <summary>
     /// 站点选中高亮圈线宽
     /// </summary>
-    public float StationHighlightWidth { get; set; } = 1.5f;
+    public float SelectedStationHighlightWidth { get; set; } = 1.5f;
+
+    /// <summary>
+    /// 是否显示站点标签
+    /// </summary>
+    public bool ShowStationLabels { get; set; } = true;
 
     #endregion
 
