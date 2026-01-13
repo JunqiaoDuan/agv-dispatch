@@ -1,0 +1,1158 @@
+@page "/map-studio/{MapId:guid}"
+@layout EmptyLayout
+@using AgvDispatch.Shared.DTOs.MapEdges
+@using AgvDispatch.Shared.DTOs.MapNodes
+@using AgvDispatch.Shared.DTOs.Maps
+@using AgvDispatch.Shared.DTOs.Routes
+@using AgvDispatch.Shared.DTOs.Stations
+@using AgvDispatch.Shared.Enums
+@using AgvDispatch.Shared.Rendering
+@using AgvDispatch.Web.Services
+@rendermode InteractiveServer
+@inject IMapClient MapClient
+@inject IRouteClient RouteClient
+@inject IStationClient StationClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PageTitle>地图工作室 - @(_map?.MapCode) @(_map?.DisplayName)</PageTitle>
+
+<div class="map-studio">
+    @* 顶部工具栏 *@
+    <div class="studio-toolbar">
+        <div class="toolbar-left">
+            <MudText Typo="Typo.body2">
+                <strong>@_map?.MapCode</strong> @_map?.DisplayName
+            </MudText>
+        </div>
+
+        <div class="toolbar-center">
+            <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
+                <MudButton Class="@(_activePanelIndex == 0 ? "panel-btn-active" : "panel-btn")"
+                           OnClick="@(() => SwitchPanel(0))">
+                    <MudIcon Icon="@Icons.Material.Filled.Map" Size="Size.Small" Class="mr-1" />
+                    地图编辑
+                </MudButton>
+                <MudButton Class="@(_activePanelIndex == 1 ? "panel-btn-active" : "panel-btn")"
+                           OnClick="@(() => SwitchPanel(1))">
+                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" />
+                    站点管理
+                </MudButton>
+            </MudButtonGroup>
+        </div>
+
+        <div class="toolbar-right">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Verified"
+                       OnClick="ValidateMap"
+                       Disabled="_validating">
+                @if (_validating)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                }
+                验证
+            </MudButton>
+        </div>
+    </div>
+
+    @* 主体区域 *@
+    <div class="studio-body">
+        @* 左侧面板 *@
+        <div class="studio-panel left-panel">
+            <div class="panel-content">
+                @if (_activePanelIndex == 0)
+                {
+                    @* ========== 地图编辑模式 - 左侧面板 ========== *@
+                    <div class="panel-section-header">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Map" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                            地图编辑
+                        </MudText>
+                    </div>
+
+                    @* 工具按钮 *@
+                    <div class="tool-buttons mb-3">
+                        <MudStack Row="true" Spacing="2">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.AddLocation"
+                                       OnClick="StartCreateNode">
+                                添加节点
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Timeline"
+                                       OnClick="StartCreateEdge">
+                                添加边
+                            </MudButton>
+                        </MudStack>
+                    </div>
+
+                    @* 显示控制 *@
+                    <div class="display-controls mb-2">
+                        <MudStack Spacing="1">
+                            <MudSwitch T="bool"
+                                       Value="_renderOptions.ShowNodeLabels"
+                                       ValueChanged="@((bool v) => ToggleNodeLabels(v))"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       Label="节点文字" />
+                            <MudSwitch T="bool"
+                                       Value="_renderOptions.ShowEdgeLabels"
+                                       ValueChanged="@((bool v) => ToggleEdgeLabels(v))"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       Label="边文字" />
+                        </MudStack>
+                    </div>
+
+                    <MudDivider Class="mb-2" />
+
+                    @* 节点/边 切换 *@
+                    <MudButtonGroup OverrideStyles="false" Class="tab-buttons-inner mb-2" Size="Size.Small">
+                        <MudButton Variant="@(_innerTabIndex == 0 ? Variant.Filled : Variant.Text)"
+                                   Color="@(_innerTabIndex == 0 ? Color.Primary : Color.Default)"
+                                   OnClick="@(() => _innerTabIndex = 0)"
+                                   Class="flex-1">
+                            节点 (@_nodes.Count)
+                        </MudButton>
+                        <MudButton Variant="@(_innerTabIndex == 1 ? Variant.Filled : Variant.Text)"
+                                   Color="@(_innerTabIndex == 1 ? Color.Primary : Color.Default)"
+                                   OnClick="@(() => _innerTabIndex = 1)"
+                                   Class="flex-1">
+                            边 (@_edges.Count)
+                        </MudButton>
+                    </MudButtonGroup>
+
+                    @if (_innerTabIndex == 0)
+                    {
+                        <div class="element-list">
+                            @foreach (var node in _nodes)
+                            {
+                                <div class="element-item @(_selectedNode?.Id == node.Id ? "selected" : "")"
+                                     @onclick="() => SelectNode(node)">
+                                    <MudText Typo="Typo.body2"><strong>@node.NodeCode</strong></MudText>
+                                    <MudText Typo="Typo.caption">@node.DisplayName</MudText>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="element-list">
+                            @foreach (var edge in _edges)
+                            {
+                                <div class="element-item @(_selectedEdge?.Id == edge.Id ? "selected" : "")"
+                                     @onclick="() => SelectEdge(edge)">
+                                    <MudText Typo="Typo.body2"><strong>@edge.EdgeCode</strong></MudText>
+                                    <MudText Typo="Typo.caption">@edge.StartNodeCode → @edge.EndNodeCode</MudText>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+                else if (_activePanelIndex == 1)
+                {
+                    @* ========== 站点管理模式 - 左侧面板 ========== *@
+                    <div class="panel-section-header">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                            站点管理
+                        </MudText>
+                    </div>
+
+                    @* 工具按钮 *@
+                    <div class="tool-buttons mb-3">
+                        <MudStack Row="true" Spacing="2">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="StartCreateStation">
+                                添加站点
+                            </MudButton>
+                        </MudStack>
+                    </div>
+
+                    @* 显示控制 *@
+                    <div class="display-controls mb-2">
+                        <MudSwitch T="bool"
+                                   Value="_renderOptions.ShowStationLabels"
+                                   ValueChanged="@((bool v) => ToggleStationLabels(v))"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Label="站点文字" />
+                    </div>
+
+                    <MudDivider Class="mb-2" />
+
+                    @* 站点列表 *@
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">站点列表 (@_stations.Count)</MudText>
+                    <div class="element-list">
+                        @foreach (var station in _stations)
+                        {
+                            <div class="element-item @(_selectedStation?.Id == station.Id ? "selected" : "")"
+                                 @onclick="() => SelectStation(station)">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText Typo="Typo.body2"><strong>@station.StationCode</strong></MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetStationTypeColor(station.StationType)">
+                                        @station.StationType.ToDisplayText()
+                                    </MudChip>
+                                </MudStack>
+                                <MudText Typo="Typo.caption">@station.DisplayName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">节点: @station.NodeCode</MudText>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* 中间画布 *@
+        <div class="studio-canvas" @ref="_canvasContainer">
+            <div class="canvas-wrapper @(_isPanning ? "panning" : "")"
+                 @onmousedown="OnCanvasMouseDown"
+                 @onmousemove="OnCanvasMouseMove"
+                 @onmouseup="OnCanvasMouseUp"
+                 @onmouseleave="OnCanvasMouseUp"
+                 @onwheel="OnCanvasWheel"
+                 @onwheel:preventDefault="true">
+                @((MarkupString)_svgContent)
+            </div>
+
+            @* 画布工具条 *@
+            <div class="canvas-tools">
+                <MudIconButton Icon="@Icons.Material.Filled.ZoomIn"
+                               Size="Size.Small"
+                               OnClick="ZoomIn"
+                               Title="放大" />
+                <MudText Typo="Typo.caption">@((_scale * 100).ToString("F0"))%</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.ZoomOut"
+                               Size="Size.Small"
+                               OnClick="ZoomOut"
+                               Title="缩小" />
+                <MudIconButton Icon="@Icons.Material.Filled.FitScreen"
+                               Size="Size.Small"
+                               OnClick="FitToScreen"
+                               Title="适应画布" />
+                <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
+                <MudText Typo="Typo.caption" Class="mr-1">元素:</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
+                               Size="Size.Small"
+                               OnClick="DecreaseElementScale"
+                               Title="减小元素" />
+                <MudText Typo="Typo.caption">@(_elementScale.ToString("F1"))x</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                               Size="Size.Small"
+                               OnClick="IncreaseElementScale"
+                               Title="增大元素" />
+            </div>
+
+            @* 鼠标位置 *@
+            <div class="canvas-info">
+                (@_mouseMapX.ToString("F0"), @_mouseMapY.ToString("F0")) cm
+            </div>
+        </div>
+
+        @* 右侧面板 *@
+        <div class="studio-panel right-panel">
+            <div class="panel-content">
+                @if (_activePanelIndex == 0)
+                {
+                    @* ========== 地图编辑模式 - 右侧面板 ========== *@
+                    @if (_nodePanelMode == NodePanel.PanelMode.Create)
+                    {
+                        <NodePanel Mode="NodePanel.PanelMode.Create"
+                                   MapId="MapId"
+                                   OnSaved="OnNodeSaved"
+                                   OnCancelled="CloseNodePanel" />
+                    }
+                    else if (_edgePanelMode == EdgePanel.PanelMode.Create)
+                    {
+                        <EdgePanel Mode="EdgePanel.PanelMode.Create"
+                                   MapId="MapId"
+                                   Nodes="_nodes"
+                                   OnSaved="OnEdgeSaved"
+                                   OnCancelled="CloseEdgePanel" />
+                    }
+                    else if (_selectedNode != null)
+                    {
+                        <NodePanel Mode="NodePanel.PanelMode.View"
+                                   MapId="MapId"
+                                   Node="_selectedNode"
+                                   OnSaved="OnNodeSaved"
+                                   OnDeleted="DeleteSelectedNode"
+                                   OnClose="ClearSelection" />
+                    }
+                    else if (_selectedEdge != null)
+                    {
+                        <EdgePanel Mode="EdgePanel.PanelMode.View"
+                                   MapId="MapId"
+                                   Edge="_selectedEdge"
+                                   Nodes="_nodes"
+                                   OnSaved="OnEdgeSaved"
+                                   OnDeleted="DeleteSelectedEdge"
+                                   OnClose="ClearSelection" />
+                    }
+                    else
+                    {
+                        <div class="panel-section-header">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                                属性
+                            </MudText>
+                        </div>
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                            从列表中选择节点或边查看属性
+                        </MudAlert>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">操作提示</MudText>
+                        <MudList T="string" Dense="true">
+                            <MudListItem Icon="@Icons.Material.Filled.List">从列表选择元素</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.AddLocation">点击按钮添加节点</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Mouse">滚轮缩放</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.PanTool">中键拖拽平移</MudListItem>
+                        </MudList>
+                    }
+                }
+                else if (_activePanelIndex == 1)
+                {
+                    @* ========== 站点管理模式 - 右侧面板 ========== *@
+                    @if (_stationPanelMode == StationPanel.PanelMode.Create)
+                    {
+                        <StationPanel Mode="StationPanel.PanelMode.Create"
+                                      MapId="MapId"
+                                      Nodes="_nodes"
+                                      OnSaved="OnStationSaved"
+                                      OnCancelled="CloseStationPanel" />
+                    }
+                    else if (_selectedStation != null)
+                    {
+                        <StationPanel Mode="StationPanel.PanelMode.View"
+                                      MapId="MapId"
+                                      Station="_selectedStation"
+                                      Nodes="_nodes"
+                                      OnSaved="OnStationSaved"
+                                      OnDeleted="DeleteSelectedStation"
+                                      OnClose="ClearStationSelection" />
+                    }
+                    else
+                    {
+                        <div class="panel-section-header">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                                <MudIcon Icon="@Icons.Material.Filled.Settings" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                                站点属性
+                            </MudText>
+                        </div>
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                            选择站点查看属性
+                        </MudAlert>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">操作提示</MudText>
+                        <MudList T="string" Dense="true">
+                            <MudListItem Icon="@Icons.Material.Filled.Add">点击左侧 + 新建站点</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.LocationOn">站点关联到节点</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Edit">选择站点编辑属性</MudListItem>
+                        </MudList>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .map-studio {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        background: #f5f5f5;
+    }
+
+    /* Tab 按钮组样式 */
+    .tab-buttons {
+        display: flex;
+        width: 100%;
+    }
+
+    .tab-buttons .mud-button-group-root {
+        width: 100%;
+    }
+
+    .tab-buttons .flex-1 {
+        flex: 1;
+    }
+
+    .tab-buttons-inner {
+        display: flex;
+        width: 100%;
+    }
+
+    .tab-buttons-inner .flex-1 {
+        flex: 1;
+    }
+
+    .studio-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 16px;
+        background: #fff;
+        border-bottom: 1px solid #e0e0e0;
+        height: 48px;
+        flex-shrink: 0;
+    }
+
+    .toolbar-left, .toolbar-right {
+        display: flex;
+        align-items: center;
+    }
+
+    .toolbar-center {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    /* 面板切换按钮样式 */
+    .panel-btn {
+        color: #666 !important;
+        background: transparent !important;
+    }
+
+    .panel-btn-active {
+        background: #1976d2 !important;
+        color: #fff !important;
+    }
+
+    .studio-body {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .studio-panel {
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .studio-panel.left-panel {
+        width: 400px;
+        border-right: 1px solid #e0e0e0;
+    }
+
+    .studio-panel.right-panel {
+        width: 400px;
+        border-left: 1px solid #e0e0e0;
+    }
+
+    .left-panel .panel-content {
+        width: 400px;
+        height: 100%;
+        overflow-y: auto;
+        padding: 12px;
+    }
+
+    .right-panel .panel-content {
+        width: 400px;
+        height: 100%;
+        overflow-y: auto;
+        padding: 16px;
+    }
+
+    .panel-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .tool-buttons {
+        width: 100%;
+    }
+
+    .tool-buttons .tool-group {
+        width: 100%;
+        display: flex;
+    }
+
+    .tool-buttons .flex-1 {
+        flex: 1;
+    }
+
+    .studio-canvas {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        background: #fafafa;
+    }
+
+    .canvas-wrapper {
+        width: 100%;
+        height: 100%;
+        cursor: crosshair;
+    }
+
+    .canvas-wrapper.panning {
+        cursor: grabbing;
+    }
+
+    .canvas-tools {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(255,255,255,0.95);
+        padding: 4px 12px;
+        border-radius: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .canvas-info {
+        position: absolute;
+        bottom: 16px;
+        left: 16px;
+        background: rgba(255,255,255,0.9);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .canvas-actions {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+    }
+
+    .element-list {
+        max-height: calc(100vh - 200px);
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+    }
+
+    .element-item, .segment-item {
+        padding: 6px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        background: #fafafa;
+        transition: background 0.15s;
+        overflow: hidden;
+    }
+
+    .element-item:hover, .segment-item:hover {
+        background: #f0f0f0;
+    }
+
+    .element-item.selected, .segment-item.selected {
+        background: #e3f2fd;
+        border-left: 3px solid #1976d2;
+        padding-left: 5px;
+    }
+
+    /* 让元素内容在一行显示 */
+    .element-item .mud-typography {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .route-list-section, .segment-list-section {
+        margin-bottom: 8px;
+    }
+</style>
+
+@implements IAsyncDisposable
+
+@code {
+    [Parameter]
+    public Guid MapId { get; set; }
+
+    private MapDetailDto? _map;
+    private List<MapNodeListItemDto> _nodes = [];
+    private List<MapEdgeListItemDto> _edges = [];
+    private List<RouteListItemDto> _routes = [];
+    private List<SegmentModel> _segments = [];
+    private List<StationListItemDto> _stations = [];
+
+    private MapRenderOptions _renderOptions = new();
+    private MapRenderer _renderer = null!;
+    private MapRenderData _renderData = new();
+    private string _svgContent = "";
+
+    private ElementReference _canvasContainer;
+    private float _canvasWidth = 800f;
+    private float _canvasHeight = 600f;
+    private DotNetObjectReference<MapStudio>? _dotNetRef;
+
+    private int _activePanelIndex;
+    private int _innerTabIndex;
+
+    private MapNodeListItemDto? _selectedNode;
+    private MapEdgeListItemDto? _selectedEdge;
+    private RouteListItemDto? _selectedRoute;
+    private StationListItemDto? _selectedStation;
+    private int _selectedSegmentIndex = -1;
+
+    // 面板模式状态
+    private NodePanel.PanelMode _nodePanelMode = NodePanel.PanelMode.View;
+    private EdgePanel.PanelMode _edgePanelMode = EdgePanel.PanelMode.View;
+    private StationPanel.PanelMode _stationPanelMode = StationPanel.PanelMode.View;
+
+    private string _routeDisplayName = string.Empty;
+    private string? _routeDescription;
+    private bool _routeIsActive = true;
+    private int _routeSortNo;
+
+    private float _scale = 0.05f;
+    private float _elementScale = 1.0f;
+    private float _offsetX = 50;
+    private float _offsetY = 50;
+    private float _mouseMapX;
+    private float _mouseMapY;
+
+    // 平移相关
+    private bool _isPanning;
+    private float _panStartX, _panStartY;
+    private float _panStartOffsetX, _panStartOffsetY;
+
+    private bool _initialized;
+    private bool _validating;
+    private MapValidator _validator = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_initialized)
+        {
+            _initialized = true;
+
+            // 初始化渲染器
+            _renderer = new MapRenderer(_renderOptions);
+
+            // 获取容器实际尺寸并监听 resize
+            _dotNetRef = DotNetObjectReference.Create(this);
+            var size = await JS.InvokeAsync<ContainerSize>("mapStudioInterop.init", _canvasContainer, _dotNetRef);
+            _canvasWidth = size.Width;
+            _canvasHeight = size.Height;
+
+            await LoadMapData();
+            await LoadRoutes();
+            await LoadStations();
+            FitToScreen();
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void OnContainerResize(float width, float height)
+    {
+        if (width > 0 && height > 0)
+        {
+            _canvasWidth = width;
+            _canvasHeight = height;
+            RenderSvg();
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private record ContainerSize(float Width, float Height);
+
+    private void SwitchPanel(int index)
+    {
+        if (_activePanelIndex == index) return;
+
+        _activePanelIndex = index;
+
+        // 切换时清理选中状态和面板模式
+        _selectedNode = null;
+        _selectedEdge = null;
+        _selectedRoute = null;
+        _selectedStation = null;
+        _selectedSegmentIndex = -1;
+        _segments.Clear();
+
+        // 重置面板模式
+        _nodePanelMode = NodePanel.PanelMode.View;
+        _edgePanelMode = EdgePanel.PanelMode.View;
+        _stationPanelMode = StationPanel.PanelMode.View;
+
+        UpdateRenderData();
+    }
+
+    private async Task LoadMapData()
+    {
+        try
+        {
+            _map = await MapClient.GetByIdAsync(MapId);
+            _nodes = await MapClient.GetNodesAsync(MapId);
+            _edges = await MapClient.GetEdgesAsync(MapId);
+            UpdateRenderData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载地图数据失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadRoutes()
+    {
+        try
+        {
+            _routes = await RouteClient.GetAllAsync(MapId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载路线数据失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadStations()
+    {
+        try
+        {
+            _stations = await StationClient.GetAllAsync(MapId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载站点数据失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void UpdateRenderData()
+    {
+        _renderData = new MapRenderData
+        {
+            Width = _map?.Width ?? 10000,
+            Height = _map?.Height ?? 8000,
+            Nodes = _nodes,
+            Edges = _edges,
+            Stations = _stations,
+            SelectedNodeId = _selectedNode?.Id,
+            SelectedEdgeId = _selectedEdge?.Id,
+            SelectedStationId = _selectedStation?.Id,
+            HighlightedEdgeIds = []
+        };
+        RenderSvg();
+    }
+
+    private void RenderSvg()
+    {
+        _svgContent = _renderer.Render(_renderData, _canvasWidth, _canvasHeight, _scale, _offsetX, _offsetY, _elementScale);
+    }
+
+    private void SelectNode(MapNodeListItemDto node)
+    {
+        _selectedNode = node;
+        _selectedEdge = null;
+        _nodePanelMode = NodePanel.PanelMode.View;
+        _edgePanelMode = EdgePanel.PanelMode.View;
+        UpdateRenderData();
+    }
+
+    private void SelectEdge(MapEdgeListItemDto edge)
+    {
+        _selectedNode = null;
+        _selectedEdge = edge;
+        _nodePanelMode = NodePanel.PanelMode.View;
+        _edgePanelMode = EdgePanel.PanelMode.View;
+        UpdateRenderData();
+    }
+
+    private async Task SelectRoute(RouteListItemDto route)
+    {
+        _selectedRoute = route;
+        _selectedSegmentIndex = -1;
+
+        _routeDisplayName = route.DisplayName;
+        _routeDescription = route.Description;
+        _routeIsActive = route.IsActive;
+        _routeSortNo = route.SortNo;
+
+        try
+        {
+            var detail = await RouteClient.GetByIdAsync(route.Id);
+            if (detail != null)
+            {
+                _segments = detail.Segments.Select(s => new SegmentModel
+                {
+                    EdgeId = s.EdgeId,
+                    Direction = s.Direction,
+                    Action = s.Action,
+                    WaitTime = s.WaitTime
+                }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载路线详情失败: {ex.Message}", Severity.Error);
+        }
+
+        UpdateRenderData();
+    }
+
+    private void SelectSegment(int index)
+    {
+        _selectedSegmentIndex = index;
+    }
+
+    private void OnCanvasMouseDown(MouseEventArgs e)
+    {
+        // 中键拖拽平移
+        if (e.Button == 1)
+        {
+            _isPanning = true;
+            _panStartX = (float)e.OffsetX;
+            _panStartY = (float)e.OffsetY;
+            _panStartOffsetX = _offsetX;
+            _panStartOffsetY = _offsetY;
+        }
+    }
+
+    private void OnCanvasMouseMove(MouseEventArgs e)
+    {
+        // 处理平移拖拽
+        if (_isPanning)
+        {
+            _offsetX = _panStartOffsetX + ((float)e.OffsetX - _panStartX);
+            _offsetY = _panStartOffsetY + ((float)e.OffsetY - _panStartY);
+            RenderSvg();
+            return;
+        }
+
+        var (mapX, mapY) = CoordinateHelper.ScreenToMap((float)e.OffsetX, (float)e.OffsetY, _scale, _offsetX, _offsetY);
+        _mouseMapX = mapX;
+        _mouseMapY = mapY;
+    }
+
+    private void OnCanvasMouseUp(MouseEventArgs e)
+    {
+        _isPanning = false;
+    }
+
+    private void OnCanvasWheel(WheelEventArgs e)
+    {
+        var zoomFactor = e.DeltaY > 0 ? 0.9f : 1.1f;
+        _scale *= zoomFactor;
+        _scale = Math.Max(0.01f, Math.Min(1f, _scale));
+        RenderSvg();
+    }
+
+    private void ZoomIn() { _scale *= 1.2f; _scale = Math.Min(1f, _scale); RenderSvg(); }
+    private void ZoomOut() { _scale *= 0.8f; _scale = Math.Max(0.01f, _scale); RenderSvg(); }
+
+    private void IncreaseElementScale()
+    {
+        _elementScale = Math.Min(10f, _elementScale + 0.5f);
+        RenderSvg();
+    }
+
+    private void DecreaseElementScale()
+    {
+        _elementScale = Math.Max(0.5f, _elementScale - 0.5f);
+        RenderSvg();
+    }
+
+    private void FitToScreen()
+    {
+        if (_map == null) return;
+        var mapWidth = (float)_map.Width;
+        var mapHeight = (float)_map.Height;
+        var scaleX = (_canvasWidth - 100) / mapWidth;
+        var scaleY = (_canvasHeight - 100) / mapHeight;
+        _scale = Math.Min(scaleX, scaleY) * 0.9f;
+        _offsetX = 50;
+        _offsetY = 50;
+        RenderSvg();
+    }
+
+    #region 节点/边面板操作
+
+    private void StartCreateNode()
+    {
+        _selectedNode = null;
+        _selectedEdge = null;
+        _nodePanelMode = NodePanel.PanelMode.Create;
+        _edgePanelMode = EdgePanel.PanelMode.View;
+    }
+
+    private void StartCreateEdge()
+    {
+        if (_nodes.Count < 2)
+        {
+            Snackbar.Add("至少需要2个节点才能添加边", Severity.Warning);
+            return;
+        }
+
+        _selectedNode = null;
+        _selectedEdge = null;
+        _edgePanelMode = EdgePanel.PanelMode.Create;
+        _nodePanelMode = NodePanel.PanelMode.View;
+    }
+
+    private async Task OnNodeSaved()
+    {
+        _nodePanelMode = NodePanel.PanelMode.View;
+        _selectedNode = null;
+        await LoadMapData();
+    }
+
+    private async Task OnEdgeSaved()
+    {
+        _edgePanelMode = EdgePanel.PanelMode.View;
+        _selectedEdge = null;
+        await LoadMapData();
+    }
+
+    private void CloseNodePanel()
+    {
+        _nodePanelMode = NodePanel.PanelMode.View;
+    }
+
+    private void CloseEdgePanel()
+    {
+        _edgePanelMode = EdgePanel.PanelMode.View;
+    }
+
+    private void ClearSelection()
+    {
+        _selectedNode = null;
+        _selectedEdge = null;
+        UpdateRenderData();
+    }
+
+    private async Task DeleteSelectedNode()
+    {
+        if (_selectedNode == null) return;
+
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.ContentText, $"确定要删除节点 [{_selectedNode.NodeCode}] {_selectedNode.DisplayName} 吗？" },
+            { x => x.ButtonText, "删除" },
+            { x => x.Color, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            if (await MapClient.DeleteNodeAsync(MapId, _selectedNode.Id))
+            {
+                _selectedNode = null;
+                await LoadMapData();
+                Snackbar.Add("删除成功", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("删除失败，可能存在关联的边", Severity.Error);
+            }
+        }
+    }
+
+    private async Task DeleteSelectedEdge()
+    {
+        if (_selectedEdge == null) return;
+
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.ContentText, $"确定要删除边 [{_selectedEdge.EdgeCode}] 吗？" },
+            { x => x.ButtonText, "删除" },
+            { x => x.Color, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            if (await MapClient.DeleteEdgeAsync(MapId, _selectedEdge.Id))
+            {
+                _selectedEdge = null;
+                await LoadMapData();
+                Snackbar.Add("删除成功", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("删除失败", Severity.Error);
+            }
+        }
+    }
+
+    #endregion
+
+    private string GetEdgeDisplay(Guid edgeId)
+    {
+        var edge = _edges.FirstOrDefault(e => e.Id == edgeId);
+        return edge != null ? $"{edge.EdgeCode}" : "未知";
+    }
+
+    private async Task ValidateMap()
+    {
+        _validating = true;
+        try
+        {
+            await Task.Yield(); // 让 UI 更新
+
+            var result = _validator.Validate(_nodes, _edges);
+
+            var parameters = new DialogParameters<MapValidationDialog>
+            {
+                { x => x.Result, result }
+            };
+
+            var options = new DialogOptions
+            {
+                MaxWidth = MaxWidth.Medium,
+                CloseButton = true
+            };
+
+            await DialogService.ShowAsync<MapValidationDialog>("地图验证", parameters, options);
+        }
+        finally
+        {
+            _validating = false;
+        }
+    }
+
+    #region 站点管理
+
+    private void SelectStation(StationListItemDto station)
+    {
+        _selectedStation = station;
+        _stationPanelMode = StationPanel.PanelMode.View;
+        UpdateRenderData();
+    }
+
+    private void StartCreateStation()
+    {
+        if (_nodes.Count == 0)
+        {
+            Snackbar.Add("至少需要1个节点才能创建站点", Severity.Warning);
+            return;
+        }
+
+        _selectedStation = null;
+        _stationPanelMode = StationPanel.PanelMode.Create;
+    }
+
+    private async Task OnStationSaved()
+    {
+        _stationPanelMode = StationPanel.PanelMode.View;
+        _selectedStation = null;
+        await LoadStations();
+        UpdateRenderData();
+    }
+
+    private void CloseStationPanel()
+    {
+        _stationPanelMode = StationPanel.PanelMode.View;
+    }
+
+    private void ClearStationSelection()
+    {
+        _selectedStation = null;
+        UpdateRenderData();
+    }
+
+    private async Task DeleteSelectedStation()
+    {
+        if (_selectedStation == null) return;
+
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.ContentText, $"确定要删除站点 [{_selectedStation.StationCode}] {_selectedStation.DisplayName} 吗？" },
+            { x => x.ButtonText, "删除" },
+            { x => x.Color, Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            if (await StationClient.DeleteAsync(MapId, _selectedStation.Id))
+            {
+                _selectedStation = null;
+                await LoadStations();
+                UpdateRenderData();
+                Snackbar.Add("站点删除成功", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("删除失败", Severity.Error);
+            }
+        }
+    }
+
+    private static Color GetStationTypeColor(StationType type) => type switch
+    {
+        StationType.Pickup => Color.Success,
+        StationType.Dropoff => Color.Warning,
+        StationType.Charge => Color.Info,
+        StationType.Standby => Color.Default,
+        StationType.Intersection => Color.Secondary,
+        _ => Color.Default
+    };
+
+    #endregion
+
+    #region 显示控制
+
+    private void ToggleNodeLabels(bool value)
+    {
+        _renderOptions.ShowNodeLabels = value;
+        RenderSvg();
+    }
+
+    private void ToggleEdgeLabels(bool value)
+    {
+        _renderOptions.ShowEdgeLabels = value;
+        RenderSvg();
+    }
+
+    private void ToggleStationLabels(bool value)
+    {
+        _renderOptions.ShowStationLabels = value;
+        RenderSvg();
+    }
+
+    #endregion
+
+    private class SegmentModel
+    {
+        public Guid EdgeId { get; set; }
+        public DriveDirection Direction { get; set; } = DriveDirection.Forward;
+        public FinalAction Action { get; set; } = FinalAction.None;
+        public int WaitTime { get; set; }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("mapStudioInterop.dispose", _canvasContainer);
+        }
+        catch
+        {
+            // 忽略 JS 调用失败（如页面已卸载）
+        }
+        _dotNetRef?.Dispose();
+    }
+}
