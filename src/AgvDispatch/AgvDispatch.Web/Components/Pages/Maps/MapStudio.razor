@@ -233,15 +233,25 @@
 
             @* 画布工具条 *@
             <div class="canvas-tools">
-                <MudIconButton Icon="@Icons.Material.Filled.ZoomIn"
-                               Size="Size.Small"
-                               OnClick="ZoomIn"
-                               Title="放大" />
-                <MudText Typo="Typo.caption">@((_scale * 100).ToString("F0"))%</MudText>
                 <MudIconButton Icon="@Icons.Material.Filled.ZoomOut"
                                Size="Size.Small"
                                OnClick="ZoomOut"
                                Title="缩小" />
+                <MudNumericField T="int"
+                                 Value="@((int)(_scale * 100))"
+                                 ValueChanged="OnZoomValueChanged"
+                                 Min="1"
+                                 Max="100"
+                                 Variant="Variant.Outlined"
+                                 HideSpinButtons="true"
+                                 Adornment="Adornment.End"
+                                 AdornmentText="%"
+                                 Style="width: 70px;"
+                                 Margin="Margin.Dense" />
+                <MudIconButton Icon="@Icons.Material.Filled.ZoomIn"
+                               Size="Size.Small"
+                               OnClick="ZoomIn"
+                               Title="放大" />
                 <MudIconButton Icon="@Icons.Material.Filled.FitScreen"
                                Size="Size.Small"
                                OnClick="FitToScreen"
@@ -862,6 +872,13 @@
 
     private void ZoomIn() { _scale *= 1.2f; _scale = Math.Min(1f, _scale); RenderSvg(); }
     private void ZoomOut() { _scale *= 0.8f; _scale = Math.Max(0.01f, _scale); RenderSvg(); }
+
+    private void OnZoomValueChanged(int value)
+    {
+        _scale = value / 100f;
+        _scale = Math.Max(0.01f, Math.Min(1f, _scale));
+        RenderSvg();
+    }
 
     private void IncreaseElementScale()
     {
