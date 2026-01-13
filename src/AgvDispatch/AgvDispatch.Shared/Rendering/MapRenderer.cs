@@ -73,21 +73,6 @@ public class MapRenderer
 
         #endregion </pattern>
 
-        #region <marker> 箭头标记
-
-        // 箭头标记（使用 visualScale 保持固定视觉大小）
-        var arrowSize = _options.ArrowSize * visualScale;
-        var arrowRefX = arrowSize * 0.8f;
-        var arrowRefY = arrowSize * 0.5f;
-        sb.AppendLine($"  <marker id=\"arrow\" markerWidth=\"{F(arrowSize)}\" markerHeight=\"{F(arrowSize)}\" refX=\"{F(arrowRefX)}\" refY=\"{F(arrowRefY)}\" orient=\"auto\" markerUnits=\"userSpaceOnUse\">");
-        sb.AppendLine($"    <path d=\"M0,0 L{F(arrowSize)},{F(arrowRefY)} L0,{F(arrowSize)} L{F(arrowSize * 0.2f)},{F(arrowRefY)} Z\" fill=\"{_options.EdgeColor}\"/>");
-        sb.AppendLine("  </marker>");
-        sb.AppendLine($"  <marker id=\"arrow-highlighted\" markerWidth=\"{F(arrowSize)}\" markerHeight=\"{F(arrowSize)}\" refX=\"{F(arrowRefX)}\" refY=\"{F(arrowRefY)}\" orient=\"auto\" markerUnits=\"userSpaceOnUse\">");
-        sb.AppendLine($"    <path d=\"M0,0 L{F(arrowSize)},{F(arrowRefY)} L0,{F(arrowSize)} L{F(arrowSize * 0.2f)},{F(arrowRefY)} Z\" fill=\"{_options.HighlightedEdgeColor}\"/>");
-        sb.AppendLine("  </marker>");
-
-        #endregion </marker>
-
         sb.AppendLine("</defs>");
 
         #endregion </defs>
@@ -189,33 +174,23 @@ public class MapRenderer
 
         string color;
         float width;
-        string markerId;
 
         if (isHighlighted)
         {
             color = _options.HighlightedEdgeColor;
             width = _options.HighlightedEdgeWidth * visualScale;
-            markerId = "arrow-highlighted";
         }
         else
         {
             color = _options.EdgeColor;
             width = _options.EdgeWidth * visualScale;
-            markerId = "arrow";
         }
 
         #endregion
 
-        #region 计算缩短后的端点（避免箭头穿过节点，影响美观）
+        #region 绘制边线
 
-        var nodeRadius = _options.NodeRadius * visualScale;
         var angle = Math.Atan2(y2 - y1, x2 - x1);
-        var shortenedX1 = x1 + (float)Math.Cos(angle) * nodeRadius;
-        var shortenedY1 = y1 + (float)Math.Sin(angle) * nodeRadius;
-        var shortenedX2 = x2 - (float)Math.Cos(angle) * nodeRadius;
-        var shortenedY2 = y2 - (float)Math.Sin(angle) * nodeRadius;
-
-        var markerAttr = edge.IsBidirectional ? "" : $"marker-end=\"url(#{markerId})\"";
 
         // 选中时先绘制黄色底边作为边框效果
         if (isSelected)
@@ -226,32 +201,61 @@ public class MapRenderer
             {
                 var viaX = (float)edge.ArcViaX.Value;
                 var viaY = (float)edge.ArcViaY.Value;
-                sb.AppendLine($"  <polyline points=\"{F(shortenedX1)},{F(shortenedY1)} {F(viaX)},{F(viaY)} {F(shortenedX2)},{F(shortenedY2)}\" " +
+                sb.AppendLine($"  <polyline points=\"{F(x1)},{F(y1)} {F(viaX)},{F(viaY)} {F(x2)},{F(y2)}\" " +
                     $"fill=\"none\" stroke=\"{_options.SelectedEdgeHighlightColor}\" stroke-width=\"{F(highlightWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>");
             }
             else
             {
-                sb.AppendLine($"  <line x1=\"{F(shortenedX1)}\" y1=\"{F(shortenedY1)}\" x2=\"{F(shortenedX2)}\" y2=\"{F(shortenedY2)}\" " +
+                sb.AppendLine($"  <line x1=\"{F(x1)}\" y1=\"{F(y1)}\" x2=\"{F(x2)}\" y2=\"{F(y2)}\" " +
                     $"stroke=\"{_options.SelectedEdgeHighlightColor}\" stroke-width=\"{F(highlightWidth)}\" stroke-linecap=\"round\"/>");
             }
         }
 
+        // 绘制边线（不带箭头标记）
         if (edge.EdgeType == EdgeType.Arc && edge.ArcViaX.HasValue && edge.ArcViaY.HasValue)
         {
             // 弧线：通过中间点绘制折线
             var viaX = (float)edge.ArcViaX.Value;
             var viaY = (float)edge.ArcViaY.Value;
 
-            sb.AppendLine($"  <polyline points=\"{F(shortenedX1)},{F(shortenedY1)} {F(viaX)},{F(viaY)} {F(shortenedX2)},{F(shortenedY2)}\" " +
+            sb.AppendLine($"  <polyline points=\"{F(x1)},{F(y1)} {F(viaX)},{F(viaY)} {F(x2)},{F(y2)}\" " +
                 $"fill=\"none\" stroke=\"{color}\" stroke-width=\"{F(width)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\" " +
-                $"{markerAttr} data-type=\"edge\" data-id=\"{edge.Id}\" class=\"map-edge\"/>");
+                $"data-type=\"edge\" data-id=\"{edge.Id}\" class=\"map-edge\"/>");
         }
         else
         {
             // 直线
-            sb.AppendLine($"  <line x1=\"{F(shortenedX1)}\" y1=\"{F(shortenedY1)}\" x2=\"{F(shortenedX2)}\" y2=\"{F(shortenedY2)}\" " +
+            sb.AppendLine($"  <line x1=\"{F(x1)}\" y1=\"{F(y1)}\" x2=\"{F(x2)}\" y2=\"{F(y2)}\" " +
                 $"stroke=\"{color}\" stroke-width=\"{F(width)}\" stroke-linecap=\"round\" " +
-                $"{markerAttr} data-type=\"edge\" data-id=\"{edge.Id}\" class=\"map-edge\"/>");
+                $"data-type=\"edge\" data-id=\"{edge.Id}\" class=\"map-edge\"/>");
+        }
+
+        #endregion
+
+        #region 绘制方向箭头（在边的1/3位置）
+
+        var arrowSize = _options.ArrowSize * visualScale;
+
+        if (edge.IsBidirectional)
+        {
+            // 双向边：在1/3和2/3位置各画一个箭头
+            // 前1/3位置：箭头指向起点（反向）
+            var arrow1X = x1 + (x2 - x1) * 0.33f;
+            var arrow1Y = y1 + (y2 - y1) * 0.33f;
+            var angle1 = angle + (float)Math.PI; // 反向
+            sb.Append(RenderArrowAtPosition(arrow1X, arrow1Y, angle1, arrowSize, color));
+
+            // 后1/3位置：箭头指向终点（正向）
+            var arrow2X = x1 + (x2 - x1) * 0.67f;
+            var arrow2Y = y1 + (y2 - y1) * 0.67f;
+            sb.Append(RenderArrowAtPosition(arrow2X, arrow2Y, angle, arrowSize, color));
+        }
+        else
+        {
+            // 单向边：在1/3位置画一个指向终点的箭头
+            var arrowX = x1 + (x2 - x1) * 0.33f;
+            var arrowY = y1 + (y2 - y1) * 0.33f;
+            sb.Append(RenderArrowAtPosition(arrowX, arrowY, angle, arrowSize, color));
         }
 
         #endregion
@@ -503,6 +507,60 @@ public class MapRenderer
         return sb.ToString();
     }
 
+
+    #endregion
+
+    #region 绘制箭头
+
+    /// <summary>
+    /// 在指定位置和角度绘制箭头
+    /// </summary>
+    /// <param name="x">箭头中心X坐标</param>
+    /// <param name="y">箭头中心Y坐标</param>
+    /// <param name="angle">箭头角度（弧度）</param>
+    /// <param name="size">箭头大小</param>
+    /// <param name="color">箭头颜色</param>
+    /// <returns>SVG 路径字符串</returns>
+    private string RenderArrowAtPosition(float x, float y, double angle, float size, string color)
+    {
+        // 箭头形状：三角形
+        // 箭头指向右侧（0度方向），然后旋转到指定角度
+        var halfSize = size * 0.5f;
+        var tipLength = size * 0.8f;
+
+        // 定义箭头的三个顶点（未旋转时）
+        // 顶点：箭头尖端在右侧
+        var p1X = tipLength;
+        var p1Y = 0f;
+        // 左下角
+        var p2X = 0f;
+        var p2Y = -halfSize;
+        // 左上角
+        var p3X = 0f;
+        var p3Y = halfSize;
+        // 尾部中点（使箭头更立体）
+        var p4X = tipLength * 0.2f;
+        var p4Y = 0f;
+
+        // 旋转并平移顶点
+        var cos = (float)Math.Cos(angle);
+        var sin = (float)Math.Sin(angle);
+
+        float RotateX(float px, float py) => x + px * cos - py * sin;
+        float RotateY(float px, float py) => y + px * sin + py * cos;
+
+        var r1X = RotateX(p1X, p1Y);
+        var r1Y = RotateY(p1X, p1Y);
+        var r2X = RotateX(p2X, p2Y);
+        var r2Y = RotateY(p2X, p2Y);
+        var r3X = RotateX(p3X, p3Y);
+        var r3Y = RotateY(p3X, p3Y);
+        var r4X = RotateX(p4X, p4Y);
+        var r4Y = RotateY(p4X, p4Y);
+
+        // 绘制填充的箭头三角形
+        return $"  <path d=\"M{F(r2X)},{F(r2Y)} L{F(r1X)},{F(r1Y)} L{F(r3X)},{F(r3Y)} L{F(r4X)},{F(r4Y)} Z\" fill=\"{color}\"/>\n";
+    }
 
     #endregion
 
