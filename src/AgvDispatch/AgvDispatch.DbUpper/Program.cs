@@ -34,7 +34,7 @@ internal class Program
 
         // 初始化引擎
         var upgrader = DeployChanges.To
-            .PostgresqlDatabase(connString)
+            .SqlDatabase(connString)
             .WithScriptsFromFileSystem(@".\Scripts", s => s.StartsWith(@".\Scripts\"))
             .LogToConsole()
             .Build();
