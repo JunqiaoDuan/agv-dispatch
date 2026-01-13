@@ -1,0 +1,102 @@
+@using AgvDispatch.Shared.Rendering
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            @if (!Result.IsValid)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" />
+                <MudText Typo="Typo.h6">验证失败</MudText>
+            }
+            else if (Result.HasWarnings)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" />
+                <MudText Typo="Typo.h6">验证通过（有警告）</MudText>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                <MudText Typo="Typo.h6">验证通过</MudText>
+            }
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <div style="min-width: 400px; max-width: 600px;">
+            @if (Result.Errors.Count > 0)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">
+                    请修复以下 @Result.Errors.Count 个错误
+                </MudAlert>
+
+                <MudText Typo="Typo.subtitle2" Color="Color.Error" Class="mb-2">错误列表</MudText>
+                <MudList T="ValidationIssue" Dense="true" Class="mb-3">
+                    @foreach (var error in Result.Errors)
+                    {
+                        <MudListItem Icon="@Icons.Material.Filled.Cancel" IconColor="Color.Error">
+                            <MudText Typo="Typo.body2">@error.Message</MudText>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+
+            @if (Result.Warnings.Count > 0)
+            {
+                <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-2">警告列表</MudText>
+                <MudList T="ValidationIssue" Dense="true" Class="mb-3">
+                    @foreach (var warning in Result.Warnings)
+                    {
+                        <MudListItem Icon="@Icons.Material.Filled.Warning" IconColor="Color.Warning">
+                            <MudText Typo="Typo.body2">@warning.Message</MudText>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+
+            <MudDivider Class="my-3" />
+
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">统计信息</MudText>
+            <MudSimpleTable Dense="true" Hover="true" Bordered="true">
+                <tbody>
+                    <tr>
+                        <td style="width: 120px;"><MudText Typo="Typo.body2">节点数量</MudText></td>
+                        <td><MudText Typo="Typo.body2"><strong>@Result.NodeCount</strong> 个</MudText></td>
+                    </tr>
+                    <tr>
+                        <td><MudText Typo="Typo.body2">边数量</MudText></td>
+                        <td><MudText Typo="Typo.body2"><strong>@Result.EdgeCount</strong> 条</MudText></td>
+                    </tr>
+                    <tr>
+                        <td><MudText Typo="Typo.body2">连通性</MudText></td>
+                        <td>
+                            <MudText Typo="Typo.body2">
+                                <MudChip T="string" Size="Size.Small" Color="@GetConnectivityColor()">
+                                    @Result.ConnectivityStatus
+                                </MudChip>
+                            </MudText>
+                        </td>
+                    </tr>
+                </tbody>
+            </MudSimpleTable>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Primary">确定</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public MapValidationResult Result { get; set; } = new();
+
+    private void Close() => MudDialog?.Close();
+
+    private Color GetConnectivityColor() => Result.ConnectivityStatus switch
+    {
+        "良好" => Color.Success,
+        "存在警告" => Color.Warning,
+        _ => Color.Error
+    };
+}
