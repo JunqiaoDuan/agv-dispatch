@@ -486,6 +486,7 @@ public class MapsController : ControllerBase
             IsBidirectional = request.IsBidirectional,
             ArcViaX = request.ArcViaX,
             ArcViaY = request.ArcViaY,
+            Curvature = request.Curvature,
             Distance = distance
         };
 
@@ -530,13 +531,15 @@ public class MapsController : ControllerBase
         {
             EdgeType = request.EdgeType,
             ArcViaX = request.ArcViaX,
-            ArcViaY = request.ArcViaY
+            ArcViaY = request.ArcViaY,
+            Curvature = request.Curvature
         };
 
         edge.EdgeType = request.EdgeType;
         edge.IsBidirectional = request.IsBidirectional;
         edge.ArcViaX = request.ArcViaX;
         edge.ArcViaY = request.ArcViaY;
+        edge.Curvature = request.Curvature;
 
         if (startNode != null && endNode != null)
         {
@@ -630,9 +633,23 @@ public class MapsController : ControllerBase
     {
         if (request.EdgeType == Shared.Enums.EdgeType.Arc && request.ArcViaX.HasValue && request.ArcViaY.HasValue)
         {
-            // 弧线：计算两段直线距离之和
+            // 弧线（经过点）：计算两段直线距离之和
             var d1 = CalculateLineDistance(startNode.X, startNode.Y, request.ArcViaX.Value, request.ArcViaY.Value);
             var d2 = CalculateLineDistance(request.ArcViaX.Value, request.ArcViaY.Value, endNode.X, endNode.Y);
+            return d1 + d2;
+        }
+        else if (request.EdgeType == Shared.Enums.EdgeType.ArcWithCurvature && request.Curvature.HasValue)
+        {
+            // 弧线（曲率）：使用二次贝塞尔曲线长度近似
+            // 计算控制点
+            var (ctrlX, ctrlY) = CalculateCurvatureControlPoint(
+                (float)startNode.X, (float)startNode.Y,
+                (float)endNode.X, (float)endNode.Y,
+                (float)request.Curvature.Value);
+
+            // 使用折线长度近似曲线长度
+            var d1 = CalculateLineDistance(startNode.X, startNode.Y, (decimal)ctrlX, (decimal)ctrlY);
+            var d2 = CalculateLineDistance((decimal)ctrlX, (decimal)ctrlY, endNode.X, endNode.Y);
             return d1 + d2;
         }
 
@@ -648,6 +665,42 @@ public class MapsController : ControllerBase
         var dx = (double)(x2 - x1);
         var dy = (double)(y2 - y1);
         return (decimal)Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    /// <summary>
+    /// 根据曲率值计算贝塞尔曲线的控制点
+    /// </summary>
+    private static (float ctrlX, float ctrlY) CalculateCurvatureControlPoint(float x1, float y1, float x2, float y2, float curvature)
+    {
+        // 计算中点
+        var midX = (x1 + x2) / 2;
+        var midY = (y1 + y2) / 2;
+
+        // 计算线段长度
+        var dx = x2 - x1;
+        var dy = y2 - y1;
+        var distance = (float)Math.Sqrt(dx * dx + dy * dy);
+
+        // 计算垂直于线段的方向（顺时针旋转90度）
+        var perpX = dy;
+        var perpY = -dx;
+
+        // 归一化垂直向量
+        var perpLength = (float)Math.Sqrt(perpX * perpX + perpY * perpY);
+        if (perpLength > 0)
+        {
+            perpX /= perpLength;
+            perpY /= perpLength;
+        }
+
+        // 根据曲率值计算偏移距离
+        var offset = curvature * distance * 0.5f;
+
+        // 计算控制点
+        var ctrlX = midX + perpX * offset;
+        var ctrlY = midY + perpY * offset;
+
+        return (ctrlX, ctrlY);
     }
 
     #endregion

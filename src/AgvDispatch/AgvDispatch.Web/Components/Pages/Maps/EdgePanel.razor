@@ -49,8 +49,15 @@
         @if (Edge.EdgeType == EdgeType.Arc && Edge.ArcViaX.HasValue && Edge.ArcViaY.HasValue)
         {
             <div class="info-row">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">弧线经过点</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">弧线路径点</MudText>
                 <MudText Typo="Typo.body2">(@Edge.ArcViaX.Value.ToString("F0"), @Edge.ArcViaY.Value.ToString("F0")) cm</MudText>
+            </div>
+        }
+        else if (Edge.EdgeType == EdgeType.ArcWithCurvature && Edge.Curvature.HasValue)
+        {
+            <div class="info-row">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">曲率</MudText>
+                <MudText Typo="Typo.body2">@Edge.Curvature.Value.ToString("F2") (@(Edge.Curvature.Value > 0 ? "向右弯" : Edge.Curvature.Value < 0 ? "向左弯" : "直线"))</MudText>
             </div>
         }
 
@@ -149,7 +156,8 @@ else
                        Variant="Variant.Outlined"
                        Margin="Margin.Dense">
                 <MudSelectItem T="EdgeType" Value="EdgeType.Line">直线</MudSelectItem>
-                <MudSelectItem T="EdgeType" Value="EdgeType.Arc">弧线</MudSelectItem>
+                <MudSelectItem T="EdgeType" Value="EdgeType.Arc">弧线-路径点</MudSelectItem>
+                <MudSelectItem T="EdgeType" Value="EdgeType.ArcWithCurvature">弧线-曲率</MudSelectItem>
             </MudSelect>
 
             <MudSwitch @bind-Value="_model.IsBidirectional"
@@ -158,16 +166,33 @@ else
 
             @if (_model.EdgeType == EdgeType.Arc)
             {
-                <MudText Typo="Typo.subtitle2" Class="mt-2">弧线经过点坐标</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mt-2">弧线路径点坐标</MudText>
                 <MudStack Row="true" Spacing="2">
                     <MudNumericField @bind-Value="_model.ArcViaX"
-                                     Label="经过点X(cm)"
+                                     Label="路径点X(cm)"
                                      Variant="Variant.Outlined"
                                      Margin="Margin.Dense" />
                     <MudNumericField @bind-Value="_model.ArcViaY"
-                                     Label="经过点Y(cm)"
+                                     Label="路径点Y(cm)"
                                      Variant="Variant.Outlined"
                                      Margin="Margin.Dense" />
+                </MudStack>
+            }
+            else if (_model.EdgeType == EdgeType.ArcWithCurvature)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-2">曲率（-1 到 1）</MudText>
+                <MudStack Spacing="1">
+                    <MudSlider @bind-Value="_model.Curvature"
+                               Min="-1.0m"
+                               Max="1.0m"
+                               Step="0.05m"
+                               Color="Color.Primary"
+                               Variant="Variant.Filled">
+                        曲率: @_model.Curvature.ToString("F2")
+                    </MudSlider>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2">
+                        提示：0 = 直线，正值 = 向右弯，负值 = 向左弯
+                    </MudText>
                 </MudStack>
             }
 
@@ -265,7 +290,8 @@ else
                 EdgeType = Edge.EdgeType,
                 IsBidirectional = Edge.IsBidirectional,
                 ArcViaX = Edge.ArcViaX,
-                ArcViaY = Edge.ArcViaY
+                ArcViaY = Edge.ArcViaY,
+                Curvature = Edge.Curvature ?? 0m
             };
         }
         else if (Mode == PanelMode.Create)
@@ -273,7 +299,8 @@ else
             _model = new EdgeFormModel
             {
                 StartNodeId = InitialStartNodeId,
-                EndNodeId = InitialEndNodeId
+                EndNodeId = InitialEndNodeId,
+                Curvature = 0m  // 默认曲率为0
             };
             await GenerateNextCode();
         }
@@ -305,7 +332,8 @@ else
                 EdgeType = Edge.EdgeType,
                 IsBidirectional = Edge.IsBidirectional,
                 ArcViaX = Edge.ArcViaX,
-                ArcViaY = Edge.ArcViaY
+                ArcViaY = Edge.ArcViaY,
+                Curvature = Edge.Curvature ?? 0m
             };
             _currentMode = PanelMode.Edit;
             Mode = PanelMode.Edit;
@@ -367,7 +395,8 @@ else
                     EdgeType = _model.EdgeType,
                     IsBidirectional = _model.IsBidirectional,
                     ArcViaX = _model.ArcViaX,
-                    ArcViaY = _model.ArcViaY
+                    ArcViaY = _model.ArcViaY,
+                    Curvature = _model.EdgeType == EdgeType.ArcWithCurvature ? _model.Curvature : null
                 };
                 error = await MapClient.UpdateEdgeAsync(MapId, Edge.Id, request);
             }
@@ -381,7 +410,8 @@ else
                     EdgeType = _model.EdgeType,
                     IsBidirectional = _model.IsBidirectional,
                     ArcViaX = _model.ArcViaX,
-                    ArcViaY = _model.ArcViaY
+                    ArcViaY = _model.ArcViaY,
+                    Curvature = _model.EdgeType == EdgeType.ArcWithCurvature ? _model.Curvature : null
                 };
                 error = await MapClient.CreateEdgeAsync(MapId, request);
             }
@@ -433,6 +463,7 @@ else
         public bool IsBidirectional { get; set; } = true;
         public decimal? ArcViaX { get; set; }
         public decimal? ArcViaY { get; set; }
+        public decimal Curvature { get; set; } = 0m;  // 非 nullable，默认为 0
     }
 
     public enum PanelMode

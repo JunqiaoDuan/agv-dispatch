@@ -49,6 +49,12 @@ public class MapEdge : BaseEntity
     public decimal? ArcViaY { get; set; }
 
     /// <summary>
+    /// 曲率值（-1到1之间，0为直线，正值向右弯，负值向左弯）
+    /// EdgeType=ArcWithCurvature 时使用
+    /// </summary>
+    public decimal? Curvature { get; set; }
+
+    /// <summary>
     /// 边长度
     /// </summary>
     public decimal Distance { get; set; } = 0;

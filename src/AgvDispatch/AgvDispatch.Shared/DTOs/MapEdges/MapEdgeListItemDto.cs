@@ -20,6 +20,7 @@ public class MapEdgeListItemDto
     public bool IsBidirectional { get; set; }
     public decimal? ArcViaX { get; set; }
     public decimal? ArcViaY { get; set; }
+    public decimal? Curvature { get; set; }
     public decimal Distance { get; set; }
     public DateTimeOffset? CreationDate { get; set; }
 }

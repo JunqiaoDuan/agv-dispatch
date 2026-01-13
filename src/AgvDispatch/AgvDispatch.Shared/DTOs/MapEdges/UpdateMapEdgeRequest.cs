@@ -14,4 +14,6 @@ public class UpdateMapEdgeRequest
     public decimal? ArcViaX { get; set; }
 
     public decimal? ArcViaY { get; set; }
+
+    public decimal? Curvature { get; set; }
 }

@@ -11,9 +11,14 @@ public enum EdgeType
     Line = 10,
 
     /// <summary>
-    /// 弧线
+    /// 弧线（通过经过点定义）
     /// </summary>
     Arc = 20,
+
+    /// <summary>
+    /// 弧线（通过曲率值定义）
+    /// </summary>
+    ArcWithCurvature = 21,
 }
 
 /// <summary>
@@ -27,7 +32,8 @@ public static class EdgeTypeExtensions
     public static string ToDisplayText(this EdgeType type) => type switch
     {
         EdgeType.Line => "直线",
-        EdgeType.Arc => "弧线",
+        EdgeType.Arc => "弧线-路径点",
+        EdgeType.ArcWithCurvature => "弧线-曲率",
         _ => "未知"
     };
 }
