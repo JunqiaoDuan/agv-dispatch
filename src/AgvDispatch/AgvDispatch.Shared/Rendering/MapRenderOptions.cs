@@ -198,4 +198,53 @@ public class MapRenderOptions
     public float RouteSequenceFontSize { get; set; } = 9f;
 
     #endregion
+
+    #region 模拟渲染
+
+    /// <summary>
+    /// 是否渲染模拟层
+    /// </summary>
+    public bool RenderSimulation { get; set; } = true;
+
+    /// <summary>
+    /// AGV 图标大小
+    /// </summary>
+    public float SimulationAgvSize { get; set; } = 20f;
+
+    /// <summary>
+    /// AGV 颜色
+    /// </summary>
+    public string SimulationAgvColor { get; set; } = "#2196F3";
+
+    /// <summary>
+    /// 起点标记颜色
+    /// </summary>
+    public string SimulationStartMarkerColor { get; set; } = "#4CAF50";
+
+    /// <summary>
+    /// 终点标记颜色
+    /// </summary>
+    public string SimulationEndMarkerColor { get; set; } = "#F44336";
+
+    /// <summary>
+    /// 已走路径颜色
+    /// </summary>
+    public string SimulationTraveledPathColor { get; set; } = "#2196F3";
+
+    /// <summary>
+    /// 已走路径线宽
+    /// </summary>
+    public float SimulationTraveledPathWidth { get; set; } = 3f;
+
+    /// <summary>
+    /// 到终点直线颜色
+    /// </summary>
+    public string SimulationToEndLineColor { get; set; } = "#9E9E9E";
+
+    /// <summary>
+    /// 到终点直线虚线样式
+    /// </summary>
+    public string SimulationToEndLineDashArray { get; set; } = "5,5";
+
+    #endregion
 }

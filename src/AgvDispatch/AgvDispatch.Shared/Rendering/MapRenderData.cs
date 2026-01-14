@@ -1,6 +1,7 @@
 using AgvDispatch.Shared.DTOs.MapEdges;
 using AgvDispatch.Shared.DTOs.MapNodes;
 using AgvDispatch.Shared.DTOs.Stations;
+using AgvDispatch.Shared.Simulation;
 
 namespace AgvDispatch.Shared.Rendering;
 
@@ -63,6 +64,15 @@ public class MapRenderData
     /// 路线高亮的边ID列表（按顺序）
     /// </summary>
     public List<Guid> HighlightedEdgeIds { get; set; } = [];
+
+    #endregion
+
+    #region 模拟专用 - 模拟数据
+
+    /// <summary>
+    /// 模拟的 AGV 列表
+    /// </summary>
+    public List<AgvSimulationData> SimulatedAgvs { get; set; } = [];
 
     #endregion
 }

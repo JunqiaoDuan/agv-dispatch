@@ -15,6 +15,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject NavigationManager NavigationManager
 
 <PageTitle>地图工作室 - @(_map?.MapCode) @(_map?.DisplayName)</PageTitle>
 
@@ -43,6 +44,13 @@
         </div>
 
         <div class="toolbar-right">
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Info"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.DirectionsCar"
+                       OnClick="OpenSimulation">
+                模拟
+            </MudButton>
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        Size="Size.Small"
@@ -1083,6 +1091,11 @@
         {
             _validating = false;
         }
+    }
+
+    private void OpenSimulation()
+    {
+        NavigationManager.NavigateTo($"/map-simulation/{MapId}");
     }
 
     #region 站点管理

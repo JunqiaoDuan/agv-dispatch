@@ -206,8 +206,11 @@ public class MapRenderer
             }
             else if (edge.EdgeType == EdgeType.ArcWithCurvature && edge.Curvature.HasValue)
             {
-                var (ctrlX, ctrlY) = CalculateCurvatureControlPoint(x1, y1, x2, y2, (float)edge.Curvature.Value);
-                sb.AppendLine($"  <path d=\"M {F(x1)},{F(y1)} Q {F(ctrlX)},{F(ctrlY)} {F(x2)},{F(y2)}\" " +
+                var (ctrlX, ctrlY) = BezierCurveHelper.CalculateControlPoint(
+                    (decimal)x1, (decimal)y1,
+                    (decimal)x2, (decimal)y2,
+                    edge.Curvature.Value);
+                sb.AppendLine($"  <path d=\"M {F(x1)},{F(y1)} Q {F((float)ctrlX)},{F((float)ctrlY)} {F(x2)},{F(y2)}\" " +
                     $"fill=\"none\" stroke=\"{_options.SelectedEdgeHighlightColor}\" stroke-width=\"{F(highlightWidth)}\" stroke-linecap=\"round\"/>");
             }
             else
@@ -231,9 +234,12 @@ public class MapRenderer
         else if (edge.EdgeType == EdgeType.ArcWithCurvature && edge.Curvature.HasValue)
         {
             // 弧线（曲率）：使用二次贝塞尔曲线
-            var (ctrlX, ctrlY) = CalculateCurvatureControlPoint(x1, y1, x2, y2, (float)edge.Curvature.Value);
+            var (ctrlX, ctrlY) = BezierCurveHelper.CalculateControlPoint(
+                (decimal)x1, (decimal)y1,
+                (decimal)x2, (decimal)y2,
+                edge.Curvature.Value);
 
-            sb.AppendLine($"  <path d=\"M {F(x1)},{F(y1)} Q {F(ctrlX)},{F(ctrlY)} {F(x2)},{F(y2)}\" " +
+            sb.AppendLine($"  <path d=\"M {F(x1)},{F(y1)} Q {F((float)ctrlX)},{F((float)ctrlY)} {F(x2)},{F(y2)}\" " +
                 $"fill=\"none\" stroke=\"{color}\" stroke-width=\"{F(width)}\" stroke-linecap=\"round\" " +
                 $"data-type=\"edge\" data-id=\"{edge.Id}\" class=\"map-edge\"/>");
         }
@@ -583,50 +589,6 @@ public class MapRenderer
     #endregion
 
     #region Helper
-
-    /// <summary>
-    /// 根据曲率值计算贝塞尔曲线的控制点
-    /// </summary>
-    /// <param name="x1">起点X</param>
-    /// <param name="y1">起点Y</param>
-    /// <param name="x2">终点X</param>
-    /// <param name="y2">终点Y</param>
-    /// <param name="curvature">曲率值（-1到1之间，0为直线，正值向右弯，负值向左弯）</param>
-    /// <returns>控制点坐标</returns>
-    private static (float ctrlX, float ctrlY) CalculateCurvatureControlPoint(float x1, float y1, float x2, float y2, float curvature)
-    {
-        // 计算中点
-        var midX = (x1 + x2) / 2;
-        var midY = (y1 + y2) / 2;
-
-        // 计算线段长度
-        var dx = x2 - x1;
-        var dy = y2 - y1;
-        var distance = (float)Math.Sqrt(dx * dx + dy * dy);
-
-        // 计算垂直于线段的方向（顺时针旋转90度）
-        // 原向量 (dx, dy)，顺时针旋转90度得到 (dy, -dx)
-        var perpX = dy;
-        var perpY = -dx;
-
-        // 归一化垂直向量
-        var perpLength = (float)Math.Sqrt(perpX * perpX + perpY * perpY);
-        if (perpLength > 0)
-        {
-            perpX /= perpLength;
-            perpY /= perpLength;
-        }
-
-        // 根据曲率值计算偏移距离（使用线段长度的一定比例）
-        // 曲率值越大，弯曲越明显
-        var offset = curvature * distance * 0.5f;
-
-        // 计算控制点
-        var ctrlX = midX + perpX * offset;
-        var ctrlY = midY + perpY * offset;
-
-        return (ctrlX, ctrlY);
-    }
 
     /// <summary>
     /// 格式化浮点数（避免本地化问题）

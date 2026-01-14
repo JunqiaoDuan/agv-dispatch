@@ -1,0 +1,735 @@
+@page "/map-simulation/{MapId:guid}"
+@layout EmptyLayout
+@using AgvDispatch.Shared.DTOs.MapEdges
+@using AgvDispatch.Shared.DTOs.MapNodes
+@using AgvDispatch.Shared.DTOs.Maps
+@using AgvDispatch.Shared.DTOs.Stations
+@using AgvDispatch.Shared.Enums
+@using AgvDispatch.Shared.Rendering
+@using AgvDispatch.Shared.PathFinding
+@using AgvDispatch.Shared.Simulation
+@using AgvDispatch.Web.Services
+@using System.Timers
+@rendermode InteractiveServer
+@inject IMapClient MapClient
+@inject IStationClient StationClient
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>地图模拟 - @(_map?.MapCode) @(_map?.DisplayName)</PageTitle>
+
+<div class="map-simulation-page">
+    @* 顶部工具栏 *@
+    <div class="simulation-toolbar">
+        <div class="toolbar-left">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                           Size="Size.Small"
+                           OnClick="GoBack"
+                           Title="返回" />
+            <MudText Typo="Typo.body2">
+                <strong>地图模拟</strong> - @_map?.MapCode @_map?.DisplayName
+            </MudText>
+        </div>
+
+        <div class="toolbar-center">
+            @if (_simulator != null)
+            {
+                @if (_simulator.State == SimulationState.NotStarted)
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Success"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                               OnClick="StartSimulation">
+                        开始
+                    </MudButton>
+                }
+                else if (_simulator.State == SimulationState.Running)
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Warning"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Pause"
+                               OnClick="PauseSimulation">
+                        暂停
+                    </MudButton>
+                }
+                else if (_simulator.State == SimulationState.Paused)
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Success"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                               OnClick="ResumeSimulation">
+                        继续
+                    </MudButton>
+                }
+                else if (_simulator.State == SimulationState.Completed)
+                {
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">已完成</MudChip>
+                }
+
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Stop"
+                           OnClick="StopSimulation"
+                           Disabled="_simulator.State == SimulationState.NotStarted">
+                    停止
+                </MudButton>
+            }
+        </div>
+
+        <div class="toolbar-right">
+            <MudText Typo="Typo.caption" Class="mr-2">
+                缩放: @(_scale.ToString("P0"))
+            </MudText>
+        </div>
+    </div>
+
+    @* 主体区域 *@
+    <div class="simulation-body">
+        @* 左侧控制面板 *@
+        <div class="simulation-panel left-panel">
+            <div class="panel-content">
+                @* 起点终点选择 *@
+                <div class="panel-section">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Route" Size="Size.Small" Style="vertical-align: middle;" />
+                        路径设置
+                    </MudText>
+
+                    <MudSelect T="Guid?"
+                               Label="起点"
+                               Value="_startId"
+                               ValueChanged="OnStartChanged"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Disabled="_simulator?.State == SimulationState.Running">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">请选择</MudSelectItem>
+                        @foreach (var station in _stations.OrderBy(s => s.SortNo))
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)station.Id)">
+                                @station.DisplayName (@station.StationCode)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudSelect T="Guid?"
+                               Label="终点"
+                               Value="_endId"
+                               ValueChanged="OnEndChanged"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Disabled="_simulator?.State == SimulationState.Running"
+                               Class="mt-2">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)null)">请选择</MudSelectItem>
+                        @foreach (var station in _stations.OrderBy(s => s.SortNo))
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)station.Id)">
+                                @station.DisplayName (@station.StationCode)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+
+                @* 速度设置 *@
+                <div class="panel-section mt-3">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Small" Style="vertical-align: middle;" />
+                        速度设置
+                    </MudText>
+
+                    <MudSlider T="decimal"
+                               Value="_speed"
+                               ValueChanged="OnSpeedChanged"
+                               Min="1"
+                               Max="1000"
+                               Step="1"
+                               Disabled="_simulator?.State == SimulationState.Running"
+                               Color="Color.Primary">
+                        速度: @_speed cm/s
+                    </MudSlider>
+                </div>
+
+                @* 路径信息 *@
+                @if (_pathResult != null && _pathResult.Success)
+                {
+                    <div class="panel-section mt-3">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Style="vertical-align: middle;" />
+                            路径信息
+                        </MudText>
+
+                        <MudSimpleTable Dense="true" Striped="true" Size="Size.Small">
+                            <tbody>
+                                <tr>
+                                    <td>节点数</td>
+                                    <td>@_pathResult.NodePath.Count</td>
+                                </tr>
+                                <tr>
+                                    <td>边数</td>
+                                    <td>@_pathResult.EdgePath.Count</td>
+                                </tr>
+                                <tr>
+                                    <td>总距离</td>
+                                    <td>@(_pathResult.TotalDistance.ToString("F2")) cm</td>
+                                </tr>
+                                <tr>
+                                    <td>预计时间</td>
+                                    <td>@((_pathResult.TotalDistance / _speed).ToString("F2")) s</td>
+                                </tr>
+                            </tbody>
+                        </MudSimpleTable>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* 中央画布 *@
+        <div class="simulation-canvas"
+             @onwheel="OnWheel"
+             @onmousedown="OnMouseDown"
+             @onmousemove="OnMouseMove"
+             @onmouseup="OnMouseUp"
+             @onmouseleave="OnMouseLeave">
+
+            @if (_loading)
+            {
+                <div class="loading-overlay">
+                    <MudProgressCircular Size="Size.Large" Indeterminate="true" />
+                    <MudText Typo="Typo.body1" Class="mt-2">加载中...</MudText>
+                </div>
+            }
+            else if (_map != null)
+            {
+                @* 地图层 *@
+                <div class="map-layer">
+                    @((MarkupString)_mapSvg)
+                </div>
+
+                @* 模拟层 *@
+                <div class="simulation-layer">
+                    @((MarkupString)_simulationSvg)
+                </div>
+            }
+        </div>
+
+        @* 右侧状态面板 *@
+        <div class="simulation-panel right-panel">
+            <div class="panel-content">
+                @if (_simulator != null)
+                {
+                    <div class="panel-section">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Size="Size.Small" Style="vertical-align: middle;" />
+                            实时状态
+                        </MudText>
+
+                        <MudSimpleTable Dense="true" Striped="true" Size="Size.Small">
+                            <tbody>
+                                <tr>
+                                    <td>状态</td>
+                                    <td>
+                                        @if (_simulator.State == SimulationState.Running)
+                                        {
+                                            <MudChip T="string" Color="Color.Success" Size="Size.Small">运行中</MudChip>
+                                        }
+                                        else if (_simulator.State == SimulationState.Paused)
+                                        {
+                                            <MudChip T="string" Color="Color.Warning" Size="Size.Small">已暂停</MudChip>
+                                        }
+                                        else if (_simulator.State == SimulationState.Completed)
+                                        {
+                                            <MudChip T="string" Color="Color.Info" Size="Size.Small">已完成</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip T="string" Size="Size.Small">未开始</MudChip>
+                                        }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>进度</td>
+                                    <td>@((_simulator.CurrentPosition.OverallProgress * 100).ToString("F1"))%</td>
+                                </tr>
+                                <tr>
+                                    <td>已行驶</td>
+                                    <td>@(_simulator.CurrentPosition.TraveledDistance.ToString("F2")) cm</td>
+                                </tr>
+                                <tr>
+                                    <td>剩余距离</td>
+                                    <td>@((_pathResult!.TotalDistance - _simulator.CurrentPosition.TraveledDistance).ToString("F2")) cm</td>
+                                </tr>
+                                <tr>
+                                    <td>当前边</td>
+                                    <td>@(_simulator.CurrentPosition.CurrentEdgeIndex + 1) / @_pathResult.EdgePath.Count</td>
+                                </tr>
+                                <tr>
+                                    <td>X 坐标</td>
+                                    <td>@(_simulator.CurrentPosition.X.ToString("F2")) cm</td>
+                                </tr>
+                                <tr>
+                                    <td>Y 坐标</td>
+                                    <td>@(_simulator.CurrentPosition.Y.ToString("F2")) cm</td>
+                                </tr>
+                                <tr>
+                                    <td>朝向角度</td>
+                                    <td>@((_simulator.CurrentPosition.Angle * 180 / Math.PI).ToString("F1"))°</td>
+                                </tr>
+                            </tbody>
+                        </MudSimpleTable>
+
+                        @* 进度条 *@
+                        <MudProgressLinear Color="Color.Primary"
+                                           Value="@((double)_simulator.CurrentPosition.OverallProgress * 100)"
+                                           Class="mt-2" />
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid MapId { get; set; }
+
+    // 地图数据
+    private MapDetailDto? _map;
+    private List<MapNodeListItemDto> _nodes = [];
+    private List<MapEdgeListItemDto> _edges = [];
+    private List<StationListItemDto> _stations = [];
+
+    // 模拟参数
+    private Guid? _startId;
+    private Guid? _endId;
+    private decimal _speed = 100m;
+
+    // 路径和模拟
+    private PathfindingResult? _pathResult;
+    private AgvSimulator? _simulator;
+    private System.Timers.Timer? _updateTimer;
+
+    // 渲染
+    private MapRenderer _mapRenderer = new();
+    private SimulationRenderer _simulationRenderer = new();
+    private MapRenderOptions _renderOptions = new() { ShowGrid = true, ShowArrows = true };
+    private MapRenderData _renderData = new();
+    private string _mapSvg = string.Empty;
+    private string _simulationSvg = string.Empty;
+
+    // 视图控制
+    private float _viewWidth = 1200f;
+    private float _viewHeight = 800f;
+    private float _scale = 1.0f;
+    private float _offsetX = 0f;
+    private float _offsetY = 0f;
+    private bool _isDragging = false;
+    private double _lastMouseX;
+    private double _lastMouseY;
+
+    // UI 状态
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMapData();
+        _loading = false;
+    }
+
+    private async Task LoadMapData()
+    {
+        try
+        {
+            // 加载地图详情
+            var mapResponse = await MapClient.GetByIdAsync(MapId);
+            if (mapResponse == null)
+            {
+                Snackbar.Add("地图不存在", Severity.Error);
+                return;
+            }
+            _map = mapResponse;
+
+            // 加载节点
+            _nodes = await MapClient.GetNodesAsync(MapId);
+
+            // 加载边
+            _edges = await MapClient.GetEdgesAsync(MapId);
+
+            // 加载站点
+            _stations = await StationClient.GetAllAsync(MapId);
+
+            // 初始化渲染数据
+            _renderData.Width = _map.Width;
+            _renderData.Height = _map.Height;
+            _renderData.Nodes = _nodes;
+            _renderData.Edges = _edges;
+            _renderData.Stations = _stations;
+
+            // 计算初始缩放和偏移
+            FitMapToView();
+
+            // 渲染地图
+            RenderMap();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void FitMapToView()
+    {
+        var mapWidth = (float)_map!.Width;
+        var mapHeight = (float)_map.Height;
+
+        var scaleX = _viewWidth / mapWidth;
+        var scaleY = _viewHeight / mapHeight;
+        _scale = Math.Min(scaleX, scaleY) * 0.9f;
+
+        _offsetX = (_viewWidth - mapWidth * _scale) / 2;
+        _offsetY = (_viewHeight - mapHeight * _scale) / 2;
+    }
+
+    private void OnStartChanged(Guid? value)
+    {
+        _startId = value;
+        CalculatePath();
+    }
+
+    private void OnEndChanged(Guid? value)
+    {
+        _endId = value;
+        CalculatePath();
+    }
+
+    private void OnSpeedChanged(decimal value)
+    {
+        _speed = value;
+
+        // 更新模拟器的速度
+        _simulator?.UpdateSpeed(value);
+    }
+
+    private void CalculatePath()
+    {
+        if (_startId == null || _endId == null)
+        {
+            _pathResult = null;
+            _simulator = null;
+            RenderMap();
+            return;
+        }
+
+        try
+        {
+            var pathfinder = new AStarPathfinder(_nodes, _edges, _stations);
+            _pathResult = pathfinder.FindPath(_startId.Value, _endId.Value);
+
+            if (!_pathResult.Success)
+            {
+                Snackbar.Add($"路径查找失败: {_pathResult.ErrorMessage}", Severity.Warning);
+                _simulator = null;
+                RenderMap();
+                return;
+            }
+
+            // 创建模拟器
+            var config = new AgvSimulationConfig
+            {
+                Speed = _speed,
+                UpdateIntervalMs = 50
+            };
+
+            _simulator = new AgvSimulator(_pathResult, _nodes, _edges, config);
+            _simulator.OnPositionUpdated += OnSimulatorPositionUpdated;
+            _simulator.OnCompleted += OnSimulatorCompleted;
+
+            // 高亮路径
+            _renderData.HighlightedEdgeIds = _pathResult.EdgePath;
+
+            RenderMap();
+            Snackbar.Add("路径计算成功", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"路径计算失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void StartSimulation()
+    {
+        if (_simulator == null) return;
+
+        _simulator.Start();
+
+        // 启动定时器
+        _updateTimer?.Dispose();
+        _updateTimer = new System.Timers.Timer(50);
+        _updateTimer.Elapsed += OnTimerElapsed;
+        _updateTimer.Start();
+    }
+
+    private void PauseSimulation()
+    {
+        _simulator?.Pause();
+        _updateTimer?.Stop();
+    }
+
+    private void ResumeSimulation()
+    {
+        _simulator?.Resume();
+        _updateTimer?.Start();
+    }
+
+    private void StopSimulation()
+    {
+        _updateTimer?.Stop();
+        _simulator?.Stop();
+        RenderSimulation();
+        StateHasChanged();
+    }
+
+    private void OnTimerElapsed(object? sender, ElapsedEventArgs e)
+    {
+        _simulator?.Update();
+    }
+
+    private void OnSimulatorPositionUpdated(AgvPosition position)
+    {
+        InvokeAsync(() =>
+        {
+            RenderSimulation();
+            StateHasChanged();
+        });
+    }
+
+    private void OnSimulatorCompleted()
+    {
+        InvokeAsync(() =>
+        {
+            _updateTimer?.Stop();
+            Snackbar.Add("模拟完成", Severity.Success);
+            StateHasChanged();
+        });
+    }
+
+    private void RenderMap()
+    {
+        _mapSvg = _mapRenderer.Render(
+            _renderData,
+            _viewWidth,
+            _viewHeight,
+            _scale,
+            _offsetX,
+            _offsetY,
+            elementScale: 1.0f);
+
+        RenderSimulation();
+    }
+
+    private void RenderSimulation()
+    {
+        if (_simulator == null || _pathResult == null)
+        {
+            _renderData.SimulatedAgvs.Clear();
+            _simulationSvg = string.Empty;
+            return;
+        }
+
+        // 更新模拟数据
+        _renderData.SimulatedAgvs = [
+            new AgvSimulationData
+            {
+                Position = _simulator.CurrentPosition,
+                StartNodeId = _pathResult.NodePath.First(),
+                EndNodeId = _pathResult.NodePath.Last(),
+                PathEdgeIds = _pathResult.EdgePath,
+                Config = new AgvSimulationConfig
+                {
+                    Speed = _speed,
+                    AgvSize = 20f,
+                    AgvColor = "#2196F3",
+                    StartMarkerColor = "#4CAF50",
+                    EndMarkerColor = "#F44336",
+                    TraveledPathColor = "#2196F3",
+                    TraveledPathWidth = 3f,
+                    ToEndLineColor = "#9E9E9E",
+                    ToEndLineDashArray = "5,5"
+                }
+            }
+        ];
+
+        _simulationSvg = _simulationRenderer.RenderSimulationLayer(
+            _renderData,
+            _viewWidth,
+            _viewHeight,
+            _scale,
+            _offsetX,
+            _offsetY,
+            elementScale: 1.0f);
+    }
+
+    // 鼠标滚轮缩放
+    private void OnWheel(WheelEventArgs e)
+    {
+        var delta = e.DeltaY > 0 ? 0.9f : 1.1f;
+        _scale = Math.Clamp(_scale * delta, 0.1f, 10f);
+        RenderMap();
+    }
+
+    // 鼠标拖拽平移
+    private void OnMouseDown(MouseEventArgs e)
+    {
+        _isDragging = true;
+        _lastMouseX = e.ClientX;
+        _lastMouseY = e.ClientY;
+    }
+
+    private void OnMouseMove(MouseEventArgs e)
+    {
+        if (!_isDragging) return;
+
+        var deltaX = (float)(e.ClientX - _lastMouseX);
+        var deltaY = (float)(e.ClientY - _lastMouseY);
+
+        _offsetX += deltaX;
+        _offsetY += deltaY;
+
+        _lastMouseX = e.ClientX;
+        _lastMouseY = e.ClientY;
+
+        RenderMap();
+    }
+
+    private void OnMouseUp(MouseEventArgs e)
+    {
+        _isDragging = false;
+    }
+
+    private void OnMouseLeave(MouseEventArgs e)
+    {
+        _isDragging = false;
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo($"/map-studio/{MapId}");
+    }
+
+    public void Dispose()
+    {
+        _updateTimer?.Dispose();
+        if (_simulator != null)
+        {
+            _simulator.OnPositionUpdated -= OnSimulatorPositionUpdated;
+            _simulator.OnCompleted -= OnSimulatorCompleted;
+        }
+    }
+}
+
+<style>
+    .map-simulation-page {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #f5f5f5;
+    }
+
+    .simulation-toolbar {
+        height: 50px;
+        background: white;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 16px;
+    }
+
+    .toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .toolbar-center {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .simulation-body {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+    }
+
+    .simulation-panel {
+        background: white;
+        overflow-y: auto;
+        border-right: 1px solid #e0e0e0;
+    }
+
+    .left-panel {
+        width: 300px;
+    }
+
+    .right-panel {
+        width: 300px;
+        border-right: none;
+        border-left: 1px solid #e0e0e0;
+    }
+
+    .panel-content {
+        padding: 16px;
+    }
+
+    .panel-section {
+        padding: 12px;
+        background: #fafafa;
+        border-radius: 4px;
+    }
+
+    .simulation-canvas {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        cursor: grab;
+    }
+
+    .simulation-canvas:active {
+        cursor: grabbing;
+    }
+
+    .map-layer, .simulation-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.9);
+    }
+</style>
