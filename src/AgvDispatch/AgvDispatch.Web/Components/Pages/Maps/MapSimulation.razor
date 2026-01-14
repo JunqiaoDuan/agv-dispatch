@@ -690,7 +690,19 @@
             out _minimapOffsetY,
             elementScale: 0.5f);
 
-        // 渲染小地图覆盖层（视窗框、AGV 位置）
+        // 获取终点坐标（如果有）
+        (decimal X, decimal Y)? endPosition = null;
+        if (_simulator != null && _pathResult != null)
+        {
+            var endNodeId = _pathResult.NodePath.Last();
+            var endNode = _nodes.FirstOrDefault(n => n.Id == endNodeId);
+            if (endNode != null)
+            {
+                endPosition = (endNode.X, endNode.Y);
+            }
+        }
+
+        // 渲染小地图覆盖层（视窗框、AGV 位置、终点标记）
         _minimapOverlaySvg = _minimapRenderer.RenderOverlay(
             minimapWidth: MinimapWidth,
             minimapHeight: MinimapHeight,
@@ -705,6 +717,8 @@
             agvPosition: _simulator?.CurrentPosition,
             agvSize: 16f,
             agvColor: "#2196F3",
+            endPosition: endPosition,
+            endMarkerSize: 12f,
             viewportColor: "#FF5722",
             viewportStrokeWidth: 2f,
             viewportDashArray: "5,5");

@@ -100,6 +100,8 @@ public class MiniMapRenderer
     /// <param name="agvPosition">AGV 位置（可选）</param>
     /// <param name="agvSize">AGV 图标大小</param>
     /// <param name="agvColor">AGV 颜色</param>
+    /// <param name="endPosition">终点位置（可选）</param>
+    /// <param name="endMarkerSize">终点标记大小</param>
     /// <param name="viewportColor">视窗框颜色</param>
     /// <param name="viewportStrokeWidth">视窗框线宽</param>
     /// <param name="viewportDashArray">视窗框虚线样式</param>
@@ -118,6 +120,8 @@ public class MiniMapRenderer
         AgvPosition? agvPosition = null,
         float agvSize = 16f,
         string agvColor = "#2196F3",
+        (decimal X, decimal Y)? endPosition = null,
+        float endMarkerSize = 12f,
         string viewportColor = "#FF5722",
         float viewportStrokeWidth = 2f,
         string viewportDashArray = "5,5")
@@ -128,7 +132,20 @@ public class MiniMapRenderer
         sb.AppendLine($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{F(minimapWidth)}\" height=\"{F(minimapHeight)}\" " +
             $"style=\"position:absolute;top:0;left:0;pointer-events:none;\">");
 
-        // 1. 渲染 AGV 位置（如果有）
+        // 1. 渲染终点标记（如果有）
+        if (endPosition != null)
+        {
+            sb.Append(RenderEndMarker(
+                endPosition.Value.X,
+                endPosition.Value.Y,
+                minimapScale,
+                minimapOffsetX,
+                minimapOffsetY,
+                endMarkerSize,
+                agvColor));
+        }
+
+        // 2. 渲染 AGV 位置（如果有）
         if (agvPosition != null)
         {
             sb.Append(RenderAgvIcon(
@@ -140,7 +157,7 @@ public class MiniMapRenderer
                 agvColor));
         }
 
-        // 2. 渲染视窗矩形框
+        // 3. 渲染视窗矩形框
         sb.Append(RenderViewport(
             minimapScale,
             minimapOffsetX,
@@ -160,6 +177,28 @@ public class MiniMapRenderer
     }
 
     #region 私有渲染方法
+
+    /// <summary>
+    /// 渲染终点标记（空心圆球）
+    /// </summary>
+    private string RenderEndMarker(
+        decimal endX,
+        decimal endY,
+        float minimapScale,
+        float minimapOffsetX,
+        float minimapOffsetY,
+        float size,
+        string color)
+    {
+        // 转换到小地图坐标
+        var markerX = minimapOffsetX + (float)endX * minimapScale;
+        var markerY = minimapOffsetY + (float)endY * minimapScale;
+        var radius = size * 0.5f;
+
+        // 绘制空心圆球（stroke 显示为圆环）
+        return $"  <circle cx=\"{F(markerX)}\" cy=\"{F(markerY)}\" r=\"{F(radius)}\" " +
+            $"fill=\"none\" stroke=\"{color}\" stroke-width=\"2\" />\n";
+    }
 
     /// <summary>
     /// 渲染 AGV 图标（三角形）
