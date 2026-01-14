@@ -371,6 +371,27 @@
                                            Value="@((double)_simulator.CurrentPosition.OverallProgress * 100)"
                                            Class="mt-2" />
                     </div>
+
+                    @* 追踪控制 *@
+                    <div class="panel-section mt-3">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.MyLocation" Size="Size.Small" Style="vertical-align: middle;" />
+                            视图追踪
+                        </MudText>
+
+                        <MudRadioGroup T="string" Value="_trackingMode" ValueChanged="OnTrackingModeChanged">
+                            <MudRadio T="string" Value="@("none")" Color="Color.Default" Size="Size.Small">
+                                不跟踪
+                            </MudRadio>
+                            <MudRadio T="string" Value="@("agv1")" Color="Color.Primary" Size="Size.Small">
+                                追踪小车1
+                            </MudRadio>
+                        </MudRadioGroup>
+
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                            开启追踪后，画面会自动跟随小车移动
+                        </MudText>
+                    </div>
                 }
             </div>
         </div>
@@ -428,6 +449,9 @@
 
     // UI 状态
     private bool _loading = true;
+
+    // 追踪控制
+    private string _trackingMode = "none"; // "none" 或 "agv1"（当前只有一个小车）
 
     protected override async Task OnInitializedAsync()
     {
@@ -602,8 +626,26 @@
     {
         InvokeAsync(() =>
         {
-            RenderSimulation();
-            RenderMinimap();  // 同步更新缩略图
+            // 自动追踪小车
+            if (_trackingMode == "agv1" && _simulator != null)
+            {
+                var agvX = (float)_simulator.CurrentPosition.X;
+                var agvY = (float)_simulator.CurrentPosition.Y;
+
+                // 使小车位置居中
+                _offsetX = -agvX * _scale + _viewWidth / 2f;
+                _offsetY = -agvY * _scale + _viewHeight / 2f;
+
+                // 重新渲染整个地图（包括地图层、模拟层和缩略图）
+                RenderMap();
+            }
+            else
+            {
+                // 不追踪时只更新模拟层
+                RenderSimulation();
+                RenderMinimap();
+            }
+
             StateHasChanged();
         });
     }
@@ -825,6 +867,12 @@
         _lastMouseX = e.ClientX;
         _lastMouseY = e.ClientY;
 
+        // 手动拖动地图时，取消追踪模式
+        if (_trackingMode != "none")
+        {
+            _trackingMode = "none";
+        }
+
         RenderMap();
     }
 
@@ -855,7 +903,29 @@
         _offsetX = -mapX * _scale + _viewWidth / 2f;
         _offsetY = -mapY * _scale + _viewHeight / 2f;
 
+        // 手动导航时，取消追踪模式
+        if (_trackingMode != "none")
+        {
+            _trackingMode = "none";
+        }
+
         RenderMap();
+    }
+
+    // 切换追踪模式
+    private void OnTrackingModeChanged(string mode)
+    {
+        _trackingMode = mode;
+
+        // 如果切换到追踪模式，立即跟随小车
+        if (_trackingMode == "agv1" && _simulator != null)
+        {
+            var agvX = (float)_simulator.CurrentPosition.X;
+            var agvY = (float)_simulator.CurrentPosition.Y;
+            _offsetX = -agvX * _scale + _viewWidth / 2f;
+            _offsetY = -agvY * _scale + _viewHeight / 2f;
+            RenderMap();
+        }
     }
 
     private void GoBack()
