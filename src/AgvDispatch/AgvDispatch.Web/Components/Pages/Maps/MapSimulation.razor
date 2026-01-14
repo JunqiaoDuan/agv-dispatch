@@ -10,6 +10,8 @@
 @using AgvDispatch.Shared.Simulation
 @using AgvDispatch.Web.Services
 @using System.Timers
+@using System.Text
+@using System.Globalization
 @rendermode InteractiveServer
 @inject IMapClient MapClient
 @inject IStationClient StationClient
@@ -281,6 +283,15 @@
                                    OnClick="IncreaseElementScale"
                                    Title="增大元素" />
                 </div>
+
+                @* 缩略图 *@
+                <div class="minimap-container"
+                     @onclick="OnMinimapClick">
+                    <div class="minimap-content">
+                        @((MarkupString)_minimapMapSvg)
+                        @((MarkupString)_minimapOverlaySvg)
+                    </div>
+                </div>
             }
         </div>
 
@@ -383,10 +394,13 @@
     // 渲染
     private MapRenderer _mapRenderer = new();
     private SimulationRenderer _simulationRenderer = new();
+    private MiniMapRenderer _minimapRenderer = new();
     private MapRenderOptions _renderOptions = new() { ShowGrid = true, ShowArrows = true, ShowNodeLabels = true, ShowEdgeLabels = true, ShowStationLabels = true };
     private MapRenderData _renderData = new();
     private string _mapSvg = string.Empty;
     private string _simulationSvg = string.Empty;
+    private string _minimapMapSvg = string.Empty;
+    private string _minimapOverlaySvg = string.Empty;
 
     // 视图控制
     private float _viewWidth = 1200f;
@@ -398,6 +412,13 @@
     private bool _isDragging = false;
     private double _lastMouseX;
     private double _lastMouseY;
+
+    // 缩略图
+    private const float MinimapWidth = 330f;
+    private const float MinimapHeight = 440f;
+    private float _minimapScale = 0.01f;
+    private float _minimapOffsetX = 0f;
+    private float _minimapOffsetY = 0f;
 
     // UI 状态
     private bool _loading = true;
@@ -570,6 +591,7 @@
         InvokeAsync(() =>
         {
             RenderSimulation();
+            RenderMinimap();  // 同步更新缩略图
             StateHasChanged();
         });
     }
@@ -597,6 +619,7 @@
             elementScale: _elementScale);
 
         RenderSimulation();
+        RenderMinimap();
     }
 
     private void RenderSimulation()
@@ -639,6 +662,40 @@
             _offsetX,
             _offsetY,
             elementScale: _elementScale);
+    }
+
+    private void RenderMinimap()
+    {
+        if (_map == null) return;
+
+        // 渲染小地图地图层
+        _minimapMapSvg = _minimapRenderer.RenderMap(
+            _renderData,
+            MinimapWidth,
+            MinimapHeight,
+            out _minimapScale,
+            out _minimapOffsetX,
+            out _minimapOffsetY,
+            elementScale: 0.5f);
+
+        // 渲染小地图覆盖层（视窗框、AGV 位置）
+        _minimapOverlaySvg = _minimapRenderer.RenderOverlay(
+            minimapWidth: MinimapWidth,
+            minimapHeight: MinimapHeight,
+            minimapScale: _minimapScale,
+            minimapOffsetX: _minimapOffsetX,
+            minimapOffsetY: _minimapOffsetY,
+            mainViewScale: _scale,
+            mainViewOffsetX: _offsetX,
+            mainViewOffsetY: _offsetY,
+            mainViewWidth: _viewWidth,
+            mainViewHeight: _viewHeight,
+            agvPosition: _simulator?.CurrentPosition,
+            agvSize: 16f,
+            agvColor: "#2196F3",
+            viewportColor: "#FF5722",
+            viewportStrokeWidth: 2f,
+            viewportDashArray: "5,5");
     }
 
     #region 缩放控制
@@ -747,6 +804,26 @@
     private void OnMouseLeave(MouseEventArgs e)
     {
         _isDragging = false;
+    }
+
+    // 缩略图点击导航
+    private void OnMinimapClick(MouseEventArgs e)
+    {
+        if (_map == null) return;
+
+        // 获取点击位置相对于缩略图容器的坐标
+        var clickX = (float)e.OffsetX;
+        var clickY = (float)e.OffsetY;
+
+        // 转换到地图坐标
+        var mapX = (clickX - _minimapOffsetX) / _minimapScale;
+        var mapY = (clickY - _minimapOffsetY) / _minimapScale;
+
+        // 计算新的偏移量，使点击位置居中
+        _offsetX = -mapX * _scale + _viewWidth / 2f;
+        _offsetY = -mapY * _scale + _viewHeight / 2f;
+
+        RenderMap();
     }
 
     private void GoBack()
@@ -881,4 +958,30 @@
         justify-content: center;
         background: rgba(255, 255, 255, 0.9);
     }
+
+    .minimap-container {
+        position: absolute;
+        bottom: 16px;
+        right: 16px;
+        width: 330px;
+        height: 440px;
+        background: rgba(255,255,255,0.95);
+        border: 2px solid #2196F3;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        cursor: pointer;
+        overflow: hidden;
+    }
+
+    .minimap-content {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+
+        .minimap-content > svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
 </style>
