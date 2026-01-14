@@ -153,6 +153,35 @@
                     </MudSlider>
                 </div>
 
+                @* 显示控制 *@
+                <div class="panel-section mt-3">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Style="vertical-align: middle;" />
+                        显示控制
+                    </MudText>
+
+                    <MudStack Spacing="1">
+                        <MudSwitch T="bool"
+                                   Value="_renderOptions.ShowNodeLabels"
+                                   ValueChanged="@((bool v) => ToggleNodeLabels(v))"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Label="节点文字" />
+                        <MudSwitch T="bool"
+                                   Value="_renderOptions.ShowStationLabels"
+                                   ValueChanged="@((bool v) => ToggleStationLabels(v))"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Label="站点文字" />
+                        <MudSwitch T="bool"
+                                   Value="_renderOptions.ShowEdgeLabels"
+                                   ValueChanged="@((bool v) => ToggleEdgeLabels(v))"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Label="边文字" />
+                    </MudStack>
+                </div>
+
                 @* 路径信息 *@
                 @if (_pathResult != null && _pathResult.Success)
                 {
@@ -190,6 +219,7 @@
         @* 中央画布 *@
         <div class="simulation-canvas"
              @onwheel="OnWheel"
+             @onwheel:preventDefault="true"
              @onmousedown="OnMouseDown"
              @onmousemove="OnMouseMove"
              @onmouseup="OnMouseUp"
@@ -212,6 +242,44 @@
                 @* 模拟层 *@
                 <div class="simulation-layer">
                     @((MarkupString)_simulationSvg)
+                </div>
+
+                @* 画布工具条 *@
+                <div class="canvas-tools">
+                    <MudIconButton Icon="@Icons.Material.Filled.ZoomOut"
+                                   Size="Size.Small"
+                                   OnClick="ZoomOut"
+                                   Title="缩小" />
+                    <MudNumericField T="int"
+                                     Value="@((int)(_scale * 100))"
+                                     ValueChanged="OnZoomValueChanged"
+                                     Min="1"
+                                     Max="100"
+                                     Variant="Variant.Outlined"
+                                     HideSpinButtons="true"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="%"
+                                     Style="width: 70px;"
+                                     Margin="Margin.Dense" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ZoomIn"
+                                   Size="Size.Small"
+                                   OnClick="ZoomIn"
+                                   Title="放大" />
+                    <MudIconButton Icon="@Icons.Material.Filled.FitScreen"
+                                   Size="Size.Small"
+                                   OnClick="FitToScreen"
+                                   Title="适应画布" />
+                    <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
+                    <MudText Typo="Typo.caption" Class="mr-1">元素:</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
+                                   Size="Size.Small"
+                                   OnClick="DecreaseElementScale"
+                                   Title="减小元素" />
+                    <MudText Typo="Typo.caption">@(_elementScale.ToString("F1"))x</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                                   Size="Size.Small"
+                                   OnClick="IncreaseElementScale"
+                                   Title="增大元素" />
                 </div>
             }
         </div>
@@ -315,7 +383,7 @@
     // 渲染
     private MapRenderer _mapRenderer = new();
     private SimulationRenderer _simulationRenderer = new();
-    private MapRenderOptions _renderOptions = new() { ShowGrid = true, ShowArrows = true };
+    private MapRenderOptions _renderOptions = new() { ShowGrid = true, ShowArrows = true, ShowNodeLabels = true, ShowEdgeLabels = true, ShowStationLabels = true };
     private MapRenderData _renderData = new();
     private string _mapSvg = string.Empty;
     private string _simulationSvg = string.Empty;
@@ -323,9 +391,10 @@
     // 视图控制
     private float _viewWidth = 1200f;
     private float _viewHeight = 800f;
-    private float _scale = 1.0f;
-    private float _offsetX = 0f;
-    private float _offsetY = 0f;
+    private float _scale = 0.05f;
+    private float _elementScale = 1.0f;
+    private float _offsetX = 50f;
+    private float _offsetY = 50f;
     private bool _isDragging = false;
     private double _lastMouseX;
     private double _lastMouseY;
@@ -382,15 +451,14 @@
 
     private void FitMapToView()
     {
-        var mapWidth = (float)_map!.Width;
+        if (_map == null) return;
+        var mapWidth = (float)_map.Width;
         var mapHeight = (float)_map.Height;
-
-        var scaleX = _viewWidth / mapWidth;
-        var scaleY = _viewHeight / mapHeight;
+        var scaleX = (_viewWidth - 100) / mapWidth;
+        var scaleY = (_viewHeight - 100) / mapHeight;
         _scale = Math.Min(scaleX, scaleY) * 0.9f;
-
-        _offsetX = (_viewWidth - mapWidth * _scale) / 2;
-        _offsetY = (_viewHeight - mapHeight * _scale) / 2;
+        _offsetX = 50;
+        _offsetY = 50;
     }
 
     private void OnStartChanged(Guid? value)
@@ -518,6 +586,7 @@
 
     private void RenderMap()
     {
+        _mapRenderer = new MapRenderer(_renderOptions);
         _mapSvg = _mapRenderer.Render(
             _renderData,
             _viewWidth,
@@ -525,7 +594,7 @@
             _scale,
             _offsetX,
             _offsetY,
-            elementScale: 1.0f);
+            elementScale: _elementScale);
 
         RenderSimulation();
     }
@@ -569,14 +638,80 @@
             _scale,
             _offsetX,
             _offsetY,
-            elementScale: 1.0f);
+            elementScale: _elementScale);
     }
+
+    #region 缩放控制
+
+    private void ZoomIn()
+    {
+        _scale *= 1.2f;
+        _scale = Math.Min(1f, _scale);
+        RenderMap();
+    }
+
+    private void ZoomOut()
+    {
+        _scale *= 0.8f;
+        _scale = Math.Max(0.01f, _scale);
+        RenderMap();
+    }
+
+    private void OnZoomValueChanged(int value)
+    {
+        _scale = value / 100f;
+        _scale = Math.Max(0.01f, Math.Min(1f, _scale));
+        RenderMap();
+    }
+
+    private void FitToScreen()
+    {
+        FitMapToView();
+        RenderMap();
+    }
+
+    private void IncreaseElementScale()
+    {
+        _elementScale = Math.Min(10f, _elementScale + 0.5f);
+        RenderMap();
+    }
+
+    private void DecreaseElementScale()
+    {
+        _elementScale = Math.Max(0.5f, _elementScale - 0.5f);
+        RenderMap();
+    }
+
+    #endregion
+
+    #region 显示控制
+
+    private void ToggleNodeLabels(bool value)
+    {
+        _renderOptions.ShowNodeLabels = value;
+        RenderMap();
+    }
+
+    private void ToggleEdgeLabels(bool value)
+    {
+        _renderOptions.ShowEdgeLabels = value;
+        RenderMap();
+    }
+
+    private void ToggleStationLabels(bool value)
+    {
+        _renderOptions.ShowStationLabels = value;
+        RenderMap();
+    }
+
+    #endregion
 
     // 鼠标滚轮缩放
     private void OnWheel(WheelEventArgs e)
     {
-        var delta = e.DeltaY > 0 ? 0.9f : 1.1f;
-        _scale = Math.Clamp(_scale * delta, 0.1f, 10f);
+        var zoomFactor = e.DeltaY > 0 ? 0.9f : 1.1f;
+        _scale *= zoomFactor;
+        _scale = Math.Max(0.01f, Math.Min(1f, _scale));
         RenderMap();
     }
 
@@ -710,6 +845,20 @@
 
     .simulation-canvas:active {
         cursor: grabbing;
+    }
+
+    .canvas-tools {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(255,255,255,0.95);
+        padding: 4px 12px;
+        border-radius: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
 
     .map-layer, .simulation-layer {
