@@ -181,6 +181,12 @@
                                    Color="Color.Primary"
                                    Size="Size.Small"
                                    Label="边文字" />
+                        <MudSwitch T="bool"
+                                   Value="_renderOptions.ShowArrows"
+                                   ValueChanged="@((bool v) => ToggleArrows(v))"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Label="箭头" />
                     </MudStack>
                 </div>
 
@@ -395,7 +401,7 @@
     private MapRenderer _mapRenderer = new();
     private SimulationRenderer _simulationRenderer = new();
     private MiniMapRenderer _minimapRenderer = new();
-    private MapRenderOptions _renderOptions = new() { ShowGrid = true, ShowArrows = true, ShowNodeLabels = true, ShowEdgeLabels = true, ShowStationLabels = true };
+    private MapRenderOptions _renderOptions = new() { ShowGrid = true, ShowArrows = true, ShowNodeLabels = false, ShowEdgeLabels = false, ShowStationLabels = true };
     private MapRenderData _renderData = new();
     private string _mapSvg = string.Empty;
     private string _simulationSvg = string.Empty;
@@ -405,7 +411,7 @@
     // 视图控制
     private float _viewWidth = 1200f;
     private float _viewHeight = 800f;
-    private float _scale = 0.05f;
+    private float _scale = 0.2f;
     private float _elementScale = 1.0f;
     private float _offsetX = 50f;
     private float _offsetY = 50f;
@@ -458,8 +464,14 @@
             _renderData.Edges = _edges;
             _renderData.Stations = _stations;
 
-            // 计算初始缩放和偏移
-            FitMapToView();
+            // 设置固定缩放比例：1m (100cm) = 20 像素，即 1cm = 0.2 像素
+            _scale = 0.2f;
+
+            // 计算偏移使地图居中
+            var mapWidth = (float)_map.Width;
+            var mapHeight = (float)_map.Height;
+            _offsetX = (_viewWidth - mapWidth * _scale) / 2f;
+            _offsetY = (_viewHeight - mapHeight * _scale) / 2f;
 
             // 渲染地图
             RenderMap();
@@ -758,6 +770,12 @@
     private void ToggleStationLabels(bool value)
     {
         _renderOptions.ShowStationLabels = value;
+        RenderMap();
+    }
+
+    private void ToggleArrows(bool value)
+    {
+        _renderOptions.ShowArrows = value;
         RenderMap();
     }
 
