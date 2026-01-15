@@ -15,15 +15,15 @@ public enum CommandType
     /// </summary>
     Resume = 31,
 
-    /// <summary>
-    /// 急停
-    /// </summary>
-    Stop = 40,
+    ///// <summary>
+    ///// 急停
+    ///// </summary>
+    //Stop = 40,
 
-    /// <summary>
-    /// 返回待命点
-    /// </summary>
-    ReturnHome = 50
+    ///// <summary>
+    ///// 返回待命点
+    ///// </summary>
+    //ReturnHome = 50
 }
 
 /// <summary>
@@ -38,8 +38,8 @@ public static class CommandTypeExtensions
     {
         CommandType.Pause => "暂停",
         CommandType.Resume => "继续",
-        CommandType.Stop => "急停",
-        CommandType.ReturnHome => "返回待命点",
+        //CommandType.Stop => "急停",
+        //CommandType.ReturnHome => "返回待命点",
         _ => "未知"
     };
 }
