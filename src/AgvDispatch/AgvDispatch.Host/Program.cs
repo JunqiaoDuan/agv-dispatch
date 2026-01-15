@@ -32,6 +32,11 @@ try
     // 注册 Infrastructure 服务 (EF Core + PostgreSQL)
     builder.Services.AddInfrastructure(builder.Configuration);
 
+    // 注册 MQTT 服务
+    builder.Services.AddSingleton<AgvDispatch.Host.Mqtt.IMqttMessageHandler, AgvDispatch.Host.Mqtt.MqttMessageHandler>();
+    builder.Services.AddSingleton<AgvDispatch.Host.Mqtt.IMqttBrokerService, AgvDispatch.Host.Mqtt.MqttBrokerService>();
+    builder.Services.AddHostedService(sp => (AgvDispatch.Host.Mqtt.MqttBrokerService)sp.GetRequiredService<AgvDispatch.Host.Mqtt.IMqttBrokerService>());
+
     // 注册 Blazor Web UI 服务
     var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7001";
     builder.Services.AddWebUI(apiBaseUrl);
