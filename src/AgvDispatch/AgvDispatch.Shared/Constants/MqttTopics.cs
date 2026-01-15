@@ -97,4 +97,67 @@ public static class MqttTopics
 
     #endregion
 
+    #region 消息类型常量
+
+    /// <summary>
+    /// 消息类型: 状态上报
+    /// </summary>
+    public const string MessageTypeStatus = "status";
+
+    /// <summary>
+    /// 消息类型: 任务进度
+    /// </summary>
+    public const string MessageTypeTaskProgress = "task/progress";
+
+    /// <summary>
+    /// 消息类型: 异常上报
+    /// </summary>
+    public const string MessageTypeException = "exception";
+
+    /// <summary>
+    /// 消息类型: 任务下发
+    /// </summary>
+    public const string MessageTypeTaskAssign = "task/assign";
+
+    /// <summary>
+    /// 消息类型: 取消任务
+    /// </summary>
+    public const string MessageTypeTaskCancel = "task/cancel";
+
+    /// <summary>
+    /// 消息类型: 控制指令
+    /// </summary>
+    public const string MessageTypeCommand = "command";
+
+    #endregion
+
+    #region Topic 解析
+
+    /// <summary>
+    /// 解析 Topic，提取 AgvCode 和消息类型
+    /// Topic 格式: agv/{agvCode}/{messageType}
+    /// </summary>
+    /// <param name="topic">MQTT Topic</param>
+    /// <returns>agvCode: 小车编号, messageType: 消息类型 (status, task/progress, exception 等)</returns>
+    public static (string? AgvCode, string? MessageType) ParseTopic(string topic)
+    {
+        if (string.IsNullOrEmpty(topic))
+        {
+            return (null, null);
+        }
+
+        var parts = topic.Split('/');
+
+        if (parts.Length >= 3 && parts[0] == "agv" && !string.IsNullOrEmpty(parts[1]))
+        {
+            var agvCode = parts[1];
+            var messageType = string.Join("/", parts.Skip(2));
+            return (agvCode, messageType);
+        }
+
+        return (null, null);
+    }
+
+    #endregion
+
 }

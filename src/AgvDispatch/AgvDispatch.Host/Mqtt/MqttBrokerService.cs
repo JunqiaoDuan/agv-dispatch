@@ -179,7 +179,7 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
             _logger.LogDebug("[MQTT Broker] 收到消息: Topic={Topic}, Payload={Payload}", topic, payload);
 
             // 解析 Topic 获取 AgvCode 和消息类型
-            var (agvCode, messageType) = ParseTopic(topic);
+            var (agvCode, messageType) = MqttTopics.ParseTopic(topic);
             if (string.IsNullOrWhiteSpace(agvCode) || string.IsNullOrWhiteSpace(messageType))
             {
                 _logger.LogError("[MQTT Broker] 无法从 Topic {Topic} 中解析 AgvCode 或消息类型", topic);
@@ -189,7 +189,7 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
             // 根据消息类型精确匹配分发处理
             switch (messageType)
             {
-                case "status":
+                case MqttTopics.MessageTypeStatus:
                     var statusMessage = JsonSerializer.Deserialize<StatusMessage>(payload);
                     if (statusMessage != null)
                     {
@@ -197,7 +197,7 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
                     }
                     break;
 
-                case "task/progress":
+                case MqttTopics.MessageTypeTaskProgress:
                     var progressMessage = JsonSerializer.Deserialize<TaskProgressMessage>(payload);
                     if (progressMessage != null)
                     {
@@ -205,7 +205,7 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
                     }
                     break;
 
-                case "exception":
+                case MqttTopics.MessageTypeException:
                     var exceptionMessage = JsonSerializer.Deserialize<ExceptionMessage>(payload);
                     if (exceptionMessage != null)
                     {
@@ -313,37 +313,7 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
 
     #endregion
 
-    #region 私有场景
-
-    /// <summary>
-    /// 解析 Topic，提取 AgvCode 和消息类型
-    /// Topic 格式: agv/{agvCode}/{messageType}
-    /// </summary>
-    /// <returns>agvCode: 小车编号, messageType: 消息类型 (status, task/progress, exception 等)</returns>
-    private (string? agvCode, string? messageType) ParseTopic(string topic)
-    {
-        _logger.LogDebug("[MQTT Broker] 开始解析 Topic: {Topic}", topic);
-
-        if (string.IsNullOrEmpty(topic))
-        {
-            _logger.LogDebug("[MQTT Broker] Topic 为空");
-            return (null, null);
-        }
-
-        var parts = topic.Split('/');
-        _logger.LogDebug("[MQTT Broker] Topic 分段: [{Parts}], 段数: {Count}", string.Join(", ", parts), parts.Length);
-
-        if (parts.Length >= 3 && parts[0] == "agv" && !string.IsNullOrEmpty(parts[1]))
-        {
-            var agvCode = parts[1];
-            var messageType = string.Join("/", parts.Skip(2));
-            _logger.LogDebug("[MQTT Broker] 解析成功: AgvCode={AgvCode}, MessageType={MessageType}", agvCode, messageType);
-            return (agvCode, messageType);
-        }
-
-        _logger.LogDebug("[MQTT Broker] 解析失败: 格式不符合 agv/{{agvCode}}/{{messageType}}");
-        return (null, null);
-    }
+    #region 私有方法
 
     /// <summary>
     /// 发布消息到MQTT
