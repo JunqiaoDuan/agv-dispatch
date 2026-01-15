@@ -8,12 +8,12 @@ public enum DriveDirection
     /// <summary>
     /// 正向（StartNode → EndNode）
     /// </summary>
-    Forward = 1,
+    Forward = 10,
 
     /// <summary>
     /// 反向（EndNode → StartNode）
     /// </summary>
-    Backward = 2,
+    Backward = 20,
 }
 
 /// <summary>
