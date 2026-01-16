@@ -2,23 +2,27 @@ using AgvDispatch.Shared.Messages;
 using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Shared.Repository;
 using AgvDispatch.Business.Specifications.Agvs;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AgvDispatch.Host.Mqtt;
 
 /// <summary>
 /// MQTT 消息处理器实现
+/// 
+/// 注意：本服务注册为 Singleton，不能直接注入 Scoped 的 DbContext/Repository，
+/// 需通过 IServiceScopeFactory 在使用时创建 scope 来获取
 /// </summary>
 public class MqttMessageHandler : IMqttMessageHandler
 {
     private readonly ILogger<MqttMessageHandler> _logger;
-    private readonly IRepository<Agv> _agvRepository;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
 
     public MqttMessageHandler(
         ILogger<MqttMessageHandler> logger,
-        IRepository<Agv> agvRepository)
+        IServiceScopeFactory serviceScopeFactory)
     {
         _logger = logger;
-        _agvRepository = agvRepository;
+        _serviceScopeFactory = serviceScopeFactory;
     }
 
     /// <summary>

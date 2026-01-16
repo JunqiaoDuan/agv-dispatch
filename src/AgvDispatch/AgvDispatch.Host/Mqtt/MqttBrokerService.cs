@@ -9,29 +9,33 @@ using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Business.Entities.Common;
 using AgvDispatch.Shared.Repository;
 using AgvDispatch.Business.Specifications.Agvs;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AgvDispatch.Host.Mqtt;
 
 /// <summary>
 /// MQTT Broker 托管服务
 /// 内嵌MQTT Broker，处理小车连接和消息
+/// 
+/// 注意：本服务注册为 Singleton，不能直接注入 Scoped 的 DbContext/Repository，
+/// 需通过 IServiceScopeFactory 在使用时创建 scope 来获取
 /// </summary>
 public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
 {
     private readonly ILogger<MqttBrokerService> _logger;
-    private readonly IRepository<Agv> _agvRepository;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IConfiguration _configuration;
     private readonly IMqttMessageHandler _messageHandler;
     private MqttServer? _mqttServer;
 
     public MqttBrokerService(
         ILogger<MqttBrokerService> logger,
-        IRepository<Agv> agvRepository,
+        IServiceScopeFactory serviceScopeFactory,
         IConfiguration configuration,
         IMqttMessageHandler messageHandler)
     {
         _logger = logger;
-        _agvRepository = agvRepository;
+        _serviceScopeFactory = serviceScopeFactory;
         _configuration = configuration;
         _messageHandler = messageHandler;
     }
@@ -138,8 +142,11 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
             }
 
             // 从数据库验证小车
+            using var scope = _serviceScopeFactory.CreateScope();
+            var agvRepository = scope.ServiceProvider.GetRequiredService<IRepository<Agv>>();
+
             var spec = new AgvByAgvCodeSpec(clientId);
-            var agv = await _agvRepository.FirstOrDefaultAsync(spec);
+            var agv = await agvRepository.FirstOrDefaultAsync(spec);
 
             if (agv == null)
             {
@@ -234,14 +241,17 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
         // 更新数据库中的小车状态为在线
         try
         {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var agvRepository = scope.ServiceProvider.GetRequiredService<IRepository<Agv>>();
+
             var spec = new AgvByAgvCodeSpec(args.ClientId);
-            var agv = await _agvRepository.FirstOrDefaultAsync(spec);
+            var agv = await agvRepository.FirstOrDefaultAsync(spec);
 
             if (agv != null)
             {
                 agv.AgvStatus = Shared.Enums.AgvStatus.Idle;
                 agv.LastOnlineTime = DateTimeOffset.UtcNow;
-                await _agvRepository.UpdateAsync(agv);
+                await agvRepository.UpdateAsync(agv);
             }
         }
         catch (Exception ex)
@@ -261,14 +271,17 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
         // 更新数据库中的小车状态为离线
         try
         {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var agvRepository = scope.ServiceProvider.GetRequiredService<IRepository<Agv>>();
+
             var spec = new AgvByAgvCodeSpec(args.ClientId);
-            var agv = await _agvRepository.FirstOrDefaultAsync(spec);
+            var agv = await agvRepository.FirstOrDefaultAsync(spec);
 
             if (agv != null)
             {
                 agv.AgvStatus = Shared.Enums.AgvStatus.Offline;
                 agv.LastOnlineTime = DateTimeOffset.UtcNow;
-                await _agvRepository.UpdateAsync(agv);
+                await agvRepository.UpdateAsync(agv);
             }
         }
         catch (Exception ex)
