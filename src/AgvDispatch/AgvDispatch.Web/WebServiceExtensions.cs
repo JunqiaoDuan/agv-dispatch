@@ -40,6 +40,7 @@ public static class WebServiceExtensions
         services.AddScoped<IMapClient, MapClient>();
         services.AddScoped<IRouteClient, RouteClient>();
         services.AddScoped<IStationClient, StationClient>();
+        services.AddScoped<IMqttMessageClient, MqttMessageClient>();
 
         return services;
     }

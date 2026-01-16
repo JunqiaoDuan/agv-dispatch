@@ -1,0 +1,464 @@
+@page "/mqtt-monitor"
+@using AgvDispatch.Business.Entities.MqttMessageLogAggregate
+@using AgvDispatch.Web.Services
+@using AgvDispatch.Shared.DTOs
+@rendermode InteractiveServer
+@inject IMqttMessageClient MqttMessageClient
+@implements IDisposable
+
+<PageTitle>MQTT消息监控 - AGV 调度系统</PageTitle>
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4">MQTT消息监控</MudText>
+    <MudButtonGroup>
+        <MudButton OnClick="@(() => SwitchStatsPeriod(true))"
+                   Variant="@(_showTodayStats ? Variant.Filled : Variant.Outlined)"
+                   Color="Color.Primary">
+            今日
+        </MudButton>
+        <MudButton OnClick="@(() => SwitchStatsPeriod(false))"
+                   Variant="@(_showTodayStats ? Variant.Outlined : Variant.Filled)"
+                   Color="Color.Primary">
+            总共
+        </MudButton>
+    </MudButtonGroup>
+</MudStack>
+
+@* 统计信息卡片 *@
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">总消息数</MudText>
+                    <MudText Typo="Typo.h4">@(_statistics?.TotalCount.ToString("N0") ?? "-")</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.Message" Color="Color.Primary" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">入站消息</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Info">@(_statistics?.InboundCount.ToString("N0") ?? "-")</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.CallReceived" Color="Color.Info" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">出站消息</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Warning">@(_statistics?.OutboundCount.ToString("N0") ?? "-")</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.Send" Color="Color.Warning" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">活跃AGV数</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Success">@(_statistics?.ByAgv.Count ?? 0)</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Success" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@* 筛选条件 *@
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="6" md="3" lg="2">
+            <MudDatePicker @bind-Date="_startDate" Label="起始时间" Variant="Variant.Outlined"
+                           DateFormat="yyyy-MM-dd" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3" lg="2">
+            <MudDatePicker @bind-Date="_endDate" Label="截至时间" Variant="Variant.Outlined"
+                           DateFormat="yyyy-MM-dd" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3" lg="2">
+            <MudTextField @bind-Value="_filterAgvCode" Label="AGV编号" Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3" lg="2">
+            <MudSelect @bind-Value="_filterDirection" Label="消息方向" Variant="Variant.Outlined">
+                <MudSelectItem Value="@((int?)null)">全部</MudSelectItem>
+                <MudSelectItem Value="@((int?)1)">入站</MudSelectItem>
+                <MudSelectItem Value="@((int?)2)">出站</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3" lg="2">
+            <MudTextField @bind-Value="_filterMessageType" Label="消息类型" Variant="Variant.Outlined"
+                          Placeholder="如: status" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3" lg="2" Class="d-flex align-center">
+            <MudStack Row="true" Spacing="1">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadData"
+                           StartIcon="@Icons.Material.Filled.Search" Size="Size.Medium">
+                    查询
+                </MudButton>
+
+                <MudIconButton Icon="@Icons.Material.Filled.Clear" Color="Color.Secondary"
+                               OnClick="ClearFilters" Size="Size.Medium" />
+
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Info"
+                               OnClick="LoadData" Size="Size.Medium" />
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudGrid>
+    @* 消息列表 *@
+    <MudItem xs="12" md="10">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                <MudText Typo="Typo.h6">消息列表 (共 @_totalCount 条)</MudText>
+                @if (_loading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                }
+            </MudStack>
+
+            @if (_loading && !_messages.Any())
+            {
+                <MudProgressLinear Indeterminate="true" />
+            }
+            else if (_messages.Any())
+            {
+                <div style="max-height: 600px; overflow-y: auto;">
+                    <MudTable Items="@_messages" Dense="true" Hover="true" Striped="true" FixedHeader="true">
+                        <HeaderContent>
+                            <MudTh>时间</MudTh>
+                            <MudTh>方向</MudTh>
+                            <MudTh>AGV</MudTh>
+                            <MudTh>消息类型</MudTh>
+                            <MudTh>Topic</MudTh>
+                            <MudTh>QoS</MudTh>
+                            <MudTh>操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="时间">
+                                <MudText Typo="Typo.caption">@context.Timestamp.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff")</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="方向">
+                                <MudChip T="string" Size="Size.Small" Color="@GetDirectionColor(context.Direction)">
+                                    @GetDirectionText(context.Direction)
+                                </MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="AGV">
+                                <MudText Typo="Typo.body2">@(context.AgvCode ?? "-")</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="消息类型">
+                                <MudText Typo="Typo.body2">@(context.MessageType ?? "-")</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Topic">
+                                <MudText Typo="Typo.caption" Style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
+                                    @context.Topic
+                                </MudText>
+                            </MudTd>
+                            <MudTd DataLabel="QoS">@context.Qos</MudTd>
+                            <MudTd DataLabel="操作">
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary"
+                                               OnClick="@(() => ShowMessageDetails(context))" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+
+                @* 分页控件 *@
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-3">
+                    <MudText Typo="Typo.body2">
+                        显示 @((_currentPage * _pageSize) + 1)-@Math.Min((_currentPage + 1) * _pageSize, _totalCount) 条，共 @_totalCount 条
+                    </MudText>
+                    <MudPagination Count="@_totalPages" Selected="@(_currentPage + 1)" SelectedChanged="OnPageChanged"
+                                   BoundaryCount="1" MiddleCount="3" />
+                </MudStack>
+            }
+            else
+            {
+                <MudText Color="Color.Default" Class="pa-4">暂无消息数据</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+
+    @* 右侧统计面板 *@
+    <MudItem xs="12" md="2">
+        <MudStack Spacing="3">
+            @* Top AGV *@
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Top 10 活跃AGV</MudText>
+                @if (_statistics?.ByAgv.Any() == true)
+                {
+                    <MudList T="string" Dense="true">
+                        @foreach (var item in _statistics.ByAgv.Take(10))
+                        {
+                            <MudListItem T="string">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudText Typo="Typo.body2">@(item.AgvCode ?? "未知")</MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Primary">@item.Count</MudChip>
+                                </MudStack>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+                else
+                {
+                    <MudText Color="Color.Default" Typo="Typo.body2">暂无数据</MudText>
+                }
+            </MudPaper>
+
+            @* 消息类型分布 *@
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">消息类型分布</MudText>
+                @if (_statistics?.ByMessageType.Any() == true)
+                {
+                    <MudList T="string" Dense="true">
+                        @foreach (var item in _statistics.ByMessageType.Take(10))
+                        {
+                            <MudListItem T="string">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudText Typo="Typo.body2">@(item.MessageType ?? "未知")</MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@item.Count</MudChip>
+                                </MudStack>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+                else
+                {
+                    <MudText Color="Color.Default" Typo="Typo.body2">暂无数据</MudText>
+                }
+            </MudPaper>
+        </MudStack>
+    </MudItem>
+</MudGrid>
+
+@* 消息详情对话框 *@
+<MudDialog @bind-Visible="_showDetailsDialog" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">消息详情</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_selectedMessage != null)
+        {
+            <MudStack Spacing="2">
+                <MudGrid>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2">时间:</MudText>
+                        <MudText Typo="Typo.body2">@_selectedMessage.Timestamp.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss.fff")</MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2">方向:</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@GetDirectionColor(_selectedMessage.Direction)">
+                            @GetDirectionText(_selectedMessage.Direction)
+                        </MudChip>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2">AGV编号:</MudText>
+                        <MudText Typo="Typo.body2">@(_selectedMessage.AgvCode ?? "-")</MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2">客户端ID:</MudText>
+                        <MudText Typo="Typo.body2">@(_selectedMessage.ClientId ?? "-")</MudText>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">Topic:</MudText>
+                        <MudText Typo="Typo.body2">@_selectedMessage.Topic</MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2">消息类型:</MudText>
+                        <MudText Typo="Typo.body2">@(_selectedMessage.MessageType ?? "-")</MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.subtitle2">QoS级别:</MudText>
+                        <MudText Typo="Typo.body2">@_selectedMessage.Qos</MudText>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">消息内容 (JSON):</MudText>
+                        <MudPaper Class="pa-3" Elevation="0" Style="background-color: #f5f5f5; max-height: 400px; overflow-y: auto;">
+                            <code style="white-space: pre-wrap; font-family: monospace; font-size: 12px;">@FormatJson(_selectedMessage.Payload)</code>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="CloseDetailsDialog">关闭</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<MqttMessageLog> _messages = new();
+    private MqttMessageStatistics? _statistics;
+    private bool _loading = true;
+    private bool _showTodayStats = true;
+
+    // 日期范围（默认最近7天）
+    private DateTime? _startDate;
+    private DateTime? _endDate;
+
+    // 分页相关
+    private int _currentPage = 0;
+    private int _pageSize = 50;
+    private int _totalCount = 0;
+    private int _totalPages => (_totalCount + _pageSize - 1) / _pageSize;
+
+    // 过滤条件
+    private string? _filterAgvCode;
+    private int? _filterDirection;
+    private string? _filterMessageType;
+
+    // 消息详情对话框
+    private bool _showDetailsDialog;
+    private MqttMessageLog? _selectedMessage;
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 设置默认时间范围为最近7天
+        _endDate = DateTime.Today;
+        _startDate = DateTime.Today.AddDays(-7);
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        await Task.WhenAll(LoadMessages(), LoadStatistics());
+    }
+
+    private async Task LoadMessages()
+    {
+        _loading = true;
+        try
+        {
+            // 将 DateTime 格式化为 yyyyMMdd 字符串
+            string? startTime = _startDate?.ToString("yyyyMMdd");
+            string? endTime = _endDate?.ToString("yyyyMMdd");
+
+            var result = await MqttMessageClient.GetByTimeRangeAsync(
+                startTime,
+                endTime,
+                _filterAgvCode,
+                _filterDirection,
+                _filterMessageType,
+                _currentPage,
+                _pageSize
+            );
+
+            if (result != null)
+            {
+                _messages = result.Items;
+                _totalCount = result.TotalCount;
+            }
+            else
+            {
+                _messages = new();
+                _totalCount = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载消息失败: {ex.Message}");
+            _messages = new();
+            _totalCount = 0;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadStatistics()
+    {
+        try
+        {
+            var since = _showTodayStats ? DateTime.Today.ToString("yyyyMMdd") : null;
+            _statistics = await MqttMessageClient.GetStatisticsAsync(since);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载统计失败: {ex.Message}");
+        }
+    }
+
+    private void SwitchStatsPeriod(bool showToday)
+    {
+        _showTodayStats = showToday;
+        _ = LoadStatistics();
+    }
+
+    private async Task OnPageChanged(int page)
+    {
+        _currentPage = page - 1; // MudPagination 从1开始，我们的pageIndex从0开始
+        await LoadMessages();
+    }
+
+    private async Task ClearFilters()
+    {
+        _filterAgvCode = null;
+        _filterDirection = null;
+        _filterMessageType = null;
+
+        // 重置为默认时间范围（最近7天）
+        _endDate = DateTime.Today;
+        _startDate = DateTime.Today.AddDays(-7);
+
+        _currentPage = 0;
+        await LoadData();
+    }
+
+    private void ShowMessageDetails(MqttMessageLog message)
+    {
+        _selectedMessage = message;
+        _showDetailsDialog = true;
+    }
+
+    private void CloseDetailsDialog()
+    {
+        _showDetailsDialog = false;
+    }
+
+    private Color GetDirectionColor(MqttMessageDirection direction)
+    {
+        return direction == MqttMessageDirection.Inbound ? Color.Info : Color.Warning;
+    }
+
+    private string GetDirectionText(MqttMessageDirection direction)
+    {
+        return direction == MqttMessageDirection.Inbound ? "入站" : "出站";
+    }
+
+    private string FormatJson(string json)
+    {
+        try
+        {
+            var jsonElement = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
+            return System.Text.Json.JsonSerializer.Serialize(jsonElement, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return json;
+        }
+    }
+
+    public void Dispose()
+    {
+    }
+}

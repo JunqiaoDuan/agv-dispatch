@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AgvDispatch.Shared\AgvDispatch.Shared.csproj" />
+    <ProjectReference Include="..\AgvDispatch.Business\AgvDispatch.Business.csproj" />
   </ItemGroup>
 
 </Project>
