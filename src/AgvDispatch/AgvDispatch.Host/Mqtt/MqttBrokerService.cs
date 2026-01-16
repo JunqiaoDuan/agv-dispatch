@@ -7,6 +7,7 @@ using AgvDispatch.Shared.Constants;
 using AgvDispatch.Shared.Messages;
 using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Business.Entities.Common;
+using AgvDispatch.Business.Entities.MqttMessageLogAggregate;
 using AgvDispatch.Shared.Repository;
 using AgvDispatch.Business.Specifications.Agvs;
 using Microsoft.Extensions.DependencyInjection;
@@ -193,6 +194,21 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
                 return;
             }
 
+            // 持久化消息到数据库（异步不阻塞消息处理）
+            _ = Task.Run(async () =>
+            {
+                _logger.LogDebug("[MQTT Broker] 开始入栈保存消息: Topic={Topic}, Payload={Payload}", topic, payload);
+                await SaveMessageLogAsync(
+                    topic,
+                    payload,
+                    args.ClientId,
+                    (int)args.ApplicationMessage.QualityOfServiceLevel,
+                    MqttMessageDirection.Inbound,
+                    agvCode,
+                    messageType
+                );
+            });
+
             // 根据消息类型精确匹配分发处理
             switch (messageType)
             {
@@ -329,6 +345,46 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
     #region 私有方法
 
     /// <summary>
+    /// 保存MQTT消息日志到数据库
+    /// </summary>
+    private async Task SaveMessageLogAsync(
+        string topic,
+        string payload,
+        string? clientId,
+        int qos,
+        MqttMessageDirection direction,
+        string? agvCode,
+        string? messageType)
+    {
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var logRepository = scope.ServiceProvider.GetRequiredService<IRepository<MqttMessageLog>>();
+
+            var log = new MqttMessageLog
+            {
+                Timestamp = DateTimeOffset.UtcNow,
+                Topic = topic,
+                Payload = payload,
+                ClientId = clientId,
+                Qos = qos,
+                Direction = direction,
+                AgvCode = agvCode,
+                MessageType = messageType
+            };
+
+            log.OnCreate();
+            await logRepository.AddAsync(log);
+
+            _logger.LogTrace("[MQTT Broker] 消息日志已保存: Topic={Topic}, Direction={Direction}", topic, direction);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[MQTT Broker] 保存消息日志失败: Topic={Topic}", topic);
+        }
+    }
+
+    /// <summary>
     /// 发布消息到MQTT
     /// 注意：这是内嵌Broker模式，消息直接注入本地服务器后分发给订阅的客户端，无需指定IP和端口
     /// </summary>
@@ -357,6 +413,22 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
                 });
 
             _logger.LogDebug("[MQTT Broker] 已发布消息: Topic={Topic}, Payload={Payload}", topic, payload);
+
+            // 持久化出站消息到数据库（异步不阻塞消息发送）
+            var (agvCode, messageType) = MqttTopics.ParseTopic(topic);
+            _ = Task.Run(async () =>
+            {
+                _logger.LogDebug("[MQTT Broker] 开始出栈保存消息: Topic={Topic}, Payload={Payload}", topic, payload);
+                await SaveMessageLogAsync(
+                    topic,
+                    payload,
+                    "Server",
+                    (int)qos,
+                    MqttMessageDirection.Outbound,
+                    agvCode,
+                    messageType
+                );
+            });
         }
         catch (Exception ex)
         {
