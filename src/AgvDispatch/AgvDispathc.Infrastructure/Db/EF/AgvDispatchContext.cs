@@ -1,5 +1,6 @@
 using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Business.Entities.MapAggregate;
+using AgvDispatch.Business.Entities.MqttMessageLogAggregate;
 using AgvDispatch.Business.Entities.RouteAggregate;
 using AgvDispatch.Business.Entities.StationAggregate;
 using AgvDispatch.Business.Entities.UserAggregate;
@@ -29,6 +30,7 @@ public class AgvDispatchContext : DbContext
     public DbSet<RouteSegment> RouteSegments { get; set; }
     public DbSet<Agv> Agvs { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<MqttMessageLog> MqttMessageLogs { get; set; }
 
     #endregion
 
