@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/docs/">
+    <File Path="../../docs/方案-任务下发与调度流程.md" />
     <File Path="../../docs/方案-地图模拟功能.md" />
     <File Path="../../docs/方案-地图配置与路线管理.md" />
     <File Path="../../docs/方案-地图验证.md" />
