@@ -23,6 +23,16 @@ public static class MqttTopics
     /// </summary>
     public const string ExceptionTemplate = "agv/{0}/exception";
 
+    /// <summary>
+    /// 路段锁定请求 Topic 模板: agv/{agvCode}/path/lock-request
+    /// </summary>
+    public const string PathLockRequestTemplate = "agv/{0}/path/lock-request";
+
+    /// <summary>
+    /// 路段解锁通知 Topic 模板: agv/{agvCode}/path/unlock
+    /// </summary>
+    public const string PathUnlockTemplate = "agv/{0}/path/unlock";
+
     #endregion
 
     #region Topics： 服务器 => AGV
@@ -42,6 +52,11 @@ public static class MqttTopics
     /// </summary>
     public const string CommandTemplate = "agv/{0}/command";
 
+    /// <summary>
+    /// 路段锁定响应 Topic 模板: agv/{agvCode}/path/lock-response
+    /// </summary>
+    public const string PathLockResponseTemplate = "agv/{0}/path/lock-response";
+
     #endregion
 
     #region 服务器订阅用的通配符 Topic
@@ -60,6 +75,16 @@ public static class MqttTopics
     /// 订阅所有异常: agv/+/exception
     /// </summary>
     public const string AllException = "agv/+/exception";
+
+    /// <summary>
+    /// 订阅所有路段锁定请求: agv/+/path/lock-request
+    /// </summary>
+    public const string AllPathLockRequest = "agv/+/path/lock-request";
+
+    /// <summary>
+    /// 订阅所有路段解锁通知: agv/+/path/unlock
+    /// </summary>
+    public const string AllPathUnlock = "agv/+/path/unlock";
 
     #endregion
 
@@ -95,6 +120,21 @@ public static class MqttTopics
     /// </summary>
     public static string Exception(string agvCode) => string.Format(ExceptionTemplate, agvCode);
 
+    /// <summary>
+    /// 生成指定小车的路段锁定请求 Topic
+    /// </summary>
+    public static string PathLockRequest(string agvCode) => string.Format(PathLockRequestTemplate, agvCode);
+
+    /// <summary>
+    /// 生成指定小车的路段锁定响应 Topic
+    /// </summary>
+    public static string PathLockResponse(string agvCode) => string.Format(PathLockResponseTemplate, agvCode);
+
+    /// <summary>
+    /// 生成指定小车的路段解锁 Topic
+    /// </summary>
+    public static string PathUnlock(string agvCode) => string.Format(PathUnlockTemplate, agvCode);
+
     #endregion
 
     #region 消息类型常量
@@ -128,6 +168,21 @@ public static class MqttTopics
     /// 消息类型: 控制指令
     /// </summary>
     public const string MessageTypeCommand = "command";
+
+    /// <summary>
+    /// 消息类型: 路段锁定请求
+    /// </summary>
+    public const string MessageTypePathLockRequest = "path/lock-request";
+
+    /// <summary>
+    /// 消息类型: 路段锁定响应
+    /// </summary>
+    public const string MessageTypePathLockResponse = "path/lock-response";
+
+    /// <summary>
+    /// 消息类型: 路段解锁
+    /// </summary>
+    public const string MessageTypePathUnlock = "path/unlock";
 
     #endregion
 
