@@ -50,10 +50,4 @@ public class PathLockResponseMessage
     /// </summary>
     [JsonPropertyName("message")]
     public string Message { get; set; } = string.Empty;
-
-    /// <summary>
-    /// 占用该路段的小车编号(如果被拒绝)
-    /// </summary>
-    [JsonPropertyName("lockedByAgvCode")]
-    public string? LockedByAgvCode { get; set; }
 }

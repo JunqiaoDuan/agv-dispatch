@@ -3,7 +3,7 @@ namespace AgvDispatch.Shared.Enums;
 /// <summary>
 /// 任务类型(手动调度版)
 /// </summary>
-public enum TaskType
+public enum TaskJobType
 {
     /// <summary>
     /// 召唤小车上料
@@ -34,12 +34,12 @@ public static class TaskTypeExtensions
     /// <summary>
     /// 获取任务类型显示文本
     /// </summary>
-    public static string ToDisplayText(this TaskType type) => type switch
+    public static string ToDisplayText(this TaskJobType type) => type switch
     {
-        TaskType.CallForLoading => "召唤小车上料",
-        TaskType.SendToUnloading => "告知小车去下料",
-        TaskType.ReturnToWaiting => "确认下料去等待区",
-        TaskType.SendToCharge => "让小车充电",
+        TaskJobType.CallForLoading => "召唤小车上料",
+        TaskJobType.SendToUnloading => "告知小车去下料",
+        TaskJobType.ReturnToWaiting => "确认下料去等待区",
+        TaskJobType.SendToCharge => "让小车充电",
         _ => "未知"
     };
 }

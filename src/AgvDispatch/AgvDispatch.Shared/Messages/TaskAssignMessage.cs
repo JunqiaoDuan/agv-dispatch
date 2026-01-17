@@ -19,7 +19,7 @@ public class TaskAssignMessage
     /// 任务类型
     /// </summary>
     [JsonPropertyName("taskType")]
-    public TaskType TaskType { get; set; }
+    public TaskJobType TaskType { get; set; }
 
     /// <summary>
     /// 优先级，数值越大优先级越低

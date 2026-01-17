@@ -1,7 +1,7 @@
 using AgvDispatch.Shared.Enums;
 using System;
 using System.Text.Json.Serialization;
-using TaskStatus = AgvDispatch.Shared.Enums.TaskStatus;
+using TaskJobStatus = AgvDispatch.Shared.Enums.TaskJobStatus;
 
 namespace AgvDispatch.Shared.Messages;
 
@@ -39,7 +39,7 @@ public class TaskProgressMessage
     /// 任务状态
     /// </summary>
     [JsonPropertyName("status")]
-    public TaskStatus Status { get; set; }
+    public TaskJobStatus Status { get; set; }
 
     /// <summary>
     /// 进度消息

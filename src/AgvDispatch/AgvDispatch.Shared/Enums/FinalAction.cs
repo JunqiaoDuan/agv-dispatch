@@ -15,15 +15,6 @@ public enum FinalAction
     /// </summary>
     Stop = 10,
 
-    /// <summary>
-    /// 装货
-    /// </summary>
-    Load = 20,
-
-    /// <summary>
-    /// 卸货
-    /// </summary>
-    Unload = 30,
 }
 
 /// <summary>
@@ -38,8 +29,6 @@ public static class FinalActionExtensions
     {
         FinalAction.None => "无动作",
         FinalAction.Stop => "停车",
-        FinalAction.Load => "装货",
-        FinalAction.Unload => "卸货",
         _ => "未知"
     };
 }

@@ -3,34 +3,29 @@ using AgvDispatch.Business.Entities.Common;
 namespace AgvDispatch.Business.Entities.RouteAggregate;
 
 /// <summary>
-/// 路线
+/// 任务路线定义
 /// </summary>
-public class Route : BaseEntity
+public class TaskRoute : BaseEntity
 {
     /// <summary>
-    /// 所属地图ID
+    /// 任务ID
     /// </summary>
-    public Guid MapId { get; set; }
+    public Guid TaskId { get; set; }
 
     /// <summary>
-    /// 路线编号，如 R001
+    /// 起始站点编号
     /// </summary>
-    public string RouteCode { get; set; } = string.Empty;
+    public string StartStationCode { get; set; } = string.Empty;
 
     /// <summary>
-    /// 路线名称
+    /// 终点站点编号
     /// </summary>
-    public string DisplayName { get; set; } = string.Empty;
+    public string EndStationCode { get; set; } = string.Empty;
 
     /// <summary>
     /// 描述
     /// </summary>
     public string? Description { get; set; }
-
-    /// <summary>
-    /// 是否启用
-    /// </summary>
-    public bool IsActive { get; set; } = true;
 
     /// <summary>
     /// 排序号

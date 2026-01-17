@@ -3,7 +3,7 @@ namespace AgvDispatch.Shared.Enums;
 /// <summary>
 /// 任务状态
 /// </summary>
-public enum TaskStatus
+public enum TaskJobStatus
 {
     /// <summary>
     /// 待分配
@@ -44,14 +44,14 @@ public static class TaskStatusExtensions
     /// <summary>
     /// 获取状态显示文本
     /// </summary>
-    public static string ToDisplayText(this TaskStatus status) => status switch
+    public static string ToDisplayText(this TaskJobStatus status) => status switch
     {
-        TaskStatus.Pending => "待分配",
-        TaskStatus.Assigned => "已分配",
-        TaskStatus.Executing => "执行中",
-        TaskStatus.Completed => "已完成",
-        TaskStatus.Cancelled => "已取消",
-        TaskStatus.Failed => "失败",
+        TaskJobStatus.Pending => "待分配",
+        TaskJobStatus.Assigned => "已分配",
+        TaskJobStatus.Executing => "执行中",
+        TaskJobStatus.Completed => "已完成",
+        TaskJobStatus.Cancelled => "已取消",
+        TaskJobStatus.Failed => "失败",
         _ => "未知"
     };
 }
