@@ -3,14 +3,12 @@
 @using AgvDispatch.Shared.DTOs.MapEdges
 @using AgvDispatch.Shared.DTOs.MapNodes
 @using AgvDispatch.Shared.DTOs.Maps
-@using AgvDispatch.Shared.DTOs.Routes
 @using AgvDispatch.Shared.DTOs.Stations
 @using AgvDispatch.Shared.Enums
 @using AgvDispatch.Shared.Rendering
 @using AgvDispatch.Web.Services
 @rendermode InteractiveServer
 @inject IMapClient MapClient
-@inject IRouteClient RouteClient
 @inject IStationClient StationClient
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -605,10 +603,6 @@
         align-items: center;
         margin-bottom: 8px;
     }
-
-    .route-list-section, .segment-list-section {
-        margin-bottom: 8px;
-    }
 </style>
 
 @implements IAsyncDisposable
@@ -620,8 +614,6 @@
     private MapDetailDto? _map;
     private List<MapNodeListItemDto> _nodes = [];
     private List<MapEdgeListItemDto> _edges = [];
-    private List<RouteListItemDto> _routes = [];
-    private List<SegmentModel> _segments = [];
     private List<StationListItemDto> _stations = [];
 
     private MapRenderOptions _renderOptions = new();
@@ -639,19 +631,12 @@
 
     private MapNodeListItemDto? _selectedNode;
     private MapEdgeListItemDto? _selectedEdge;
-    private RouteListItemDto? _selectedRoute;
     private StationListItemDto? _selectedStation;
-    private int _selectedSegmentIndex = -1;
 
     // 面板模式状态
     private NodePanel.PanelMode _nodePanelMode = NodePanel.PanelMode.View;
     private EdgePanel.PanelMode _edgePanelMode = EdgePanel.PanelMode.View;
     private StationPanel.PanelMode _stationPanelMode = StationPanel.PanelMode.View;
-
-    private string _routeDisplayName = string.Empty;
-    private string? _routeDescription;
-    private bool _routeIsActive = true;
-    private int _routeSortNo;
 
     private float _scale = 0.05f;
     private float _elementScale = 1.0f;
@@ -689,7 +674,6 @@
             _canvasHeight = size.Height;
 
             await LoadMapData();
-            await LoadRoutes();
             await LoadStations();
             FitToScreen();
             StateHasChanged();
@@ -719,10 +703,7 @@
         // 切换时清理选中状态和面板模式
         _selectedNode = null;
         _selectedEdge = null;
-        _selectedRoute = null;
         _selectedStation = null;
-        _selectedSegmentIndex = -1;
-        _segments.Clear();
 
         // 重置面板模式
         _nodePanelMode = NodePanel.PanelMode.View;
@@ -744,18 +725,6 @@
         catch (Exception ex)
         {
             Snackbar.Add($"加载地图数据失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task LoadRoutes()
-    {
-        try
-        {
-            _routes = await RouteClient.GetAllAsync(MapId);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载路线数据失败: {ex.Message}", Severity.Error);
         }
     }
 
@@ -809,43 +778,6 @@
         _nodePanelMode = NodePanel.PanelMode.View;
         _edgePanelMode = EdgePanel.PanelMode.View;
         UpdateRenderData();
-    }
-
-    private async Task SelectRoute(RouteListItemDto route)
-    {
-        _selectedRoute = route;
-        _selectedSegmentIndex = -1;
-
-        _routeDisplayName = route.DisplayName;
-        _routeDescription = route.Description;
-        _routeIsActive = route.IsActive;
-        _routeSortNo = route.SortNo;
-
-        try
-        {
-            var detail = await RouteClient.GetByIdAsync(route.Id);
-            if (detail != null)
-            {
-                _segments = detail.Segments.Select(s => new SegmentModel
-                {
-                    EdgeId = s.EdgeId,
-                    Direction = s.Direction,
-                    Action = s.Action,
-                    WaitTime = s.WaitTime
-                }).ToList();
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载路线详情失败: {ex.Message}", Severity.Error);
-        }
-
-        UpdateRenderData();
-    }
-
-    private void SelectSegment(int index)
-    {
-        _selectedSegmentIndex = index;
     }
 
     private void OnCanvasMouseDown(MouseEventArgs e)
@@ -1058,12 +990,6 @@
 
     #endregion
 
-    private string GetEdgeDisplay(Guid edgeId)
-    {
-        var edge = _edges.FirstOrDefault(e => e.Id == edgeId);
-        return edge != null ? $"{edge.EdgeCode}" : "未知";
-    }
-
     private async Task ValidateMap()
     {
         _validating = true;
@@ -1207,14 +1133,6 @@
     }
 
     #endregion
-
-    private class SegmentModel
-    {
-        public Guid EdgeId { get; set; }
-        public DriveDirection Direction { get; set; } = DriveDirection.Forward;
-        public FinalAction Action { get; set; } = FinalAction.None;
-        public int WaitTime { get; set; }
-    }
 
     public async ValueTask DisposeAsync()
     {

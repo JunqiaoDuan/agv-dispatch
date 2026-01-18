@@ -48,6 +48,10 @@
             <MudText Typo="Typo.caption" Color="Color.Secondary">排序号</MudText>
             <MudText Typo="Typo.body2">@Station.SortNo</MudText>
         </div>
+        <div class="info-row">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">优先级</MudText>
+            <MudText Typo="Typo.body2">@Station.Priority</MudText>
+        </div>
         @if (!string.IsNullOrEmpty(Station.Description))
         {
             <div class="info-row">
@@ -157,6 +161,14 @@ else
                              Variant="Variant.Outlined"
                              Margin="Margin.Dense" />
 
+            <MudNumericField @bind-Value="_model.Priority"
+                             Label="优先级"
+                             Min="0"
+                             Max="100"
+                             HelpText="数值越大优先级越高 (0-100)"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense" />
+
             <MudTextField @bind-Value="_model.Description"
                           Label="描述"
                           Lines="2"
@@ -251,7 +263,8 @@ else
                 StationType = Station.StationType,
                 NodeId = Station.NodeId,
                 Description = Station.Description,
-                SortNo = Station.SortNo
+                SortNo = Station.SortNo,
+                Priority = Station.Priority
             };
             _selectedNodeDisplay = $"{Station.NodeCode} - {Station.NodeName}";
         }
@@ -284,7 +297,8 @@ else
                 StationType = Station.StationType,
                 NodeId = Station.NodeId,
                 Description = Station.Description,
-                SortNo = Station.SortNo
+                SortNo = Station.SortNo,
+                Priority = Station.Priority
             };
             _selectedNodeDisplay = $"{Station.NodeCode} - {Station.NodeName}";
             _currentMode = PanelMode.Edit;
@@ -335,7 +349,8 @@ else
                     DisplayName = _model.DisplayName,
                     StationType = _model.StationType,
                     Description = _model.Description,
-                    SortNo = _model.SortNo
+                    SortNo = _model.SortNo,
+                    Priority = _model.Priority
                 };
                 error = await StationClient.UpdateAsync(MapId, Station.Id, request);
             }
@@ -348,7 +363,8 @@ else
                     DisplayName = _model.DisplayName,
                     StationType = _model.StationType,
                     Description = _model.Description,
-                    SortNo = _model.SortNo
+                    SortNo = _model.SortNo,
+                    Priority = _model.Priority
                 };
                 error = await StationClient.CreateAsync(MapId, request);
             }
@@ -409,6 +425,7 @@ else
         public Guid NodeId { get; set; }
         public string? Description { get; set; }
         public int SortNo { get; set; }
+        public int Priority { get; set; } = 50;
     }
 
     public enum PanelMode

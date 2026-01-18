@@ -140,7 +140,8 @@ public class StationsController : ControllerBase
             DisplayName = request.DisplayName,
             StationType = request.StationType,
             Description = request.Description,
-            SortNo = request.SortNo
+            SortNo = request.SortNo,
+            Priority = request.Priority
         };
 
         station.OnCreate();
@@ -178,6 +179,7 @@ public class StationsController : ControllerBase
         station.StationType = request.StationType;
         station.Description = request.Description;
         station.SortNo = request.SortNo;
+        station.Priority = request.Priority;
 
         station.OnUpdate();
 
