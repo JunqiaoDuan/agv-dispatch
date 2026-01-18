@@ -3,6 +3,7 @@ using AgvDispatch.Business.Entities.MapAggregate;
 using AgvDispatch.Business.Entities.MqttMessageLogAggregate;
 using AgvDispatch.Business.Entities.RouteAggregate;
 using AgvDispatch.Business.Entities.StationAggregate;
+using AgvDispatch.Business.Entities.TaskAggregate;
 using AgvDispatch.Business.Entities.UserAggregate;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
@@ -26,11 +27,15 @@ public class AgvDispatchContext : DbContext
     public DbSet<MapNode> MapNodes { get; set; }
     public DbSet<MapEdge> MapEdges { get; set; }
     public DbSet<Station> Stations { get; set; }
-    public DbSet<Route> Routes { get; set; }
-    public DbSet<RouteSegment> RouteSegments { get; set; }
+    public DbSet<TaskRoute> TaskRoutes { get; set; }
+    public DbSet<TaskRouteSegment> TaskRouteSegments { get; set; }
+    public DbSet<TaskRouteCheckpoint> TaskRouteCheckpoints { get; set; }
     public DbSet<Agv> Agvs { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<MqttMessageLog> MqttMessageLogs { get; set; }
+    public DbSet<TaskJob> Tasks { get; set; }
+    public DbSet<TaskPathLock> TaskPathLocks { get; set; }
+    public DbSet<PathSegmentLockConfig> PathSegmentLockConfigs { get; set; }
 
     #endregion
 

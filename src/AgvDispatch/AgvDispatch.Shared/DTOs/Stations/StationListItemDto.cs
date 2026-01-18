@@ -17,6 +17,11 @@ public class StationListItemDto
     public int SortNo { get; set; }
 
     /// <summary>
+    /// 优先级 (0-100, 数值越大优先级越高)
+    /// </summary>
+    public int Priority { get; set; } = 50;
+
+    /// <summary>
     /// 关联的节点编号
     /// </summary>
     public string NodeCode { get; set; } = string.Empty;
