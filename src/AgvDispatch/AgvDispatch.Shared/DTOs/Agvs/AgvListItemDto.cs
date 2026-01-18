@@ -21,6 +21,7 @@ namespace AgvDispatch.Shared.DTOs.Agvs
         public decimal PositionX { get; set; }
         public decimal PositionY { get; set; }
         public decimal PositionAngle { get; set; }
+        public bool HasCargo { get; set; }
         public string? ErrorCode { get; set; }
         public DateTimeOffset? LastOnlineTime { get; set; }
         public int SortNo { get; set; }

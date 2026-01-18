@@ -23,6 +23,7 @@ namespace AgvDispatch.Shared.DTOs.Agvs
         public decimal PositionAngle { get; set; }
         public Guid? CurrentStationId { get; set; }
         public Guid? CurrentTaskId { get; set; }
+        public bool HasCargo { get; set; }
         public string? ErrorCode { get; set; }
         public DateTimeOffset? LastOnlineTime { get; set; }
         public int SortNo { get; set; }

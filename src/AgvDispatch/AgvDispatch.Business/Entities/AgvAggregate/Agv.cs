@@ -69,6 +69,11 @@ public class Agv : BaseEntity, IHasPassword
     public Guid? CurrentTaskId { get; set; }
 
     /// <summary>
+    /// 是否有料（是否携带物料）
+    /// </summary>
+    public bool HasCargo { get; set; } = false;
+
+    /// <summary>
     /// 错误码
     /// </summary>
     public string? ErrorCode { get; set; }

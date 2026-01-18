@@ -46,6 +46,11 @@ public class AgvRecommendationDto
     public AgvStatus Status { get; set; }
 
     /// <summary>
+    /// 是否有料
+    /// </summary>
+    public bool HasCargo { get; set; }
+
+    /// <summary>
     /// 推荐理由
     /// </summary>
     public string RecommendReason { get; set; } = string.Empty;
