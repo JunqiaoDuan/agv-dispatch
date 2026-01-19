@@ -5,7 +5,7 @@ using System.Text.Json;
 using AgvDispatch.Shared.Constants;
 using AgvDispatch.Shared.Messages;
 using AgvDispatch.Shared.Enums;
-using TaskStatus = AgvDispatch.Shared.Enums.TaskStatus;
+using TaskJobStatus = AgvDispatch.Shared.Enums.TaskJobStatus;
 
 namespace AgvDispatch.Simulator;
 
@@ -247,7 +247,7 @@ public class AgvSimulatorClient
         _currentTaskId = message.TaskId;
 
         // 应答任务已接收
-        await PublishTaskProgressAsync(TaskStatus.Assigned, "任务已接收,准备执行");
+        await PublishTaskProgressAsync(TaskJobStatus.Assigned, "任务已接收,准备执行");
 
         // 开始执行任务 (模拟)
         _ = Task.Run(async () => await ExecuteTaskAsync());
@@ -266,7 +266,7 @@ public class AgvSimulatorClient
             _currentTaskId = null;
             UpdateStatus(AgvStatus.Idle);
 
-            await PublishTaskProgressAsync(TaskStatus.Cancelled, $"任务已取消: {message.Reason}");
+            await PublishTaskProgressAsync(TaskJobStatus.Cancelled, $"任务已取消: {message.Reason}");
         }
     }
 
@@ -334,7 +334,7 @@ public class AgvSimulatorClient
     /// <summary>
     /// 发布任务进度
     /// </summary>
-    private async Task PublishTaskProgressAsync(TaskStatus status, string message, double? progressPercentage = null)
+    private async Task PublishTaskProgressAsync(TaskJobStatus status, string message, double? progressPercentage = null)
     {
         if (_mqttClient == null || !_mqttClient.IsConnected)
             return;
@@ -418,7 +418,7 @@ public class AgvSimulatorClient
             return;
 
         UpdateStatus(AgvStatus.Running);
-        await PublishTaskProgressAsync(TaskStatus.Executing, "开始执行任务", 0);
+        await PublishTaskProgressAsync(TaskJobStatus.Executing, "开始执行任务", 0);
 
         // 模拟任务执行过程，分为多个阶段
         var stages = new[]
@@ -445,7 +445,7 @@ public class AgvSimulatorClient
             _speed = 0.5;
             Log(stage.Message);
 
-            await PublishTaskProgressAsync(TaskStatus.Executing, stage.Message, stage.Progress);
+            await PublishTaskProgressAsync(TaskJobStatus.Executing, stage.Message, stage.Progress);
 
             // 模拟电量消耗
             _battery = Math.Max(0, _battery - 2);
@@ -458,7 +458,7 @@ public class AgvSimulatorClient
         UpdateStatus(AgvStatus.Idle);
 
         Log("任务执行完成");
-        await PublishTaskProgressAsync(TaskStatus.Completed, "任务已完成", 100);
+        await PublishTaskProgressAsync(TaskJobStatus.Completed, "任务已完成", 100);
     }
 
     #endregion
@@ -494,7 +494,7 @@ public class AgvSimulatorClient
 
         _currentTaskId = taskId;
 
-        var status = progress >= 100 ? TaskStatus.Completed : TaskStatus.Executing;
+        var status = progress >= 100 ? TaskJobStatus.Completed : TaskJobStatus.Executing;
         var message = progress >= 100 ? "任务已完成（手动上报）" : $"任务进度: {progress}%";
 
         await PublishTaskProgressAsync(status, message, progress);
