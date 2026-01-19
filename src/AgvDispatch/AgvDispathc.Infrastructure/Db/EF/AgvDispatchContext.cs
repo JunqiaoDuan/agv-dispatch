@@ -34,8 +34,6 @@ public class AgvDispatchContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<MqttMessageLog> MqttMessageLogs { get; set; }
     public DbSet<TaskJob> Tasks { get; set; }
-    public DbSet<TaskPathLock> TaskPathLocks { get; set; }
-    public DbSet<PathSegmentLockConfig> PathSegmentLockConfigs { get; set; }
 
     #endregion
 

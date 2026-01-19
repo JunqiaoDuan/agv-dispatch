@@ -3,7 +3,6 @@ using AgvDispatch.Business.Entities.StationAggregate;
 using AgvDispatch.Business.Specifications.MapEdges;
 using AgvDispatch.Business.Specifications.MapNodes;
 using AgvDispatch.Business.Specifications.Maps;
-using AgvDispatch.Business.Specifications.Routes;
 using AgvDispatch.Business.Specifications.Stations;
 using AgvDispatch.Shared.Constants;
 using AgvDispatch.Shared.DTOs;
@@ -25,7 +24,6 @@ public class MapsController : ControllerBase
     private readonly IRepository<Map> _mapRepository;
     private readonly IRepository<MapNode> _nodeRepository;
     private readonly IRepository<MapEdge> _edgeRepository;
-    private readonly IRepository<Business.Entities.RouteAggregate.Route> _routeRepository;
     private readonly IRepository<Station> _stationRepository;
     private readonly ILogger<MapsController> _logger;
 
@@ -33,14 +31,12 @@ public class MapsController : ControllerBase
         IRepository<Map> mapRepository,
         IRepository<MapNode> nodeRepository,
         IRepository<MapEdge> edgeRepository,
-        IRepository<Business.Entities.RouteAggregate.Route> routeRepository,
         IRepository<Station> stationRepository,
         ILogger<MapsController> logger)
     {
         _mapRepository = mapRepository;
         _nodeRepository = nodeRepository;
         _edgeRepository = edgeRepository;
-        _routeRepository = routeRepository;
         _stationRepository = stationRepository;
         _logger = logger;
     }
@@ -61,13 +57,12 @@ public class MapsController : ControllerBase
         {
             var nodeCount = await _nodeRepository.CountAsync(new MapNodeCountSpec(map.Id));
             var edgeCount = await _edgeRepository.CountAsync(new MapEdgeCountSpec(map.Id));
-            var routeCount = await _routeRepository.CountAsync(new RouteByMapIdSpec(map.Id));
             var stationCount = await _stationRepository.CountAsync(new StationCountSpec(map.Id));
 
             var dto = map.MapTo<MapListItemDto>();
             dto.NodeCount = nodeCount;
             dto.EdgeCount = edgeCount;
-            dto.RouteCount = routeCount;
+            dto.RouteCount = 0; // 旧Route已删除，暂时设为0
             dto.StationCount = stationCount;
             items.Add(dto);
         }
@@ -191,12 +186,12 @@ public class MapsController : ControllerBase
         }
 
         // 检查是否有关联的路线
-        var routeSpec = new RouteByMapIdSpec(id);
-        var hasRoutes = await _routeRepository.AnyAsync(routeSpec);
-        if (hasRoutes)
-        {
-            return BadRequest(ApiResponse<bool>.Fail("该地图存在关联的路线，请先删除相关路线"));
-        }
+        // var routeSpec = new RouteByMapIdSpec(id); // 旧Route已删除
+        // var hasRoutes = await _routeRepository.AnyAsync(routeSpec);
+        // if (hasRoutes)
+        // {
+        //     return BadRequest(ApiResponse<bool>.Fail("该地图存在关联的路线，请先删除相关路线"));
+        // }
 
         map.OnDelete("用户删除");
 
@@ -592,8 +587,8 @@ public class MapsController : ControllerBase
         }
 
         // 检查是否有路线段引用此边
-        var segmentSpec = new Business.Specifications.RouteSegments.RouteSegmentByEdgeIdSpec(id);
-        var hasSegments = await _edgeRepository.AnyAsync(new MapEdgeByIdSpec(id));
+        // var segmentSpec = new Business.Specifications.RouteSegments.RouteSegmentByEdgeIdSpec(id); // 旧RouteSegment已删除
+        // var hasSegments = await _edgeRepository.AnyAsync(new MapEdgeByIdSpec(id));
         // Note: We need RouteSegment repository for this check
         // For now, we'll allow deletion
 
