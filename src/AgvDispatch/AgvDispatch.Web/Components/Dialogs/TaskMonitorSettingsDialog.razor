@@ -1,0 +1,155 @@
+@using AgvDispatch.Shared.Rendering
+
+<MudDialog Visible="Visible" VisibleChanged="OnDialogVisibleChanged" Options="DialogOptions">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">页面设置</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @* 显示控制 *@
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Style="vertical-align: middle;" />
+                    显示控制
+                </MudText>
+
+                <MudStack Spacing="2">
+                    <MudSwitch T="bool"
+                               @bind-Value="@LocalRenderOptions.ShowNodeLabels"
+                               Color="Color.Primary"
+                               Label="节点文字" />
+                    <MudSwitch T="bool"
+                               @bind-Value="@LocalRenderOptions.ShowStationLabels"
+                               Color="Color.Primary"
+                               Label="站点文字" />
+                    <MudSwitch T="bool"
+                               @bind-Value="@LocalRenderOptions.ShowEdgeLabels"
+                               Color="Color.Primary"
+                               Label="边文字" />
+                    <MudSwitch T="bool"
+                               @bind-Value="@LocalRenderOptions.ShowArrows"
+                               Color="Color.Primary"
+                               Label="箭头" />
+                </MudStack>
+            </MudPaper>
+
+            @* 自动刷新设置 *@
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" Style="vertical-align: middle;" />
+                    自动刷新
+                </MudText>
+
+                <MudStack Spacing="2">
+                    <MudSwitch T="bool"
+                               @bind-Value="@LocalAutoRefresh"
+                               Color="Color.Primary"
+                               Label="启用自动刷新" />
+
+                    <MudNumericField T="int"
+                                     @bind-Value="@LocalRefreshInterval"
+                                     Label="刷新间隔（秒）"
+                                     Variant="Variant.Outlined"
+                                     Min="1"
+                                     Max="60"
+                                     Step="1"
+                                     HelperText="建议设置为 1-10 秒"
+                                     Disabled="@(!LocalAutoRefresh)" />
+                </MudStack>
+            </MudPaper>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">取消</MudButton>
+        <MudButton OnClick="Apply" Variant="Variant.Filled" Color="Color.Primary">应用</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> VisibleChanged { get; set; }
+
+    [Parameter]
+    public MapRenderOptions? RenderOptions { get; set; }
+
+    [Parameter]
+    public bool AutoRefresh { get; set; }
+
+    [Parameter]
+    public int RefreshInterval { get; set; } = 2;
+
+    [Parameter]
+    public EventCallback<MapRenderOptions> OnRenderOptionsChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnAutoRefreshChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnRefreshIntervalChanged { get; set; }
+
+    private MapRenderOptions LocalRenderOptions { get; set; } = new();
+    private bool LocalAutoRefresh { get; set; }
+    private int LocalRefreshInterval { get; set; } = 2;
+    private bool _wasVisible = false;
+
+    private DialogOptions DialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseButton = true,
+        CloseOnEscapeKey = true
+    };
+
+    protected override void OnParametersSet()
+    {
+        // 只在对话框首次打开时初始化本地设置，避免在编辑过程中被重置
+        // Only initialize local settings when dialog first opens, prevent reset during editing
+        if (Visible && !_wasVisible)
+        {
+            // 对话框刚打开，初始化本地设置
+            if (RenderOptions != null)
+            {
+                LocalRenderOptions = new MapRenderOptions
+                {
+                    ShowNodeLabels = RenderOptions.ShowNodeLabels,
+                    ShowStationLabels = RenderOptions.ShowStationLabels,
+                    ShowEdgeLabels = RenderOptions.ShowEdgeLabels,
+                    ShowArrows = RenderOptions.ShowArrows,
+                    ShowGrid = RenderOptions.ShowGrid
+                };
+            }
+
+            LocalAutoRefresh = AutoRefresh;
+            LocalRefreshInterval = RefreshInterval;
+        }
+
+        _wasVisible = Visible;
+    }
+
+    private async Task Apply()
+    {
+        // 应用设置
+        await OnRenderOptionsChanged.InvokeAsync(LocalRenderOptions);
+        await OnAutoRefreshChanged.InvokeAsync(LocalAutoRefresh);
+        await OnRefreshIntervalChanged.InvokeAsync(LocalRefreshInterval);
+
+        await OnDialogVisibleChanged(false);
+    }
+
+    private async Task Cancel()
+    {
+        await OnDialogVisibleChanged(false);
+    }
+
+    private async Task OnDialogVisibleChanged(bool visible)
+    {
+        Visible = visible;
+        await VisibleChanged.InvokeAsync(visible);
+    }
+}

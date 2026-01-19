@@ -1,0 +1,305 @@
+@using AgvDispatch.Shared.DTOs.Stations
+@using AgvDispatch.Shared.DTOs.Tasks
+@using AgvDispatch.Shared.Enums
+@using AgvDispatch.Web.Services
+@inject ITaskClient TaskClient
+@inject ISnackbar Snackbar
+
+<MudDialog Visible="Visible" VisibleChanged="OnDialogVisibleChanged" Options="DialogOptions">
+        <TitleContent>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Home" Color="Color.Warning" />
+                <MudText Typo="Typo.h6">确认下料去等待区</MudText>
+            </MudStack>
+        </TitleContent>
+        <DialogContent>
+            <MudStack Spacing="3">
+                @if (LoadingPendingItems)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    <MudText Typo="Typo.caption">加载中...</MudText>
+                }
+                else if (PendingItems.Any())
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.List" Size="Size.Small" Style="vertical-align: middle;" />
+                            小车列表 (@PendingItems.Count(x => x.IsAvailable) 可用 / @PendingItems.Count 总计)
+                        </MudText>
+                        @if (PendingItems.Count > 1)
+                        {
+                            <MudButton OnClick="@(() => _showAllItems = !_showAllItems)"
+                                       Size="Size.Small"
+                                       Variant="Variant.Text"
+                                       StartIcon="@(_showAllItems ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)">
+                                @(_showAllItems ? "折叠" : $"展开 ({PendingItems.Count - 1})")
+                            </MudButton>
+                        }
+                    </MudStack>
+
+                    @if (!PendingItems.Any(x => x.IsAvailable))
+                    {
+                        <MudAlert Severity="Severity.Warning">无可用小车</MudAlert>
+                    }
+
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <MudStack Spacing="2">
+                            @foreach (var (item, index) in PendingItems.Select((r, i) => (r, i)))
+                            {
+                                @* 如果没有可用小车，全部折叠；如果有可用小车，只显示第一个可用的，其它折叠 *@
+                                @if (ShouldShowItem(index, item.IsAvailable))
+                                {
+                                    <MudCard Outlined="true" Class="@(SelectedAgvId == item.AgvId ? "selected-card" : "")">
+                                        <MudCardContent Class="pa-2">
+                                            <MudStack Spacing="1">
+                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                    <MudText Typo="Typo.body2"><strong>@item.AgvCode</strong></MudText>
+                                                    <MudChip T="string" Color="@GetStatusColor(item.AgvStatus)" Size="Size.Small">
+                                                        @item.AgvStatus.ToDisplayText()
+                                                    </MudChip>
+                                                    @if (!item.IsAvailable)
+                                                    {
+                                                        <MudChip T="string" Color="Color.Error" Size="Size.Small">不可用</MudChip>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudChip T="string" Color="Color.Success" Size="Size.Small">可用</MudChip>
+                                                    }
+                                                </MudStack>
+
+                                                <MudText Typo="Typo.caption">
+                                                    电量: @item.Battery% |
+                                                    载货: @(item.HasCargo ? "是" : "否")
+                                                    @if (!string.IsNullOrWhiteSpace(item.CurrentStationCode))
+                                                    {
+                                                        <text> | 位置: @item.CurrentStationCode</text>
+                                                    }
+                                                </MudText>
+
+                                                @if (!string.IsNullOrWhiteSpace(item.Reason))
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                        @item.Reason
+                                                    </MudText>
+                                                }
+
+                                                <MudButton Variant="@(SelectedAgvId == item.AgvId ? Variant.Filled : Variant.Outlined)"
+                                                           Color="Color.Primary"
+                                                           Size="Size.Small"
+                                                           FullWidth="true"
+                                                           OnClick="@(() => SelectAgv(item.AgvId))"
+                                                           Disabled="@(!item.IsAvailable)">
+                                                    @(SelectedAgvId == item.AgvId ? "已选择" : item.IsAvailable ? "选择" : "不可用")
+                                                </MudButton>
+                                            </MudStack>
+                                        </MudCardContent>
+                                    </MudCard>
+                                }
+                            }
+                        </MudStack>
+                    </div>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info">暂无小车</MudAlert>
+                }
+
+                @* 选择目标站点 *@
+                <MudDivider />
+                <MudSelect T="string"
+                           Label="目标站点"
+                           @bind-Value="TargetStationCode"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           HelperText="请选择等待区站点">
+                    @foreach (var station in Stations.Where(s => s.StationType == StationType.Standby))
+                    {
+                        <MudSelectItem T="string" Value="@station.StationCode">
+                            @station.StationCode - @station.DisplayName
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="CloseDialog" Variant="Variant.Text">取消</MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.Check"
+                       OnClick="ConfirmAssignment"
+                       Disabled="@(Assigning || SelectedAgvId == null || string.IsNullOrWhiteSpace(TargetStationCode))">
+                @if (Assigning)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>分配中...</span>
+                }
+                else
+                {
+                    <span>确认分配</span>
+                }
+            </MudButton>
+        </DialogActions>
+</MudDialog>
+
+<style>
+    .selected-card {
+        border-color: #2196F3 !important;
+        border-width: 2px !important;
+        background: #E3F2FD !important;
+    }
+</style>
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter] public List<StationListItemDto> Stations { get; set; } = [];
+    [Parameter] public EventCallback OnTaskCreated { get; set; }
+
+    private DialogOptions DialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseButton = true,
+        Position = DialogPosition.Center
+    };
+
+    private string TargetStationCode = string.Empty;
+    private List<AgvPendingItemDto> PendingItems = [];
+    private Guid? SelectedAgvId;
+    private bool LoadingPendingItems = false;
+    private bool Assigning = false;
+    private bool _previousVisible = false;
+    private bool _showAllItems = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // 只在从 false 变为 true 时才加载数据
+        if (Visible && !_previousVisible)
+        {
+            // 打开弹窗时重置状态并加载数据
+            TargetStationCode = string.Empty;
+            PendingItems.Clear();
+            SelectedAgvId = null;
+            await LoadPendingAgvs();
+        }
+
+        _previousVisible = Visible;
+    }
+
+    private async Task OnDialogVisibleChanged(bool visible)
+    {
+        if (!visible)
+        {
+            // 对话框被关闭
+            await CloseDialog();
+        }
+    }
+
+    private async Task LoadPendingAgvs()
+    {
+        LoadingPendingItems = true;
+        PendingItems.Clear();
+        SelectedAgvId = null;
+
+        try
+        {
+            PendingItems = await TaskClient.GetPendingReturnAgvsAsync();
+
+            if (PendingItems.Any())
+            {
+                var availableCount = PendingItems.Count(x => x.IsAvailable);
+                Snackbar.Add($"找到 {availableCount} 辆可用小车", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("暂无小车", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"获取小车列表失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            LoadingPendingItems = false;
+        }
+    }
+
+    private void SelectAgv(Guid agvId)
+    {
+        SelectedAgvId = agvId;
+    }
+
+    private async Task ConfirmAssignment()
+    {
+        if (SelectedAgvId == null) return;
+
+        Assigning = true;
+
+        try
+        {
+            var request = new CreateTaskWithAgvRequestDto
+            {
+                TaskType = TaskJobType.ReturnToWaiting,
+                TargetStationCode = TargetStationCode,
+                SelectedAgvId = SelectedAgvId.Value
+            };
+
+            var response = await TaskClient.CreateTaskAsync(request);
+
+            if (response != null)
+            {
+                Snackbar.Add("任务已成功创建并下发！", Severity.Success);
+                await CloseDialog();
+                await OnTaskCreated.InvokeAsync();
+            }
+            else
+            {
+                Snackbar.Add("创建任务失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"创建任务失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Assigning = false;
+        }
+    }
+
+    private async Task CloseDialog()
+    {
+        Visible = false;
+        await VisibleChanged.InvokeAsync(Visible);
+        PendingItems.Clear();
+        SelectedAgvId = null;
+        TargetStationCode = string.Empty;
+    }
+
+    private Color GetStatusColor(AgvStatus status) => status switch
+    {
+        AgvStatus.Idle => Color.Success,
+        AgvStatus.Running => Color.Info,
+        AgvStatus.Charging => Color.Warning,
+        AgvStatus.Error => Color.Error,
+        _ => Color.Default
+    };
+
+    private bool ShouldShowItem(int index, bool isAvailable)
+    {
+        // 如果用户选择展开全部，显示所有小车
+        if (_showAllItems)
+            return true;
+
+        var hasAvailable = PendingItems.Any(x => x.IsAvailable);
+
+        // 如果没有可用小车，不显示任何小车（折叠全部）
+        if (!hasAvailable)
+            return false;
+
+        // 如果有可用小车，只显示第一个可用的小车
+        var firstAvailableIndex = PendingItems.FindIndex(x => x.IsAvailable);
+        return index == firstAvailableIndex;
+    }
+}

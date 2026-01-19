@@ -1,0 +1,1019 @@
+@page "/task-monitor"
+@layout EmptyLayout
+@using AgvDispatch.Shared.DTOs.MapEdges
+@using AgvDispatch.Shared.DTOs.MapNodes
+@using AgvDispatch.Shared.DTOs.Maps
+@using AgvDispatch.Shared.DTOs.Stations
+@using AgvDispatch.Shared.DTOs.Agvs
+@using AgvDispatch.Shared.DTOs.Tasks
+@using AgvDispatch.Shared.Enums
+@using AgvDispatch.Shared.Rendering
+@using AgvDispatch.Shared.PathFinding
+@using AgvDispatch.Shared.Simulation
+@using AgvDispatch.Web.Services
+@using System.Timers
+@rendermode InteractiveServer
+@inject IMapClient MapClient
+@inject IStationClient StationClient
+@inject IAgvClient AgvClient
+@inject ITaskClient TaskClient
+@inject ISnackbar Snackbar
+@implements IDisposable
+
+<PageTitle>任务调度与监控 - AGV调度系统</PageTitle>
+
+<div class="task-monitor-page">
+    @* 顶部工具栏 *@
+    <div class="monitor-toolbar">
+        <div class="toolbar-left">
+            <MudText Typo="Typo.body2">
+                <strong>任务调度与监控</strong>
+            </MudText>
+            @if (_map != null)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2">
+                    地图: @_map.MapCode @_map.DisplayName
+                </MudText>
+            }
+        </div>
+
+        <div class="toolbar-center">
+            <MudChip T="string" Color="Color.Info" Size="Size.Small">
+                AGV: @_agvs.Count 辆
+            </MudChip>
+            <MudChip T="string" Color="Color.Success" Size="Size.Small">
+                任务: @_tasks.Count 个
+            </MudChip>
+        </div>
+
+        <div class="toolbar-right">
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                           Size="Size.Small"
+                           OnClick="RefreshData"
+                           Title="立即刷新" />
+            <MudIconButton Icon="@Icons.Material.Filled.Settings"
+                           Size="Size.Small"
+                           OnClick="OpenSettings"
+                           Title="设置" />
+        </div>
+    </div>
+
+    @* 主体区域 *@
+    <div class="monitor-body">
+        @* 左侧控制面板 - 四个功能按钮 *@
+        <div class="monitor-panel left-panel">
+            <div class="panel-content">
+                <MudStack Spacing="3">
+                    @* 召唤小车上料 *@
+                    <MudPaper Elevation="2" Class="action-button" @onclick="() => OpenTaskDialog(TaskJobType.CallForLoading)">
+                        <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Upload" Color="Color.Success" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Color="Color.Success">召唤小车上料</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="text-align: center;">
+                                将空闲小车召唤到上料点
+                            </MudText>
+                        </MudStack>
+                    </MudPaper>
+
+                    @* 告知小车去下料 *@
+                    <MudPaper Elevation="2" Class="action-button" @onclick="() => OpenTaskDialog(TaskJobType.SendToUnloading)">
+                        <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Download" Color="Color.Info" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Color="Color.Info">告知小车去下料</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="text-align: center;">
+                                指派小车前往下料点
+                            </MudText>
+                        </MudStack>
+                    </MudPaper>
+
+                    @* 确认下料去等待区 *@
+                    <MudPaper Elevation="2" Class="action-button" @onclick="() => OpenTaskDialog(TaskJobType.ReturnToWaiting)">
+                        <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Home" Color="Color.Warning" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Color="Color.Warning">确认下料去等待区</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="text-align: center;">
+                                完成下料后返回等待区
+                            </MudText>
+                        </MudStack>
+                    </MudPaper>
+
+                    @* 让小车充电 *@
+                    <MudPaper Elevation="2" Class="action-button" @onclick="() => OpenTaskDialog(TaskJobType.SendToCharge)">
+                        <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.BatteryChargingFull" Color="Color.Primary" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Color="Color.Primary">让小车充电</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="text-align: center;">
+                                将小车送往充电站
+                            </MudText>
+                        </MudStack>
+                    </MudPaper>
+                </MudStack>
+            </div>
+        </div>
+
+        @* 中央画布 - 地图和AGV *@
+        <div class="monitor-canvas"
+             @onwheel="OnWheel"
+             @onwheel:preventDefault="true"
+             @onmousedown="OnMouseDown"
+             @onmousemove="OnMouseMove"
+             @onmouseup="OnMouseUp"
+             @onmouseleave="OnMouseLeave">
+
+            @if (_loading)
+            {
+                <div class="loading-overlay">
+                    <MudProgressCircular Size="Size.Large" Indeterminate="true" />
+                    <MudText Typo="Typo.body1" Class="mt-2">加载中...</MudText>
+                </div>
+            }
+            else if (_map != null)
+            {
+                @* 地图层 *@
+                <div class="map-layer">
+                    @((MarkupString)_mapSvg)
+                </div>
+
+                @* AGV层 *@
+                <div class="agv-layer">
+                    @((MarkupString)_agvSvg)
+                </div>
+
+                @* 画布工具条 *@
+                <div class="canvas-tools">
+                    <MudIconButton Icon="@Icons.Material.Filled.ZoomOut"
+                                   Size="Size.Small"
+                                   OnClick="ZoomOut"
+                                   Title="缩小" />
+                    <MudNumericField T="int"
+                                     Value="@((int)(_scale * 100))"
+                                     ValueChanged="OnZoomValueChanged"
+                                     Min="1"
+                                     Max="100"
+                                     Variant="Variant.Outlined"
+                                     HideSpinButtons="true"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="%"
+                                     Style="width: 70px;"
+                                     Margin="Margin.Dense" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ZoomIn"
+                                   Size="Size.Small"
+                                   OnClick="ZoomIn"
+                                   Title="放大" />
+                    <MudIconButton Icon="@Icons.Material.Filled.FitScreen"
+                                   Size="Size.Small"
+                                   OnClick="FitToScreen"
+                                   Title="适应画布" />
+                    <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
+                    <MudText Typo="Typo.caption" Class="mr-1">元素:</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
+                                   Size="Size.Small"
+                                   OnClick="DecreaseElementScale"
+                                   Title="减小元素" />
+                    <MudText Typo="Typo.caption">@(_elementScale.ToString("F1"))x</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                                   Size="Size.Small"
+                                   OnClick="IncreaseElementScale"
+                                   Title="增大元素" />
+                </div>
+
+                @* 缩略图 *@
+                <div class="minimap-container"
+                     @onclick="OnMinimapClick">
+                    <div class="minimap-content">
+                        @((MarkupString)_minimapMapSvg)
+                        @((MarkupString)_minimapOverlaySvg)
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* 右侧状态面板 - 任务列表和监控 *@
+        <div class="monitor-panel right-panel">
+            <div class="panel-content">
+                @* 任务筛选 *@
+                <div class="panel-section">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Style="vertical-align: middle;" />
+                        任务筛选
+                    </MudText>
+
+                    <MudChipSet T="string" @bind-SelectedValue="_selectedStatusValue" Filter="true" Mandatory="false" CheckedIcon="@Icons.Material.Filled.Check">
+                        <MudChip T="string" Text="全部" Value="@((string?)null)" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" />
+                        <MudChip T="string" Text="待分配" Value="@("Pending")" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined" />
+                        <MudChip T="string" Text="执行中" Value="@("Executing")" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" />
+                        <MudChip T="string" Text="已完成" Value="@("Completed")" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined" />
+                    </MudChipSet>
+                </div>
+
+                @* 任务列表 *@
+                <div class="panel-section mt-3" style="max-height: 500px; overflow-y: auto;">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Style="vertical-align: middle;" />
+                        任务列表 (@FilteredTasks.Count)
+                    </MudText>
+
+                    @if (!FilteredTasks.Any())
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">暂无任务</MudAlert>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="2">
+                            @foreach (var task in FilteredTasks.Take(20))
+                            {
+                                <MudCard Outlined="true" Class="@(_selectedTaskId == task.Id ? "selected-card" : "")"
+                                         @onclick="@(() => SelectTask(task.Id))">
+                                    <MudCardContent Class="pa-2">
+                                        <MudStack Spacing="1">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                <MudText Typo="Typo.body2"><strong>@task.TaskType.ToDisplayText()</strong></MudText>
+                                                <MudChip T="string" Color="@GetTaskStatusColor(task.TaskStatus)" Size="Size.Small">
+                                                    @task.TaskStatus.ToDisplayText()
+                                                </MudChip>
+                                            </MudStack>
+
+                                            <MudText Typo="Typo.caption">
+                                                @task.StartStationCode → @task.EndStationCode
+                                            </MudText>
+
+                                            @if (!string.IsNullOrEmpty(task.AssignedAgvCode))
+                                            {
+                                                <MudText Typo="Typo.caption">
+                                                    <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Size="Size.Small" />
+                                                    @task.AssignedAgvCode
+                                                </MudText>
+                                            }
+
+                                            @if (task.ProgressPercentage.HasValue)
+                                            {
+                                                <MudProgressLinear Color="Color.Primary"
+                                                                   Value="@((double)task.ProgressPercentage.Value)"
+                                                                   Size="Size.Small" />
+                                            }
+
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                @task.CreationDate?.ToString("MM-dd HH:mm")
+                                            </MudText>
+                                        </MudStack>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </MudStack>
+                    }
+                </div>
+
+                @* AGV状态统计 *@
+                <div class="panel-section mt-3">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Size="Size.Small" Style="vertical-align: middle;" />
+                        AGV状态统计
+                    </MudText>
+
+                    <MudSimpleTable Dense="true" Size="Size.Small">
+                        <tbody>
+                            <tr>
+                                <td>总数</td>
+                                <td><strong>@_agvs.Count</strong></td>
+                            </tr>
+                            <tr>
+                                <td>空闲</td>
+                                <td><MudChip T="string" Size="Size.Small" Color="Color.Success">@_agvs.Count(a => a.AgvStatus == AgvStatus.Idle)</MudChip></td>
+                            </tr>
+                            <tr>
+                                <td>运行中</td>
+                                <td><MudChip T="string" Size="Size.Small" Color="Color.Info">@_agvs.Count(a => a.AgvStatus == AgvStatus.Running)</MudChip></td>
+                            </tr>
+                            <tr>
+                                <td>充电中</td>
+                                <td><MudChip T="string" Size="Size.Small" Color="Color.Warning">@_agvs.Count(a => a.AgvStatus == AgvStatus.Charging)</MudChip></td>
+                            </tr>
+                            <tr>
+                                <td>故障</td>
+                                <td><MudChip T="string" Size="Size.Small" Color="Color.Error">@_agvs.Count(a => a.AgvStatus == AgvStatus.Error)</MudChip></td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* 任务分配弹窗 *@
+<CallForLoadingDialog Visible="_callForLoadingDialogVisible"
+                      VisibleChanged="(v) => _callForLoadingDialogVisible = v"
+                      Stations="_stations"
+                      OnTaskCreated="RefreshData" />
+
+<SendToUnloadingDialog Visible="_sendToUnloadingDialogVisible"
+                       VisibleChanged="(v) => _sendToUnloadingDialogVisible = v"
+                       Stations="_stations"
+                       OnTaskCreated="RefreshData" />
+
+<ReturnToWaitingDialog Visible="_returnToWaitingDialogVisible"
+                       VisibleChanged="(v) => _returnToWaitingDialogVisible = v"
+                       Stations="_stations"
+                       OnTaskCreated="RefreshData" />
+
+<SendToChargeDialog Visible="_sendToChargeDialogVisible"
+                    VisibleChanged="(v) => _sendToChargeDialogVisible = v"
+                    Stations="_stations"
+                    OnTaskCreated="RefreshData" />
+
+@* 设置对话框 *@
+<TaskMonitorSettingsDialog Visible="_settingsDialogVisible"
+                           VisibleChanged="(v) => _settingsDialogVisible = v"
+                           RenderOptions="_renderOptions"
+                           AutoRefresh="_autoRefresh"
+                           RefreshInterval="_refreshIntervalSeconds"
+                           OnRenderOptionsChanged="OnRenderOptionsChanged"
+                           OnAutoRefreshChanged="OnAutoRefreshChanged"
+                           OnRefreshIntervalChanged="OnRefreshIntervalChanged" />
+
+@code {
+    // 地图数据
+    private MapDetailDto? _map;
+    private List<MapNodeListItemDto> _nodes = [];
+    private List<MapEdgeListItemDto> _edges = [];
+    private List<StationListItemDto> _stations = [];
+
+    // AGV和任务数据
+    private List<AgvListItemDto> _agvs = [];
+    private List<TaskListItemDto> _tasks = [];
+
+    // 弹窗控制
+    private bool _callForLoadingDialogVisible = false;
+    private bool _sendToUnloadingDialogVisible = false;
+    private bool _returnToWaitingDialogVisible = false;
+    private bool _sendToChargeDialogVisible = false;
+    private bool _settingsDialogVisible = false;
+
+    // 任务筛选
+    private string? _selectedStatusValue = "Executing"; // 默认选中"执行中"
+    private Guid? _selectedTaskId;
+
+    // 渲染
+    private MapRenderer _mapRenderer = new();
+    private MiniMapRenderer _minimapRenderer = new();
+    private MapRenderOptions _renderOptions = new() { ShowGrid = true, ShowArrows = true, ShowNodeLabels = false, ShowEdgeLabels = false, ShowStationLabels = true };
+    private MapRenderData _renderData = new();
+    private string _mapSvg = string.Empty;
+    private string _agvSvg = string.Empty;
+    private string _minimapMapSvg = string.Empty;
+    private string _minimapOverlaySvg = string.Empty;
+
+    // 视图控制
+    private float _viewWidth = 1200f;
+    private float _viewHeight = 800f;
+    private float _scale = 0.2f;
+    private float _elementScale = 1.0f;
+    private float _offsetX = 50f;
+    private float _offsetY = 50f;
+    private bool _isDragging = false;
+    private double _lastMouseX;
+    private double _lastMouseY;
+
+    // 缩略图
+    private const float MinimapWidth = 330f;
+    private const float MinimapHeight = 440f;
+    private float _minimapScale = 0.01f;
+    private float _minimapOffsetX = 0f;
+    private float _minimapOffsetY = 0f;
+
+    // UI 状态
+    private bool _loading = true;
+    private bool _autoRefresh = true;
+    private int _refreshIntervalSeconds = 2;
+    private System.Timers.Timer? _refreshTimer;
+
+    private List<TaskListItemDto> FilteredTasks
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(_selectedStatusValue))
+                return _tasks.OrderByDescending(t => t.CreationDate).ToList();
+
+            var status = Enum.Parse<TaskJobStatus>(_selectedStatusValue);
+            return _tasks.Where(t => t.TaskStatus == status).OrderByDescending(t => t.CreationDate).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMapData();
+        await LoadAgvsAndTasks();
+        _loading = false;
+
+        // 启动自动刷新
+        _refreshTimer = new System.Timers.Timer(_refreshIntervalSeconds * 1000);
+        _refreshTimer.Elapsed += OnRefreshTimerElapsed;
+        if (_autoRefresh)
+        {
+            _refreshTimer.Start();
+        }
+    }
+
+    private async Task LoadMapData()
+    {
+        try
+        {
+            // 获取所有地图，按 SortNo 排序
+            var maps = await MapClient.GetAllAsync();
+            var mapListItem = maps.OrderBy(m => m.SortNo).FirstOrDefault();
+
+            if (mapListItem == null)
+            {
+                Snackbar.Add("未找到可用地图", Severity.Warning);
+                return;
+            }
+
+            var mapId = mapListItem.Id;
+
+            // 加载地图详情
+            _map = await MapClient.GetByIdAsync(mapId);
+            if (_map == null)
+            {
+                Snackbar.Add("加载地图详情失败", Severity.Error);
+                return;
+            }
+
+            // 加载节点、边和站点
+            _nodes = await MapClient.GetNodesAsync(mapId);
+            _edges = await MapClient.GetEdgesAsync(mapId);
+            _stations = await StationClient.GetAllAsync(mapId);
+
+            // 初始化渲染数据
+            _renderData.Width = _map.Width;
+            _renderData.Height = _map.Height;
+            _renderData.Nodes = _nodes;
+            _renderData.Edges = _edges;
+            _renderData.Stations = _stations;
+
+            // 设置缩放比例
+            _scale = 0.2f;
+
+            // 计算偏移使地图居中
+            var mapWidth = (float)_map.Width;
+            var mapHeight = (float)_map.Height;
+            _offsetX = (_viewWidth - mapWidth * _scale) / 2f;
+            _offsetY = (_viewHeight - mapHeight * _scale) / 2f;
+
+            RenderMap();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载地图失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadAgvsAndTasks()
+    {
+        try
+        {
+            _agvs = await AgvClient.GetAllAsync();
+            _tasks = await TaskClient.GetAllAsync();
+            RenderAgvs();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载数据失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadAgvsAndTasks();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnRefreshTimerElapsed(object? sender, ElapsedEventArgs e)
+    {
+        await LoadAgvsAndTasks();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    #region 任务分配
+
+    private void OpenTaskDialog(TaskJobType taskType)
+    {
+        switch (taskType)
+        {
+            case TaskJobType.CallForLoading:
+                _callForLoadingDialogVisible = true;
+                break;
+            case TaskJobType.SendToUnloading:
+                _sendToUnloadingDialogVisible = true;
+                break;
+            case TaskJobType.ReturnToWaiting:
+                _returnToWaitingDialogVisible = true;
+                break;
+            case TaskJobType.SendToCharge:
+                _sendToChargeDialogVisible = true;
+                break;
+        }
+    }
+
+    #endregion
+
+    #region 设置
+
+    private void OpenSettings()
+    {
+        _settingsDialogVisible = true;
+    }
+
+    private void OnRenderOptionsChanged(MapRenderOptions options)
+    {
+        _renderOptions.ShowNodeLabels = options.ShowNodeLabels;
+        _renderOptions.ShowStationLabels = options.ShowStationLabels;
+        _renderOptions.ShowEdgeLabels = options.ShowEdgeLabels;
+        _renderOptions.ShowArrows = options.ShowArrows;
+        RenderMap();
+    }
+
+    private void OnAutoRefreshChanged(bool autoRefresh)
+    {
+        _autoRefresh = autoRefresh;
+        if (_autoRefresh)
+        {
+            _refreshTimer?.Start();
+        }
+        else
+        {
+            _refreshTimer?.Stop();
+        }
+    }
+
+    private void OnRefreshIntervalChanged(int intervalSeconds)
+    {
+        _refreshIntervalSeconds = intervalSeconds;
+
+        // 重新创建定时器
+        _refreshTimer?.Stop();
+        _refreshTimer?.Dispose();
+        _refreshTimer = new System.Timers.Timer(_refreshIntervalSeconds * 1000);
+        _refreshTimer.Elapsed += OnRefreshTimerElapsed;
+
+        if (_autoRefresh)
+        {
+            _refreshTimer.Start();
+        }
+    }
+
+    #endregion
+
+    #region 任务操作
+
+    private void SelectTask(Guid taskId)
+    {
+        _selectedTaskId = taskId;
+        // TODO: 在地图上高亮显示任务路径
+    }
+
+    #endregion
+
+    #region 地图渲染
+
+    private void RenderMap()
+    {
+        if (_map == null) return;
+
+        _mapRenderer = new MapRenderer(_renderOptions);
+        _mapSvg = _mapRenderer.Render(
+            _renderData,
+            _viewWidth,
+            _viewHeight,
+            _scale,
+            _offsetX,
+            _offsetY,
+            elementScale: _elementScale);
+
+        RenderAgvs();
+        RenderMinimap();
+    }
+
+    private void RenderAgvs()
+    {
+        if (_map == null) return;
+
+        var svg = new System.Text.StringBuilder();
+        svg.AppendLine($"<svg width=\"{_viewWidth}\" height=\"{_viewHeight}\" xmlns=\"http://www.w3.org/2000/svg\">");
+
+        foreach (var agv in _agvs)
+        {
+            var x = (float)agv.PositionX * _scale + _offsetX;
+            var y = (float)agv.PositionY * _scale + _offsetY;
+            var size = 20f * _elementScale;
+
+            var color = agv.AgvStatus switch
+            {
+                AgvStatus.Idle => "#4CAF50",
+                AgvStatus.Running => "#2196F3",
+                AgvStatus.Charging => "#FFC107",
+                AgvStatus.Error => "#F44336",
+                _ => "#9E9E9E"
+            };
+
+            // AGV圆形
+            svg.AppendLine($"<circle cx=\"{x}\" cy=\"{y}\" r=\"{size / 2}\" fill=\"{color}\" stroke=\"white\" stroke-width=\"2\" />");
+
+            // AGV朝向
+            var angle = (double)agv.PositionAngle;
+            var dirX = x + (size / 2 + 5) * (float)Math.Cos(angle);
+            var dirY = y + (size / 2 + 5) * (float)Math.Sin(angle);
+            svg.AppendLine($"<line x1=\"{x}\" y1=\"{y}\" x2=\"{dirX}\" y2=\"{dirY}\" stroke=\"{color}\" stroke-width=\"3\" />");
+
+            // AGV编号
+            svg.AppendLine($"<text x=\"{x}\" y=\"{y + size + 12}\" text-anchor=\"middle\" font-size=\"12\" fill=\"#333\" font-weight=\"bold\">{agv.AgvCode}</text>");
+
+            // 电量
+            svg.AppendLine($"<text x=\"{x}\" y=\"{y + size + 24}\" text-anchor=\"middle\" font-size=\"10\" fill=\"#666\">{agv.Battery}%</text>");
+        }
+
+        svg.AppendLine("</svg>");
+        _agvSvg = svg.ToString();
+    }
+
+    private void RenderMinimap()
+    {
+        if (_map == null) return;
+
+        // 渲染小地图地图层
+        _minimapMapSvg = _minimapRenderer.RenderMap(
+            _renderData,
+            MinimapWidth,
+            MinimapHeight,
+            out _minimapScale,
+            out _minimapOffsetX,
+            out _minimapOffsetY,
+            elementScale: 0.5f);
+
+        // 渲染小地图覆盖层（视窗框、AGV 位置）
+        _minimapOverlaySvg = _minimapRenderer.RenderOverlay(
+            minimapWidth: MinimapWidth,
+            minimapHeight: MinimapHeight,
+            minimapScale: _minimapScale,
+            minimapOffsetX: _minimapOffsetX,
+            minimapOffsetY: _minimapOffsetY,
+            mainViewScale: _scale,
+            mainViewOffsetX: _offsetX,
+            mainViewOffsetY: _offsetY,
+            mainViewWidth: _viewWidth,
+            mainViewHeight: _viewHeight,
+            agvPosition: null, // TaskMonitor 不需要显示单个AGV，因为有多个
+            agvSize: 16f,
+            agvColor: "#2196F3",
+            endPosition: null,
+            endMarkerSize: 12f,
+            viewportColor: "#FF5722",
+            viewportStrokeWidth: 2f,
+            viewportDashArray: "5,5");
+    }
+
+    #endregion
+
+    #region 缩放控制
+
+    private void ZoomIn()
+    {
+        _scale *= 1.2f;
+        _scale = Math.Min(1f, _scale);
+        RenderMap();
+    }
+
+    private void ZoomOut()
+    {
+        _scale *= 0.8f;
+        _scale = Math.Max(0.01f, _scale);
+        RenderMap();
+    }
+
+    private void OnZoomValueChanged(int value)
+    {
+        _scale = value / 100f;
+        _scale = Math.Max(0.01f, Math.Min(1f, _scale));
+        RenderMap();
+    }
+
+    private void IncreaseElementScale()
+    {
+        _elementScale = Math.Min(10f, _elementScale + 0.5f);
+        RenderMap();
+    }
+
+    private void DecreaseElementScale()
+    {
+        _elementScale = Math.Max(0.5f, _elementScale - 0.5f);
+        RenderMap();
+    }
+
+    private void FitToScreen()
+    {
+        if (_map == null) return;
+        var mapWidth = (float)_map.Width;
+        var mapHeight = (float)_map.Height;
+        var scaleX = (_viewWidth - 100) / mapWidth;
+        var scaleY = (_viewHeight - 100) / mapHeight;
+        _scale = Math.Min(scaleX, scaleY) * 0.9f;
+        _offsetX = 50;
+        _offsetY = 50;
+        RenderMap();
+    }
+
+    private void OnWheel(WheelEventArgs e)
+    {
+        var zoomFactor = e.DeltaY > 0 ? 0.9f : 1.1f;
+        _scale *= zoomFactor;
+        _scale = Math.Max(0.01f, Math.Min(1f, _scale));
+        RenderMap();
+    }
+
+    #endregion
+
+    #region 鼠标拖拽
+
+    private void OnMouseDown(MouseEventArgs e)
+    {
+        _isDragging = true;
+        _lastMouseX = e.ClientX;
+        _lastMouseY = e.ClientY;
+    }
+
+    private void OnMouseMove(MouseEventArgs e)
+    {
+        if (!_isDragging) return;
+
+        var deltaX = (float)(e.ClientX - _lastMouseX);
+        var deltaY = (float)(e.ClientY - _lastMouseY);
+
+        _offsetX += deltaX;
+        _offsetY += deltaY;
+
+        _lastMouseX = e.ClientX;
+        _lastMouseY = e.ClientY;
+
+        RenderMap();
+    }
+
+    private void OnMouseUp(MouseEventArgs e)
+    {
+        _isDragging = false;
+    }
+
+    private void OnMouseLeave(MouseEventArgs e)
+    {
+        _isDragging = false;
+    }
+
+    #endregion
+
+    #region 缩略图导航
+
+    private void OnMinimapClick(MouseEventArgs e)
+    {
+        if (_map == null) return;
+
+        // 获取点击位置相对于缩略图容器的坐标
+        var clickX = (float)e.OffsetX;
+        var clickY = (float)e.OffsetY;
+
+        // 转换到地图坐标
+        var mapX = (clickX - _minimapOffsetX) / _minimapScale;
+        var mapY = (clickY - _minimapOffsetY) / _minimapScale;
+
+        // 计算新的偏移量，使点击位置居中
+        _offsetX = -mapX * _scale + _viewWidth / 2f;
+        _offsetY = -mapY * _scale + _viewHeight / 2f;
+
+        RenderMap();
+    }
+
+    #endregion
+
+    #region 辅助方法
+
+    private Color GetTaskStatusColor(TaskJobStatus status) => status switch
+    {
+        TaskJobStatus.Pending => Color.Default,
+        TaskJobStatus.Assigned => Color.Info,
+        TaskJobStatus.Executing => Color.Primary,
+        TaskJobStatus.Completed => Color.Success,
+        TaskJobStatus.Cancelled => Color.Warning,
+        TaskJobStatus.Failed => Color.Error,
+        _ => Color.Default
+    };
+
+    #endregion
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}
+
+<style>
+    .task-monitor-page {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #f5f5f5;
+    }
+
+    .monitor-toolbar {
+        height: 50px;
+        background: white;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 16px;
+    }
+
+    .toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .toolbar-center {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .monitor-body {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+    }
+
+    .monitor-panel {
+        background: white;
+        overflow-y: auto;
+    }
+
+    .left-panel {
+        width: 320px;
+        border-right: 1px solid #e0e0e0;
+    }
+
+    .action-button {
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border-radius: 8px;
+    }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .action-button:active {
+            transform: translateY(0);
+        }
+
+    .right-panel {
+        width: 320px;
+        border-left: 1px solid #e0e0e0;
+    }
+
+    .panel-content {
+        padding: 16px;
+    }
+
+    .panel-section {
+        padding: 12px;
+        background: #fafafa;
+        border-radius: 4px;
+    }
+
+    .monitor-canvas {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        cursor: grab;
+        background: #fafafa;
+    }
+
+        .monitor-canvas:active {
+            cursor: grabbing;
+        }
+
+    .map-layer, .agv-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .canvas-tools {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(255,255,255,0.95);
+        padding: 4px 12px;
+        border-radius: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .minimap-container {
+        position: absolute;
+        bottom: 16px;
+        right: 16px;
+        width: 330px;
+        height: 440px;
+        background: rgba(255,255,255,0.95);
+        border: 2px solid #2196F3;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        cursor: pointer;
+        overflow: hidden;
+    }
+
+    .minimap-content {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+
+        .minimap-content > svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.9);
+    }
+
+    .selected-card {
+        border-color: #2196F3 !important;
+        border-width: 2px !important;
+        background: #E3F2FD !important;
+    }
+
+    @@keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .spinning {
+        animation: spin 2s linear infinite;
+    }
+
+    /* 任务筛选按钮样式增强 */
+    .panel-section .mud-chip-set .mud-chip {
+        font-weight: 500;
+        border-width: 2px;
+        transition: all 0.2s ease;
+    }
+
+    /* 选中状态的筛选按钮 */
+    .panel-section .mud-chip-set .mud-chip.mud-chip-selected {
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        transform: scale(1.05);
+    }
+
+    /* 未选中状态的筛选按钮 - 更淡的颜色 */
+    .panel-section .mud-chip-set .mud-chip:not(.mud-chip-selected) {
+        opacity: 0.6;
+        background-color: transparent !important;
+    }
+
+    /* 鼠标悬停效果 */
+    .panel-section .mud-chip-set .mud-chip:hover {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+</style>
