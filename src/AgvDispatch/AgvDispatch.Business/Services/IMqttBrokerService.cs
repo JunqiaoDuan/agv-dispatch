@@ -1,8 +1,6 @@
 using AgvDispatch.Shared.Messages;
-using AgvDispatch.Shared.Constants;
-using System.Text.Json;
 
-namespace AgvDispatch.Host.Mqtt;
+namespace AgvDispatch.Business.Services;
 
 /// <summary>
 /// MQTT 服务接口
@@ -23,4 +21,5 @@ public interface IMqttBrokerService
     /// 发布控制指令消息
     /// </summary>
     Task PublishCommandAsync(string agvCode, CommandMessage message);
+
 }

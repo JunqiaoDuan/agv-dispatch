@@ -1,6 +1,6 @@
 using AgvDispatch.Shared.Messages;
 
-namespace AgvDispatch.Host.Mqtt;
+namespace AgvDispatch.Business.Services;
 
 /// <summary>
 /// MQTT 消息处理器接口
@@ -21,4 +21,5 @@ public interface IMqttMessageHandler
     /// 处理异常上报消息
     /// </summary>
     Task HandleExceptionAsync(string agvCode, ExceptionMessage message);
+
 }

@@ -2,13 +2,19 @@ using AgvDispatch.Shared.Messages;
 using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Shared.Repository;
 using AgvDispatch.Business.Specifications.Agvs;
+using AgvDispatch.Business.Specifications.TaskJobs;
+using AgvDispatch.Business.Services;
+using AgvDispatch.Shared.Enums;
+using AgvDispatch.Shared.Constants;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using AgvDispatch.Business.Entities.TaskAggregate;
 
-namespace AgvDispatch.Host.Mqtt;
+namespace AgvDispatch.Infrastructure.Mqtt;
 
 /// <summary>
 /// MQTT 消息处理器实现
-/// 
+///
 /// 注意：本服务注册为 Singleton，不能直接注入 Scoped 的 DbContext/Repository，
 /// 需通过 IServiceScopeFactory 在使用时创建 scope 来获取
 /// </summary>
@@ -117,4 +123,5 @@ public class MqttMessageHandler : IMqttMessageHandler
 
         await Task.CompletedTask;
     }
+
 }

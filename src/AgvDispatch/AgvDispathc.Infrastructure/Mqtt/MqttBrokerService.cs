@@ -10,14 +10,18 @@ using AgvDispatch.Business.Entities.Common;
 using AgvDispatch.Business.Entities.MqttMessageLogAggregate;
 using AgvDispatch.Shared.Repository;
 using AgvDispatch.Business.Specifications.Agvs;
+using AgvDispatch.Business.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
-namespace AgvDispatch.Host.Mqtt;
+namespace AgvDispatch.Infrastructure.Mqtt;
 
 /// <summary>
 /// MQTT Broker 托管服务
 /// 内嵌MQTT Broker，处理小车连接和消息
-/// 
+///
 /// 注意：本服务注册为 Singleton，不能直接注入 Scoped 的 DbContext/Repository，
 /// 需通过 IServiceScopeFactory 在使用时创建 scope 来获取
 /// </summary>
