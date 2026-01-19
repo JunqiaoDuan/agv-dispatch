@@ -11,6 +11,11 @@ public class AgvRecommendationDto
     public string AgvCode { get; set; } = string.Empty;
 
     /// <summary>
+    /// 是否可用
+    /// </summary>
+    public bool IsAvailable { get; set; }
+
+    /// <summary>
     /// 总分(0-100)
     /// </summary>
     public double TotalScore { get; set; }

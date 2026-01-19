@@ -18,14 +18,9 @@
         地图管理
     </MudNavLink>
 
-    <MudNavGroup Title="任务调度" Icon="@Icons.Material.Filled.Assignment" Expanded="false">
-        <MudNavLink Href="/tasks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PlaylistAdd">
-            任务管理
-        </MudNavLink>
-        <MudNavLink Href="/monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Monitor">
-            实时监控
-        </MudNavLink>
-    </MudNavGroup>
+    <MudNavLink Href="/task-monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Dashboard">
+        任务调度与监控
+    </MudNavLink>
 
     <MudNavGroup Title="系统工具" Icon="@Icons.Material.Filled.Settings" Expanded="false">
         <MudNavLink Href="/mqtt-monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Message">
