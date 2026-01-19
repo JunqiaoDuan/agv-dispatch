@@ -14,12 +14,10 @@ public interface IAgvRecommendationService
     /// 筛选条件：Idle + Standby站点 + !HasCargo + Battery≥阈值
     /// 排序：站点优先级降序
     /// </summary>
-    /// <param name="targetStationCode">目标站点编号</param>
     /// <param name="minBattery">最低电量要求(默认20%)</param>
     /// <param name="topCount">返回Top数量(默认10)</param>
     /// <returns>推荐列表(按评分降序)</returns>
     Task<List<AgvRecommendation>> GetLoadingRecommendationsAsync(
-        string targetStationCode,
         int minBattery,
         int topCount);
 

@@ -33,7 +33,7 @@ public class AgvDispatchContext : DbContext
     public DbSet<Agv> Agvs { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<MqttMessageLog> MqttMessageLogs { get; set; }
-    public DbSet<TaskJob> Tasks { get; set; }
+    public DbSet<TaskJob> TaskJobs { get; set; }
 
     #endregion
 

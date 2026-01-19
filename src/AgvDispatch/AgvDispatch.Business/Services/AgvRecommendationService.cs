@@ -39,24 +39,14 @@ public class AgvRecommendationService : IAgvRecommendationService
     /// 获取上料推荐小车列表
     /// </summary>
     public async Task<List<AgvRecommendation>> GetLoadingRecommendationsAsync(
-        string targetStationCode,
         int minBattery,
         int topCount)
     {
-        // 1. 获取目标站点
-        var stationSpec = new StationByStationCodeSpec(targetStationCode);
-        var targetStation = await _stationRepository.FirstOrDefaultAsync(stationSpec);
-        if (targetStation == null)
-        {
-            _logger.LogWarning("[Loading] 目标站点不存在: {StationCode}", targetStationCode);
-            throw new ArgumentException($"目标站点不存在: {targetStationCode}", nameof(targetStationCode));
-        }
-
-        // 2. 获取所有小车
+        // 1. 获取所有小车
         var agvSpec = new AgvListSpec();
         var allAgvs = await _agvRepository.ListAsync(agvSpec);
 
-        // 3. 为所有小车生成推荐结果
+        // 2. 为所有小车生成推荐结果
         var recommendations = new List<AgvRecommendation>();
         foreach (var agv in allAgvs)
         {
@@ -72,7 +62,7 @@ public class AgvRecommendationService : IAgvRecommendationService
 
             // 计算评分（只对可用的小车计算评分，不可用的评分为0）
             var recommendation = isAvailable
-                ? await CalculateScoreAsync(agv, targetStation, minBattery)
+                ? await CalculateScoreAsync(agv, minBattery)
                 : CreateUnavailableRecommendation(agv, currentStation);
 
             recommendation.IsAvailable = isAvailable;
@@ -81,14 +71,14 @@ public class AgvRecommendationService : IAgvRecommendationService
             recommendations.Add(recommendation);
         }
 
-        // 4. 按可用性和总分排序：可用的在前，不可用的在后；可用的按评分降序排列
+        // 3. 按可用性和总分排序：可用的在前，不可用的在后；可用的按评分降序排列
         var sortedRecommendations = recommendations
             .OrderByDescending(x => x.IsAvailable)
             .ThenByDescending(x => x.TotalScore)
             .ToList();
 
-        _logger.LogInformation("[Loading] 推荐完成: 目标站点={StationCode}, 总数量={Total}, 可用数量={Available}",
-            targetStationCode, sortedRecommendations.Count, sortedRecommendations.Count(x => x.IsAvailable));
+        _logger.LogInformation("[Loading] 推荐完成: 总数量={Total}, 可用数量={Available}",
+            sortedRecommendations.Count, sortedRecommendations.Count(x => x.IsAvailable));
 
         return sortedRecommendations;
     }
@@ -242,7 +232,7 @@ public class AgvRecommendationService : IAgvRecommendationService
 
     #region 计算评分
 
-    private async Task<AgvRecommendation> CalculateScoreAsync(Agv agv, Station targetStation, int minBattery)
+    private async Task<AgvRecommendation> CalculateScoreAsync(Agv agv, int minBattery)
     {
 
         // 计算各项评分 (每项按100分计算,然后乘以权重)
