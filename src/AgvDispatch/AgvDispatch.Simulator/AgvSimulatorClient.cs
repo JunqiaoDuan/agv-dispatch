@@ -96,14 +96,6 @@ public class AgvSimulatorClient
 
             // 订阅 Topic
             await SubscribeTopicsAsync();
-
-            // 启动状态上报定时器 (每5秒)
-            _statusTimer = new System.Timers.Timer(5000);
-            _statusTimer.Elapsed += async (s, e) => await PublishStatusAsync();
-            _statusTimer.Start();
-
-            // 立即上报一次状态
-            await PublishStatusAsync();
         }
         catch (Exception ex)
         {
@@ -246,11 +238,8 @@ public class AgvSimulatorClient
         _currentTask = message;
         _currentTaskId = message.TaskId;
 
-        // 应答任务已接收
-        await PublishTaskProgressAsync(TaskJobStatus.Assigned, "任务已接收,准备执行");
-
-        // 开始执行任务 (模拟)
-        _ = Task.Run(async () => await ExecuteTaskAsync());
+        // 不再自动应答和执行任务，改为手动控制
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -302,7 +291,7 @@ public class AgvSimulatorClient
     /// <summary>
     /// 上报状态
     /// </summary>
-    private async Task PublishStatusAsync()
+    public async Task PublishStatusAsync()
     {
         if (_mqttClient == null || !_mqttClient.IsConnected)
             return;
