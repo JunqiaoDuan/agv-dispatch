@@ -97,6 +97,8 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -114,8 +116,8 @@
                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <TextBox Grid.Row="0" Grid.Column="3" x:Name="TxtPositionY" Text="0" Margin="0,0,10,5"/>
 
-                <TextBlock Grid.Row="0" Grid.Column="4" Text="电压(V):" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBox Grid.Row="0" Grid.Column="5" x:Name="TxtBatteryVoltageInput" Text="53.0" Margin="0,0,10,5"/>
+                <TextBlock Grid.Row="0" Grid.Column="4" Text="角度:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBox Grid.Row="0" Grid.Column="5" x:Name="TxtPositionAngle" Text="0" Margin="0,0,10,5"/>
 
                 <Button Grid.Row="0" Grid.Column="6" x:Name="BtnSetPosition" Content="更新" Click="BtnSetPosition_Click" Width="80" Padding="5" VerticalAlignment="Center"/>
 
@@ -149,15 +151,23 @@
                     <ComboBoxItem Content="S403 - 待命3" Tag="S403"/>
                 </ComboBox>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="任务:" VerticalAlignment="Center" Margin="0,5,10,0"/>
-                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtTaskId" Margin="0,5,10,0"/>
-                <TextBlock Grid.Row="2" Grid.Column="2" Text="进度:" VerticalAlignment="Center" Margin="0,5,10,0"/>
-                <Slider Grid.Row="2" Grid.Column="3" x:Name="SliderProgress" Minimum="0" Maximum="100" Value="0"
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="电压(V):" VerticalAlignment="Center" Margin="0,5,10,0"/>
+                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtBatteryVoltageInput" Text="53.0" Margin="0,5,10,0"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="速度(m/s):" VerticalAlignment="Center" Margin="0,5,10,0"/>
+                <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtSpeedInput" Text="0" Margin="0,5,10,0"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="2" Text="任务:" VerticalAlignment="Center" Margin="0,5,10,0"/>
+                <TextBox Grid.Row="3" Grid.Column="3" x:Name="TxtTaskId" Margin="0,5,10,0"/>
+                <TextBlock Grid.Row="3" Grid.Column="4" Text="进度:" VerticalAlignment="Center" Margin="0,5,10,0"/>
+                <Slider Grid.Row="3" Grid.Column="5" x:Name="SliderProgress" Minimum="0" Maximum="100" Value="0"
                         VerticalAlignment="Center" Margin="0,5,5,0" ValueChanged="SliderProgress_ValueChanged"/>
-                <TextBlock Grid.Row="2" Grid.Column="4" x:Name="TxtProgressValue" Text="0%" Width="40"
+                <TextBlock Grid.Row="3" Grid.Column="6" x:Name="TxtProgressValue" Text="0%" Width="40"
                            VerticalAlignment="Center" Margin="0,5,10,0"/>
-                <Button Grid.Row="2" Grid.Column="5" x:Name="BtnReportProgress" Content="上报进度"
-                        Click="BtnReportProgress_Click" Width="80" Margin="0,5,0,0" Padding="5"/>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="" VerticalAlignment="Center" Margin="0,5,10,0"/>
+                <Button Grid.Row="4" Grid.Column="1" x:Name="BtnReportProgress" Content="上报进度"
+                        Click="BtnReportProgress_Click" Width="80" Margin="0,5,0,0" Padding="5" HorizontalAlignment="Left"/>
             </Grid>
         </GroupBox>
 

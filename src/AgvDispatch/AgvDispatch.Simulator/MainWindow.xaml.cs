@@ -100,7 +100,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void BtnSetPosition_Click(object sender, RoutedEventArgs e)
+    private async void BtnSetPosition_Click(object sender, RoutedEventArgs e)
     {
         if (_simulatorClient == null || !_simulatorClient.IsConnected)
         {
@@ -112,7 +112,9 @@ public partial class MainWindow : Window
         {
             var x = double.Parse(TxtPositionX.Text.Trim());
             var y = double.Parse(TxtPositionY.Text.Trim());
+            var angle = double.Parse(TxtPositionAngle.Text.Trim());
             var batteryVoltage = double.Parse(TxtBatteryVoltageInput.Text.Trim());
+            var speed = double.Parse(TxtSpeedInput.Text.Trim());
 
             // 获取站点ID
             var stationCode = string.Empty;
@@ -126,10 +128,14 @@ public partial class MainWindow : Window
                 stationCode = CmbStation.Text.Trim();
             }
 
-            _simulatorClient.SetPosition(x, y, 0, stationCode);
+            _simulatorClient.SetPosition(x, y, angle, stationCode);
             _simulatorClient.SetBatteryVoltage(batteryVoltage);
+            _simulatorClient.SetSpeed(speed);
 
-            MessageBox.Show("位置和电压已更新", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            // 立即发送状态更新到MQTT
+            await _simulatorClient.PublishStatusAsync();
+
+            MessageBox.Show("位置、角度、电压和速度已更新并发送", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {

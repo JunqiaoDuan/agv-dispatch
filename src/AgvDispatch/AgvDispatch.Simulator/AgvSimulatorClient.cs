@@ -472,6 +472,14 @@ public class AgvSimulatorClient
     }
 
     /// <summary>
+    /// 设置速度
+    /// </summary>
+    public void SetSpeed(double speed)
+    {
+        _speed = speed;
+    }
+
+    /// <summary>
     /// 手动上报任务进度
     /// </summary>
     public async Task PublishTaskProgressAsync(string taskId, int progress)
