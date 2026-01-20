@@ -1,14 +1,15 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using AgvDispatch.Business.Entities.Common;
 using AgvDispatch.Business.Entities.UserAggregate;
 using AgvDispatch.Business.Specifications.Users;
 using AgvDispatch.Shared.DTOs.Auth;
 using AgvDispatch.Shared.Options;
 using AgvDispatch.Shared.Repository;
+using MassTransit;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace AgvDispatch.Host.Services;
 
@@ -101,7 +102,7 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
             new Claim(ClaimTypes.Name, user.DisplayName ?? user.Username),
             new Claim(ClaimTypes.Role, user.Role),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, NewId.NextSequentialGuid().ToString())
         };
 
         var token = new JwtSecurityToken(

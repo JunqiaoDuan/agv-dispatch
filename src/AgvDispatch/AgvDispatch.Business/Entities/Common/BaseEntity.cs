@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using AgvDispatch.Shared.Repository;
+using MassTransit;
 
 namespace AgvDispatch.Business.Entities.Common;
 
@@ -21,7 +22,7 @@ public abstract class BaseEntity : IAggregateRoot
 
     public void OnCreate(Guid? userId = null, string? userName = null)
     {
-        Id = Guid.NewGuid();
+        Id = NewId.NextSequentialGuid();
 
         IsValid = true;
         ReasonOfInvalid = null;

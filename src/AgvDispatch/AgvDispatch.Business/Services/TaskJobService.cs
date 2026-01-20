@@ -7,6 +7,7 @@ using AgvDispatch.Shared.Constants;
 using AgvDispatch.Shared.Enums;
 using AgvDispatch.Shared.Messages;
 using AgvDispatch.Shared.Repository;
+using MassTransit;
 using Microsoft.Extensions.Logging;
 
 namespace AgvDispatch.Business.Services;
@@ -124,7 +125,7 @@ public class TaskJobService : ITaskJobService
         // 4. 创建任务(状态=Assigned)
         var task = new TaskJob
         {
-            Id = Guid.NewGuid(),
+            Id = NewId.NextSequentialGuid(),
             TaskType = taskType,
             TaskStatus = TaskJobStatus.Assigned,
             Priority = 30, // 默认优先级

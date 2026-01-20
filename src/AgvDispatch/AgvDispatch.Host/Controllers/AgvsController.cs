@@ -6,6 +6,7 @@ using AgvDispatch.Shared.DTOs.Agvs;
 using AgvDispatch.Shared.Enums;
 using AgvDispatch.Shared.Extensions;
 using AgvDispatch.Shared.Repository;
+using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -105,7 +106,7 @@ public class AgvsController : ControllerBase
 
         var agv = new Agv
         {
-            Id = Guid.NewGuid(),
+            Id = NewId.NextSequentialGuid(),
             AgvCode = request.AgvCode,
             DisplayName = request.DisplayName,
             SortNo = request.SortNo,
