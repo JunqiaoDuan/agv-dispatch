@@ -314,6 +314,12 @@ public class MqttMessageHandler : IMqttMessageHandler
             }
 
             // ========== 创建异常日志（只存MQTT消息原样） ==========
+            // 根据严重级别决定是否需要人工处理：
+            // - Error/Critical：需要人工处理（IsResolved = false）
+            // - Info/Warning：自动记录为已完成（IsResolved = true）
+            var needsManualResolution = message.Severity == AgvExceptionSeverity.Error
+                                      || message.Severity == AgvExceptionSeverity.Critical;
+
             var exceptionLog = new AgvExceptionLog
             {
                 AgvCode = agvCode,
@@ -327,7 +333,9 @@ public class MqttMessageHandler : IMqttMessageHandler
                 StationCode = message.Position?.StationCode,  // 站点ID（来自MQTT消息）
                 ExceptionTime = DateTimeOffset.UtcNow,
                 ErrorCode = $"{message.ExceptionType}_{message.Severity}_{DateTimeOffset.UtcNow:yyyyMMddHHmmss}",
-                IsResolved = false
+                IsResolved = !needsManualResolution,  // Error/Critical=false需人工处理，Info/Warning=true已自动完成
+                ResolvedTime = needsManualResolution ? null : DateTimeOffset.UtcNow,  // 自动完成的记录处理时间
+                ResolvedRemark = needsManualResolution ? null : "自动记录（低级别异常）"  // 自动完成的记录备注
             };
             exceptionLog.OnCreate();
             await exceptionLogRepository.AddAsync(exceptionLog);
