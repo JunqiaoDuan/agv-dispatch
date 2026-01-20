@@ -1,5 +1,5 @@
 @page "/task-monitor"
-@layout EmptyLayout
+@layout ContentLayout
 @using AgvDispatch.Shared.DTOs.MapEdges
 @using AgvDispatch.Shared.DTOs.MapNodes
 @using AgvDispatch.Shared.DTOs.Maps
@@ -301,18 +301,26 @@
         }
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadMapData();
-        await LoadAgvsAndTasks();
-        _loading = false;
+    private bool _initialized = false;
 
-        // 启动自动刷新
-        _refreshTimer = new System.Timers.Timer(_refreshIntervalSeconds * 1000);
-        _refreshTimer.Elapsed += OnRefreshTimerElapsed;
-        if (_autoRefresh)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_initialized)
         {
-            _refreshTimer.Start();
+            _initialized = true;
+            await LoadMapData();
+            await LoadAgvsAndTasks();
+            _loading = false;
+
+            // 启动自动刷新
+            _refreshTimer = new System.Timers.Timer(_refreshIntervalSeconds * 1000);
+            _refreshTimer.Elapsed += OnRefreshTimerElapsed;
+            if (_autoRefresh)
+            {
+                _refreshTimer.Start();
+            }
+
+            StateHasChanged();
         }
     }
 

@@ -1,5 +1,5 @@
 @page "/map-simulation/{MapId:guid}"
-@layout EmptyLayout
+@layout ContentLayout
 @using AgvDispatch.Shared.DTOs.MapEdges
 @using AgvDispatch.Shared.DTOs.MapNodes
 @using AgvDispatch.Shared.DTOs.Maps
@@ -449,14 +449,20 @@
 
     // UI 状态
     private bool _loading = true;
+    private bool _initialized = false;
 
     // 追踪控制
     private string _trackingMode = "none"; // "none" 或 "agv1"（当前只有一个小车）
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadMapData();
-        _loading = false;
+        if (firstRender && !_initialized)
+        {
+            _initialized = true;
+            await LoadMapData();
+            _loading = false;
+            StateHasChanged();
+        }
     }
 
     private async Task LoadMapData()

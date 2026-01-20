@@ -1,0 +1,71 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject IAuthStateService AuthStateService
+@inject IUnauthorizedRedirectService UnauthorizedRedirectService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@* 用于任务监控等不需要菜单，需要授权的页面 *@
+
+<MudThemeProvider @bind-IsDarkMode="_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@Body
+
+<div id="blazor-error-ui">
+    发生了未处理的错误。
+    <a href="" class="reload">重新加载</a>
+    <a class="dismiss">X</a>
+</div>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _isDarkMode = false;
+    private UserInfoDto? _currentUser;
+
+    protected override void OnInitialized()
+    {
+        UnauthorizedRedirectService.OnUnauthorized += HandleUnauthorized;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _currentUser = await AuthStateService.GetCurrentUserAsync();
+            StateHasChanged();
+        }
+    }
+
+    private void HandleUnauthorized()
+    {
+        InvokeAsync(async () =>
+        {
+            await AuthStateService.LogoutAsync();
+            await JS.InvokeVoidAsync("appHelpers.redirectTo", "/login");
+        });
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void ToggleDarkMode()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthStateService.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        UnauthorizedRedirectService.OnUnauthorized -= HandleUnauthorized;
+    }
+}
