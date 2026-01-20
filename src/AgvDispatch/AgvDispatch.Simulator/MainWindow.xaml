@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AgvDispatch.Simulator"
         mc:Ignorable="d"
-        Title="AGV 模拟器" Height="600" Width="900"
+        Title="AGV 模拟器" Height="800" Width="900"
         WindowStartupLocation="CenterScreen">
     <Grid Margin="10">
         <Grid.RowDefinitions>
@@ -174,20 +174,20 @@
 
                 <TextBlock Grid.Column="0" Text="异常类型:" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <ComboBox Grid.Column="1" x:Name="CmbExceptionType" Margin="0,0,10,0" SelectedIndex="0">
-                    <ComboBoxItem Content="障碍物" Tag="1"/>
-                    <ComboBoxItem Content="低电量" Tag="2"/>
-                    <ComboBoxItem Content="电机故障" Tag="3"/>
-                    <ComboBoxItem Content="传感器故障" Tag="4"/>
-                    <ComboBoxItem Content="网络异常" Tag="5"/>
-                    <ComboBoxItem Content="急停" Tag="6"/>
+                    <ComboBoxItem Content="障碍物" Tag="10"/>
+                    <ComboBoxItem Content="低电量" Tag="20"/>
+                    <ComboBoxItem Content="网络异常" Tag="30"/>
+                    <ComboBoxItem Content="GPS信号异常" Tag="31"/>
+                    <ComboBoxItem Content="急停" Tag="40"/>
+                    <ComboBoxItem Content="其它" Tag="80"/>
                 </ComboBox>
 
                 <TextBlock Grid.Column="2" Text="严重级别:" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <ComboBox Grid.Column="3" x:Name="CmbExceptionSeverity" Margin="0,0,10,0" SelectedIndex="1">
-                    <ComboBoxItem Content="信息" Tag="1"/>
-                    <ComboBoxItem Content="警告" Tag="2"/>
-                    <ComboBoxItem Content="错误" Tag="3"/>
-                    <ComboBoxItem Content="严重" Tag="4"/>
+                    <ComboBoxItem Content="信息" Tag="10"/>
+                    <ComboBoxItem Content="警告" Tag="20"/>
+                    <ComboBoxItem Content="错误" Tag="30"/>
+                    <ComboBoxItem Content="严重" Tag="40"/>
                 </ComboBox>
 
                 <Button Grid.Column="4" x:Name="BtnReportException" Content="上报异常" Click="BtnReportException_Click" Width="100" Padding="5"/>

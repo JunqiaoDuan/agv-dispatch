@@ -13,4 +13,6 @@ public class AgvExceptionSummaryDto
     public string? Message { get; set; }
     public DateTimeOffset ExceptionTime { get; set; }
     public string? StationCode { get; set; }
+    public bool IsResolved { get; set; }
+    public DateTimeOffset? ResolvedTime { get; set; }
 }
