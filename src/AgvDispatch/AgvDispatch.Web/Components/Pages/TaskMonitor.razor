@@ -183,6 +183,7 @@
                      @onclick="OnMinimapClick">
                     <div class="minimap-content">
                         @((MarkupString)_minimapMapSvg)
+                        @((MarkupString)_minimapAgvSvg)
                         @((MarkupString)_minimapOverlaySvg)
                     </div>
                 </div>
@@ -263,6 +264,7 @@
     private string _mapSvg = string.Empty;
     private string _agvSvg = string.Empty;
     private string _minimapMapSvg = string.Empty;
+    private string _minimapAgvSvg = string.Empty;
     private string _minimapOverlaySvg = string.Empty;
 
     // 视图控制
@@ -515,29 +517,55 @@
         var svg = new System.Text.StringBuilder();
         svg.AppendLine($"<svg width=\"{_viewWidth}\" height=\"{_viewHeight}\" xmlns=\"http://www.w3.org/2000/svg\">");
 
+        // 如果AGV在站点
         foreach (var agv in _agvs)
         {
-            var x = (float)agv.PositionX * _scale + _offsetX;
-            var y = (float)agv.PositionY * _scale + _offsetY;
+            // 除了离线，其它都显示
+            if (agv.AgvStatus == AgvStatus.Offline)
+                continue;
+
+            // 获取AGV所在站点的坐标
+            var station = _stations.FirstOrDefault(s => s.Id == agv.CurrentStationId);
+            if (station == null)
+                continue;
+
+            var x = (float)station.X * _scale + _offsetX;
+            var y = (float)station.Y * _scale + _offsetY;
             var size = 20f * _elementScale;
+            var angleInDegrees = (double)agv.PositionAngle; // 从数据库读取的是度数(0-360)
+            var angleInRadians = angleInDegrees * Math.PI / 180.0; // 转换为弧度
+            var color = "#4CAF50"; // 空闲状态使用绿色
 
-            var color = agv.AgvStatus switch
-            {
-                AgvStatus.Idle => "#4CAF50",
-                AgvStatus.Running => "#2196F3",
-                AgvStatus.Charging => "#FFC107",
-                AgvStatus.Error => "#F44336",
-                _ => "#9E9E9E"
-            };
+            // 三角形顶点（未旋转时，箭头指向右侧）
+            var halfSize = size * 0.5f;
+            var tipLength = size * 0.8f;
 
-            // AGV圆形
-            svg.AppendLine($"<circle cx=\"{x}\" cy=\"{y}\" r=\"{size / 2}\" fill=\"{color}\" stroke=\"white\" stroke-width=\"2\" />");
+            var p1X = tipLength;
+            var p1Y = 0f;
+            var p2X = -tipLength * 0.3f;
+            var p2Y = -halfSize;
+            var p3X = -tipLength * 0.3f;
+            var p3Y = halfSize;
 
-            // AGV朝向
-            var angle = (double)agv.PositionAngle;
-            var dirX = x + (size / 2 + 5) * (float)Math.Cos(angle);
-            var dirY = y + (size / 2 + 5) * (float)Math.Sin(angle);
-            svg.AppendLine($"<line x1=\"{x}\" y1=\"{y}\" x2=\"{dirX}\" y2=\"{dirY}\" stroke=\"{color}\" stroke-width=\"3\" />");
+            // 旋转并平移
+            var cos = (float)Math.Cos(angleInRadians);
+            var sin = (float)Math.Sin(angleInRadians);
+
+            float RotateX(float px, float py) => x + px * cos - py * sin;
+            float RotateY(float px, float py) => y + px * sin + py * cos;
+
+            var r1X = RotateX(p1X, p1Y);
+            var r1Y = RotateY(p1X, p1Y);
+            var r2X = RotateX(p2X, p2Y);
+            var r2Y = RotateY(p2X, p2Y);
+            var r3X = RotateX(p3X, p3Y);
+            var r3Y = RotateY(p3X, p3Y);
+
+            // 绘制填充的三角形
+            svg.AppendLine($"  <path d=\"M{r1X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r1Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
+                $"L{r2X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r2Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
+                $"L{r3X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r3Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} Z\" " +
+                $"fill=\"{color}\" stroke=\"white\" stroke-width=\"2\" />");
 
             // AGV编号
             svg.AppendLine($"<text x=\"{x}\" y=\"{y + size + 12}\" text-anchor=\"middle\" font-size=\"12\" fill=\"#333\" font-weight=\"bold\">{agv.AgvCode}</text>");
@@ -548,6 +576,9 @@
 
         svg.AppendLine("</svg>");
         _agvSvg = svg.ToString();
+
+        // 同时更新缩略图上的AGV，确保实时同步
+        RenderMinimapAgvs();
     }
 
     private void RenderMinimap()
@@ -564,7 +595,10 @@
             out _minimapOffsetY,
             elementScale: 0.5f);
 
-        // 渲染小地图覆盖层（视窗框、AGV 位置）
+        // 渲染小地图上的AGV（空闲且在站点的AGV）
+        RenderMinimapAgvs();
+
+        // 渲染小地图覆盖层（视窗框）
         _minimapOverlaySvg = _minimapRenderer.RenderOverlay(
             minimapWidth: MinimapWidth,
             minimapHeight: MinimapHeight,
@@ -576,7 +610,7 @@
             mainViewOffsetY: _offsetY,
             mainViewWidth: _viewWidth,
             mainViewHeight: _viewHeight,
-            agvPosition: null, // TaskMonitor 不需要显示单个AGV，因为有多个
+            agvPosition: null,
             agvSize: 16f,
             agvColor: "#2196F3",
             endPosition: null,
@@ -584,6 +618,68 @@
             viewportColor: "#FF5722",
             viewportStrokeWidth: 2f,
             viewportDashArray: "5,5");
+    }
+
+    private void RenderMinimapAgvs()
+    {
+        var svg = new System.Text.StringBuilder();
+        svg.AppendLine($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{MinimapWidth}\" height=\"{MinimapHeight}\" " +
+            $"style=\"position:absolute;top:0;left:0;pointer-events:none;\">");
+
+        // 如果AGV在站点
+        foreach (var agv in _agvs)
+        {
+            // 除了离线，其它都显示
+            if (agv.AgvStatus == AgvStatus.Offline)
+                continue;
+
+            // 获取AGV所在站点的坐标
+            var station = _stations.FirstOrDefault(s => s.Id == agv.CurrentStationId);
+            if (station == null)
+                continue;
+
+            // 转换到小地图坐标
+            var agvX = _minimapOffsetX + (float)station.X * _minimapScale;
+            var agvY = _minimapOffsetY + (float)station.Y * _minimapScale;
+            var agvAngleInDegrees = (double)agv.PositionAngle; // 从数据库读取的是度数(0-360)
+            var agvAngleInRadians = agvAngleInDegrees * Math.PI / 180.0; // 转换为弧度
+            var size = 16f; // 小地图上的AGV尺寸
+            var color = "#4CAF50"; // 空闲状态绿色
+
+            // 三角形顶点（未旋转时，箭头指向右侧）
+            var halfSize = size * 0.5f;
+            var tipLength = size * 0.8f;
+
+            var p1X = tipLength;
+            var p1Y = 0f;
+            var p2X = -tipLength * 0.3f;
+            var p2Y = -halfSize;
+            var p3X = -tipLength * 0.3f;
+            var p3Y = halfSize;
+
+            // 旋转并平移
+            var cos = (float)Math.Cos(agvAngleInRadians);
+            var sin = (float)Math.Sin(agvAngleInRadians);
+
+            float RotateX(float px, float py) => agvX + px * cos - py * sin;
+            float RotateY(float px, float py) => agvY + px * sin + py * cos;
+
+            var r1X = RotateX(p1X, p1Y);
+            var r1Y = RotateY(p1X, p1Y);
+            var r2X = RotateX(p2X, p2Y);
+            var r2Y = RotateY(p2X, p2Y);
+            var r3X = RotateX(p3X, p3Y);
+            var r3Y = RotateY(p3X, p3Y);
+
+            // 绘制填充的三角形
+            svg.AppendLine($"  <path d=\"M{r1X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r1Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
+                $"L{r2X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r2Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
+                $"L{r3X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r3Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} Z\" " +
+                $"fill=\"{color}\" stroke=\"white\" stroke-width=\"1\" />");
+        }
+
+        svg.AppendLine("</svg>");
+        _minimapAgvSvg = svg.ToString();
     }
 
     #endregion
