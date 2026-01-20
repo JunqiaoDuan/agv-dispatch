@@ -39,6 +39,11 @@ public class Agv : BaseEntity, IHasPassword
     public int Battery { get; set; } = 100;
 
     /// <summary>
+    /// 电池电压真实值 (V)
+    /// </summary>
+    public decimal BatteryVoltage { get; set; } = 0;
+
+    /// <summary>
     /// 当前速度 (m/s)
     /// </summary>
     public decimal Speed { get; set; } = 0;
