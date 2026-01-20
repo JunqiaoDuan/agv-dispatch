@@ -1,0 +1,34 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AgvDispatch.Mobile.App"
+             RequestedThemeVariant="Default">
+
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+
+    <Application.Resources>
+        <!-- 窗口尺寸常量 -->
+        <x:Double x:Key="WindowWidth">375</x:Double>
+        <x:Double x:Key="WindowHeight">667</x:Double>
+        <x:Double x:Key="WindowMinWidth">320</x:Double>
+        <x:Double x:Key="WindowMinHeight">568</x:Double>
+        <x:Double x:Key="WindowMaxWidth">428</x:Double>
+        <x:Double x:Key="WindowMaxHeight">926</x:Double>
+
+        <!-- 主题颜色 -->
+        <Color x:Key="PrimaryColor">#1976d2</Color>
+        <Color x:Key="SecondaryColor">#1565c0</Color>
+        <Color x:Key="SuccessColor">#4caf50</Color>
+        <Color x:Key="WarningColor">#ff9800</Color>
+        <Color x:Key="ErrorColor">#f44336</Color>
+        <Color x:Key="InfoColor">#2196f3</Color>
+
+        <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}" />
+        <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource SecondaryColor}" />
+        <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+        <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+        <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
+        <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource InfoColor}" />
+    </Application.Resources>
+</Application>

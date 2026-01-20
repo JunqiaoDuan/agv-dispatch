@@ -1,0 +1,70 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
+        xmlns:views="using:AgvDispatch.Mobile.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="{StaticResource WindowWidth}"
+        d:DesignHeight="{StaticResource WindowHeight}"
+        x:Class="AgvDispatch.Mobile.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="AGV调度系统"
+        Width="{StaticResource WindowWidth}"
+        Height="{StaticResource WindowHeight}"
+        MinWidth="{StaticResource WindowMinWidth}"
+        MinHeight="{StaticResource WindowMinHeight}"
+        MaxWidth="{StaticResource WindowMaxWidth}"
+        MaxHeight="{StaticResource WindowMaxHeight}"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid RowDefinitions="60,*">
+        <!-- 顶部栏 -->
+        <Border Grid.Row="0" Background="{StaticResource PrimaryBrush}"
+                BoxShadow="0 2 8 0 #20000000">
+            <Grid ColumnDefinitions="*,Auto" Margin="20,0">
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <PathIcon Data="M19,2H5C3.89,2 3,2.89 3,4V7C3,8.11 3.89,9 5,9H19C20.11,9 21,8.11 21,7V4C21,2.89 20.11,2 19,2M19,16H5C3.89,16 3,16.89 3,18V21C3,22.11 3.89,23 5,23H19C20.11,23 21,22.11 21,21V18C21,16.89 20.11,16 19,16M11,11V13H13V11H11M3,11V13H9V11H3M15,11V13H21V11H15Z"
+                              Foreground="White"
+                              Width="28" Height="28"/>
+                    <TextBlock Text="AGV调度系统"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding CurrentUserName}"
+                               FontSize="14"
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                    <Button Command="{Binding LogoutCommand}"
+                            Content="退出"
+                            Foreground="White"
+                            Background="Transparent"
+                            BorderThickness="1"
+                            BorderBrush="White"
+                            CornerRadius="6"
+                            Height="36"
+                            Padding="16,8">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="#FFFFFF30"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 内容区域 -->
+        <ContentControl Grid.Row="1" Content="{Binding CurrentPage}">
+            <ContentControl.DataTemplates>
+                <DataTemplate DataType="vm:AgvListViewModel">
+                    <views:AgvListView DataContext="{Binding}"/>
+                </DataTemplate>
+            </ContentControl.DataTemplates>
+        </ContentControl>
+    </Grid>
+</Window>

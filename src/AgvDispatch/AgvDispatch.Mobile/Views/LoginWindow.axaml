@@ -1,0 +1,138 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="{StaticResource WindowWidth}"
+        d:DesignHeight="{StaticResource WindowHeight}"
+        x:Class="AgvDispatch.Mobile.Views.LoginWindow"
+        x:DataType="vm:LoginViewModel"
+        Title="AGV调度系统 - 登录"
+        Width="{StaticResource WindowWidth}"
+        Height="{StaticResource WindowHeight}"
+        MinWidth="{StaticResource WindowMinWidth}"
+        MinHeight="{StaticResource WindowMinHeight}"
+        MaxWidth="{StaticResource WindowMaxWidth}"
+        MaxHeight="{StaticResource WindowMaxHeight}"
+        WindowStartupLocation="CenterScreen"
+        Background="#1976d2">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- 顶部蓝色区域 -->
+        <Border Grid.Row="0" Background="#1976d2" Padding="24,40,24,28">
+            <Grid>
+                <!-- 背景装饰 -->
+                <Canvas>
+                    <Ellipse Width="200" Height="200" Fill="#FFFFFF" Opacity="0.08"
+                             Canvas.Left="-80" Canvas.Top="-60"/>
+                    <Ellipse Width="150" Height="150" Fill="#FFFFFF" Opacity="0.08"
+                             Canvas.Left="220" Canvas.Top="20"/>
+                </Canvas>
+
+                <StackPanel HorizontalAlignment="Center" Spacing="16">
+                    <!-- Logo -->
+                    <Border Width="80" Height="80"
+                            Background="White"
+                            CornerRadius="20"
+                            HorizontalAlignment="Center"
+                            BoxShadow="0 4 12 0 #40000000"
+                            ClipToBounds="True">
+                        <Image Source="avares://AgvDispatch.Mobile/Assets/logo.png"
+                               Stretch="UniformToFill"/>
+                    </Border>
+
+                    <!-- 标题 -->
+                    <TextBlock Text="AGV 调度系统"
+                               FontSize="28"
+                               FontWeight="Bold"
+                               Foreground="White"
+                               HorizontalAlignment="Center"/>
+
+                    <TextBlock Text="海宁市农业科技创新园物流管理平台"
+                               FontSize="13"
+                               Foreground="#E3F2FD"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 底部白色表单区域 -->
+        <Border Grid.Row="1" Background="White" CornerRadius="24,24,0,0"
+                Margin="0,-16,0,0" Padding="24,28,24,32">
+            <ScrollViewer>
+                <StackPanel Spacing="20" HorizontalAlignment="Stretch">
+                    <!-- 表单区域 -->
+                    <StackPanel Spacing="16">
+                        <!-- 用户名输入框 -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="用户名" FontSize="14" FontWeight="Medium" Foreground="#424242"/>
+                            <TextBox Text="{Binding Username}"
+                                     Watermark="请输入用户名"
+                                     FontSize="14"
+                                     Height="48"
+                                     Padding="16,12"
+                                     CornerRadius="12"
+                                     BorderThickness="1"
+                                     BorderBrush="#E0E0E0"
+                                     IsEnabled="{Binding !IsLoading}"/>
+                        </StackPanel>
+
+                        <!-- 密码输入框 -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="密码" FontSize="14" FontWeight="Medium" Foreground="#424242"/>
+                            <TextBox Text="{Binding Password}"
+                                     Watermark="请输入密码"
+                                     PasswordChar="●"
+                                     FontSize="14"
+                                     Height="48"
+                                     Padding="16,12"
+                                     CornerRadius="12"
+                                     BorderThickness="1"
+                                     BorderBrush="#E0E0E0"
+                                     IsEnabled="{Binding !IsLoading}"/>
+                        </StackPanel>
+
+                        <!-- 错误信息 -->
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   Foreground="{StaticResource ErrorBrush}"
+                                   FontSize="13"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                        <!-- 登录按钮 -->
+                        <Button Command="{Binding LoginCommand}"
+                                Content="登 录"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Height="52"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                Background="{StaticResource PrimaryBrush}"
+                                Foreground="White"
+                                CornerRadius="12"
+                                IsEnabled="{Binding !IsLoading}"
+                                Margin="0,16,0,0">
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Background" Value="{StaticResource SecondaryBrush}"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                </Style>
+                                <Style Selector="Button:disabled">
+                                    <Setter Property="Background" Value="#BDBDBD"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+
+                        <!-- 加载指示器 -->
+                        <ProgressBar IsIndeterminate="True"
+                                     IsVisible="{Binding IsLoading}"
+                                     Height="3"
+                                     Foreground="{StaticResource PrimaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>
