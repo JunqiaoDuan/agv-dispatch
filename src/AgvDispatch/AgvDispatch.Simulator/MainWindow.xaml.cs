@@ -115,18 +115,18 @@ public partial class MainWindow : Window
             var battery = int.Parse(TxtBatteryInput.Text.Trim());
 
             // 获取站点ID
-            var stationId = string.Empty;
+            var stationCode = string.Empty;
             if (CmbStation.SelectedItem is ComboBoxItem selectedItem)
             {
-                stationId = selectedItem.Tag?.ToString() ?? string.Empty;
+                stationCode = selectedItem.Tag?.ToString() ?? string.Empty;
             }
             else
             {
                 // 用户手动输入的情况
-                stationId = CmbStation.Text.Trim();
+                stationCode = CmbStation.Text.Trim();
             }
 
-            _simulatorClient.SetPosition(x, y, 0, stationId);
+            _simulatorClient.SetPosition(x, y, 0, stationCode);
             _simulatorClient.SetBattery(battery);
 
             MessageBox.Show("位置和电量已更新", "提示", MessageBoxButton.OK, MessageBoxImage.Information);

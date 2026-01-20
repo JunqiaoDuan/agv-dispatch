@@ -32,7 +32,7 @@ BEGIN
         speed DECIMAL(10,2) NOT NULL DEFAULT 0,  -- 当前速度 (m/s)
         position_x DECIMAL(10,2) NOT NULL DEFAULT 0, -- X坐标 (厘米)
         position_y DECIMAL(10,2) NOT NULL DEFAULT 0, -- Y坐标 (厘米)
-        position_angle DECIMAL(5,2) NOT NULL DEFAULT 0, -- 朝向角度 (0-360度，正北为0)
+        position_angle DECIMAL(5,2) NOT NULL DEFAULT 0, -- 朝向角度 (0-360度，正东为0)
         current_station_id UNIQUEIDENTIFIER,                 -- 当前所在站点ID
         current_task_id UNIQUEIDENTIFIER,                    -- 当前执行的任务ID
         error_code NVARCHAR(100),                 -- 错误码

@@ -9,6 +9,8 @@ using AgvDispatch.Shared.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using AgvDispatch.Business.Entities.TaskAggregate;
+using AgvDispatch.Business.Entities.StationAggregate;
+using AgvDispatch.Business.Specifications.Stations;
 
 namespace AgvDispatch.Infrastructure.Mqtt;
 
@@ -33,95 +35,321 @@ public class MqttMessageHandler : IMqttMessageHandler
 
     /// <summary>
     /// 处理状态上报消息
+    /// 职责：只更新小车的物理状态（电量、速度、位置等）
+    /// 不更新：AgvStatus（由任务/异常驱动）、CurrentTaskId（由进度管理）、ErrorCode（由异常管理）
     /// </summary>
     public async Task HandleStatusAsync(string agvCode, StatusMessage message)
     {
         _logger.LogInformation(
-            "[MqttMessageHandler] 收到小车 {AgvCode} 的状态上报: Status={Status}, Battery={Battery}%, Position=({X},{Y}), Station={Station}%,",
-            agvCode, message.Status, message.Battery, message.Position.X, message.Position.Y, message.Position.StationId);
+            "[MqttMessageHandler] 收到小车 {AgvCode} 的状态上报: Battery={Battery}%, Speed={Speed}m/s, Position=({X},{Y},{Angle}°), Station={Station}",
+            agvCode, message.Battery, message.Speed, message.Position.X, message.Position.Y, message.Position.Angle, message.Position.StationCode);
 
-        //try
-        //{
-        //    // 更新数据库中的小车状态
-        //    var spec = new AgvByAgvCodeSpec(agvCode);
-        //    var agv = await _agvRepository.FirstOrDefaultAsync(spec);
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var agvRepository = scope.ServiceProvider.GetRequiredService<IRepository<Agv>>();
+            var stationRepository = scope.ServiceProvider.GetRequiredService<IRepository<Station>>();
 
-        //    if (agv != null)
-        //    {
-        //        agv.AgvStatus = message.Status;
-        //        agv.Battery = message.Battery;
-        //        agv.Speed = (decimal)message.Speed;
-        //        agv.PositionX = message.Position.X.HasValue ? (decimal)message.Position.X.Value : agv.PositionX;
-        //        agv.PositionY = message.Position.Y.HasValue ? (decimal)message.Position.Y.Value : agv.PositionY;
-        //        agv.PositionAngle = message.Position.Angle.HasValue ? (decimal)message.Position.Angle.Value : agv.PositionAngle;
-        //        agv.ErrorCode = message.ErrorCode;
-        //        agv.LastOnlineTime = DateTimeOffset.UtcNow;
+            // 查询小车
+            var spec = new AgvByAgvCodeSpec(agvCode);
+            var agv = await agvRepository.FirstOrDefaultAsync(spec);
 
-        //        await _agvRepository.UpdateAsync(agv);
+            if (agv == null)
+            {
+                _logger.LogError("[MqttMessageHandler] 小车 {AgvCode} 不存在，无法更新状态", agvCode);
+                return;
+            }
 
-        //        _logger.LogDebug("[MqttMessageHandler] 小车 {AgvCode} 状态已更新", agvCode);
-        //    }
-        //    else
-        //    {
-        //        _logger.LogError("[MqttMessageHandler] 小车 {AgvCode} 不存在，无法更新状态", agvCode);
-        //    }
-        //}
-        //catch (Exception ex)
-        //{
-        //    _logger.LogError(ex, "[MqttMessageHandler] 更新小车 {AgvCode} 状态失败", agvCode);
-        //}
+            // ========== 只更新物理状态 ==========
+            // 电量和速度
+            agv.Battery = message.Battery;
+            agv.Speed = (decimal)message.Speed;
+
+            // 当前站点 - 根据 StationCode 反向查询 StationId
+            if (!string.IsNullOrEmpty(message.Position.StationCode))
+            {
+                var stationSpec = new StationByStationCodeSpec(message.Position.StationCode);
+                var station = await stationRepository.FirstOrDefaultAsync(stationSpec);
+
+                if (station != null)
+                {
+                    agv.CurrentStationId = station.Id;
+                }
+                else
+                {
+                    _logger.LogWarning("[MqttMessageHandler] 小车 {AgvCode} 上报的站点编号 {StationCode} 不存在",
+                        agvCode, message.Position.StationCode);
+                    agv.CurrentStationId = null;
+                }
+            }
+            else
+            {
+                agv.CurrentStationId = null;
+            }
+
+            // 位置信息
+            if (message.Position.X.HasValue)
+                agv.PositionX = (decimal)message.Position.X.Value;
+
+            if (message.Position.Y.HasValue)
+                agv.PositionY = (decimal)message.Position.Y.Value;
+
+            if (message.Position.Angle.HasValue)
+                agv.PositionAngle = (decimal)message.Position.Angle.Value;
+
+            // 最后在线时间
+            agv.LastOnlineTime = DateTimeOffset.UtcNow;
+
+            // 保存更新
+            await agvRepository.UpdateAsync(agv);
+
+            _logger.LogDebug("[MqttMessageHandler] 小车 {AgvCode} 物理状态已更新", agvCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[MqttMessageHandler] 更新小车 {AgvCode} 状态失败", agvCode);
+        }
     }
 
     /// <summary>
     /// 处理任务进度消息
+    /// 职责：更新任务状态、进度，创建进度日志，联动更新小车的 CurrentTaskId 和 AgvStatus
     /// </summary>
     public async Task HandleTaskProgressAsync(string agvCode, TaskProgressMessage message)
     {
-        _logger.LogInformation("[MqttMessageHandler] 收到小车 {AgvCode} 的任务进度: TaskId={TaskId}, Status={Status}, Progress={Progress}%, Message={Message}",
-            agvCode, message.TaskId, message.Status, message.ProgressPercentage, message.Message);
+        _logger.LogInformation("[MqttMessageHandler] 收到小车 {AgvCode} 的任务进度: TaskId={TaskId}, Status={Status}, Progress={Progress}%",
+            agvCode, message.TaskId, message.Status, message.ProgressPercentage);
 
-        // TODO: 实现任务进度更新
-        // 需要创建 Task 实体和 IRepository<AgvTask>
-        // var taskSpec = new TaskByIdSpec(message.TaskId);
-        // var task = await _taskRepository.FirstOrDefaultAsync(taskSpec);
-        // if (task != null)
-        // {
-        //     task.Status = message.Status;
-        //     task.ProgressPercentage = message.ProgressPercentage;
-        //     if (message.Status == TaskStatus.Completed)
-        //     {
-        //         task.CompletedAt = DateTimeOffset.UtcNow;
-        //     }
-        //     await _taskRepository.UpdateAsync(task);
-        // }
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var taskRepository = scope.ServiceProvider.GetRequiredService<IRepository<TaskJob>>();
+            var agvRepository = scope.ServiceProvider.GetRequiredService<IRepository<Agv>>();
+            var progressLogRepository = scope.ServiceProvider.GetRequiredService<IRepository<TaskProgressLog>>();
 
-        await Task.CompletedTask;
+            // 解析任务ID
+            if (!Guid.TryParse(message.TaskId, out var taskId))
+            {
+                _logger.LogError("[MqttMessageHandler] 无效的任务ID: {TaskId}", message.TaskId);
+                return;
+            }
+
+            // 查询任务
+            var taskSpec = new TaskByIdSpec(taskId);
+            var task = await taskRepository.FirstOrDefaultAsync(taskSpec);
+            if (task == null)
+            {
+                _logger.LogError("[MqttMessageHandler] 任务 {TaskId} 不存在", message.TaskId);
+                return;
+            }
+
+            // 查询小车
+            var agvSpec = new AgvByAgvCodeSpec(agvCode);
+            var agv = await agvRepository.FirstOrDefaultAsync(agvSpec);
+            if (agv == null)
+            {
+                _logger.LogError("[MqttMessageHandler] 小车 {AgvCode} 不存在", agvCode);
+                return;
+            }
+
+            // ========== 检测变化 ==========
+            var oldStatus = task.TaskStatus;
+            var oldProgress = task.ProgressPercentage;
+            var statusChanged = oldStatus != message.Status;
+            var newProgress = message.ProgressPercentage.HasValue ? (decimal)message.ProgressPercentage.Value : (decimal?)null;
+
+            // 进度变化超过1%才认为有意义（避免浮点误差和频繁更新）
+            var progressChanged = newProgress.HasValue
+                && (!oldProgress.HasValue || Math.Abs(newProgress.Value - oldProgress.Value) >= 1);
+
+            // 如果状态和进度都没有实质性变化，仅记录Debug日志，不更新数据库
+            if (!statusChanged && !progressChanged)
+            {
+                _logger.LogDebug("[MqttMessageHandler] 任务 {TaskId} 状态和进度无变化，跳过更新", message.TaskId);
+                return;
+            }
+
+            // ========== 更新任务状态和进度 ==========
+            var taskNeedUpdate = false;
+
+            if (statusChanged)
+            {
+                task.TaskStatus = message.Status;
+                taskNeedUpdate = true;
+
+                // 根据状态转换更新时间字段
+                if (message.Status == TaskJobStatus.Executing && oldStatus != TaskJobStatus.Executing)
+                {
+                    task.StartedAt = DateTimeOffset.UtcNow;
+                    _logger.LogInformation("[MqttMessageHandler] 任务 {TaskId} 开始执行", message.TaskId);
+                }
+                else if (message.Status == TaskJobStatus.Completed && oldStatus != TaskJobStatus.Completed)
+                {
+                    task.CompletedAt = DateTimeOffset.UtcNow;
+                    task.ProgressPercentage = 100;
+                    _logger.LogInformation("[MqttMessageHandler] 任务 {TaskId} 已完成", message.TaskId);
+                }
+                else if (message.Status == TaskJobStatus.Failed && oldStatus != TaskJobStatus.Failed)
+                {
+                    task.FailureReason = message.Message ?? "任务执行失败";
+                    _logger.LogWarning("[MqttMessageHandler] 任务 {TaskId} 执行失败: {Reason}", message.TaskId, task.FailureReason);
+                }
+                else if (message.Status == TaskJobStatus.Cancelled && oldStatus != TaskJobStatus.Cancelled)
+                {
+                    task.CancelledAt = DateTimeOffset.UtcNow;
+                    task.CancelReason = message.Message ?? "任务已取消";
+                    _logger.LogInformation("[MqttMessageHandler] 任务 {TaskId} 已取消", message.TaskId);
+                }
+            }
+
+            if (progressChanged)
+            {
+                task.ProgressPercentage = newProgress;
+                taskNeedUpdate = true;
+                _logger.LogDebug("[MqttMessageHandler] 任务 {TaskId} 进度更新: {OldProgress}% → {NewProgress}%",
+                    message.TaskId, oldProgress, newProgress);
+            }
+
+            if (taskNeedUpdate)
+            {
+                await taskRepository.UpdateAsync(task);
+            }
+
+            // ========== 联动更新小车状态（仅在状态转换时） ==========
+            var agvNeedUpdate = false;
+
+            if (statusChanged)
+            {
+                if (message.Status == TaskJobStatus.Executing && oldStatus != TaskJobStatus.Executing)
+                {
+                    // 开始执行任务
+                    agv.CurrentTaskId = taskId;
+                    agv.AgvStatus = AgvStatus.Running;
+                    agvNeedUpdate = true;
+                }
+                else if (message.Status == TaskJobStatus.Completed && oldStatus != TaskJobStatus.Completed)
+                {
+                    // 任务完成，清空当前任务，恢复空闲
+                    agv.CurrentTaskId = null;
+                    agv.AgvStatus = AgvStatus.Idle;
+                    agvNeedUpdate = true;
+                }
+                else if (message.Status == TaskJobStatus.Failed && oldStatus != TaskJobStatus.Failed)
+                {
+                    // 任务失败，清空当前任务，设置错误状态
+                    agv.CurrentTaskId = null;
+                    agv.AgvStatus = AgvStatus.Error;
+                    agvNeedUpdate = true;
+                }
+                else if (message.Status == TaskJobStatus.Cancelled && oldStatus != TaskJobStatus.Cancelled)
+                {
+                    // 任务取消，清空当前任务，恢复空闲
+                    agv.CurrentTaskId = null;
+                    agv.AgvStatus = AgvStatus.Idle;
+                    agvNeedUpdate = true;
+                }
+
+                if (agvNeedUpdate)
+                {
+                    await agvRepository.UpdateAsync(agv);
+                    _logger.LogInformation("[MqttMessageHandler] 小车 {AgvCode} 状态已更新为 {AgvStatus}", agvCode, agv.AgvStatus);
+                }
+            }
+
+            // ========== 创建任务进度日志（只在有意义的变化时创建） ==========
+            // 状态变化或进度变化时才记录
+            if (statusChanged || progressChanged)
+            {
+                var progressLog = new TaskProgressLog
+                {
+                    TaskId = message.TaskId,
+                    AgvCode = agvCode,
+                    Status = message.Status,
+                    ProgressPercentage = message.ProgressPercentage,
+                    Message = message.Message,
+                    ReportTime = DateTimeOffset.UtcNow
+                };
+                progressLog.OnCreate();
+                await progressLogRepository.AddAsync(progressLog);
+
+                _logger.LogDebug("[MqttMessageHandler] 任务进度日志已创建: Status={Status}, Progress={Progress}%",
+                    message.Status.ToDisplayText(), message.ProgressPercentage);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[MqttMessageHandler] 处理任务进度失败: TaskId={TaskId}, AgvCode={AgvCode}", message.TaskId, agvCode);
+        }
     }
 
     /// <summary>
     /// 处理异常上报消息
+    /// 职责：创建异常日志，记录到数据库，待人工处理
     /// </summary>
     public async Task HandleExceptionAsync(string agvCode, ExceptionMessage message)
     {
         _logger.LogWarning("[MqttMessageHandler] 收到小车 {AgvCode} 的异常上报: Type={Type}, Severity={Severity}, Message={Message}",
-            agvCode, message.ExceptionType, message.Severity, message.Message);
+            agvCode, message.ExceptionType.ToDisplayText(), message.Severity.ToDisplayText(), message.Message);
 
-        // TODO: 实现异常记录保存
-        // 需要创建 ExceptionLog 实体和 IRepository<ExceptionLog>
-        // var exceptionLog = new ExceptionLog
-        // {
-        //     AgvCode = agvCode,
-        //     TaskId = message.TaskId,
-        //     ExceptionType = message.ExceptionType,
-        //     Severity = message.Severity,
-        //     Message = message.Message,
-        //     PositionX = message.Position?.X,
-        //     PositionY = message.Position?.Y
-        // };
-        // exceptionLog.OnCreate();
-        // await _exceptionLogRepository.AddAsync(exceptionLog);
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var agvRepository = scope.ServiceProvider.GetRequiredService<IRepository<Agv>>();
+            var exceptionLogRepository = scope.ServiceProvider.GetRequiredService<IRepository<AgvExceptionLog>>();
 
-        await Task.CompletedTask;
+            // 查询小车
+            var agvSpec = new AgvByAgvCodeSpec(agvCode);
+            var agv = await agvRepository.FirstOrDefaultAsync(agvSpec);
+            if (agv == null)
+            {
+                _logger.LogError("[MqttMessageHandler] 小车 {AgvCode} 不存在", agvCode);
+                return;
+            }
+
+            // ========== 创建异常日志（只存MQTT消息原样） ==========
+            var exceptionLog = new AgvExceptionLog
+            {
+                AgvCode = agvCode,
+                TaskId = message.TaskId,  // 字符串格式
+                ExceptionType = message.ExceptionType,
+                Severity = message.Severity,
+                Message = message.Message,
+                PositionX = message.Position?.X.HasValue == true ? (decimal)message.Position.X.Value : null,
+                PositionY = message.Position?.Y.HasValue == true ? (decimal)message.Position.Y.Value : null,
+                PositionAngle = message.Position?.Angle.HasValue == true ? (decimal)message.Position.Angle.Value : null,
+                StationCode = message.Position?.StationCode,  // 站点ID（来自MQTT消息）
+                ExceptionTime = DateTimeOffset.UtcNow,
+                ErrorCode = $"{message.ExceptionType}_{message.Severity}_{DateTimeOffset.UtcNow:yyyyMMddHHmmss}",
+                IsResolved = false
+            };
+            exceptionLog.OnCreate();
+            await exceptionLogRepository.AddAsync(exceptionLog);
+
+            // ========== 根据严重级别记录日志，待人工处理 ==========
+            if (message.Severity == AgvExceptionSeverity.Error
+                || message.Severity == AgvExceptionSeverity.Critical)
+            {
+                _logger.LogError("[MqttMessageHandler] 小车 {AgvCode} 发生严重异常: {ExceptionType}, TaskId={TaskId}, ErrorCode={ErrorCode}, 请人工处理",
+                    agvCode, message.ExceptionType.ToDisplayText(), message.TaskId ?? "无", exceptionLog.ErrorCode);
+            }
+            else if (message.Severity == AgvExceptionSeverity.Warning)
+            {
+                _logger.LogWarning("[MqttMessageHandler] 小车 {AgvCode} 发生警告级异常: {ExceptionType}, ErrorCode={ErrorCode}",
+                    agvCode, message.ExceptionType.ToDisplayText(), exceptionLog.ErrorCode);
+            }
+            else
+            {
+                _logger.LogInformation("[MqttMessageHandler] 小车 {AgvCode} 上报信息级异常: {ExceptionType}, ErrorCode={ErrorCode}",
+                    agvCode, message.ExceptionType.ToDisplayText(), exceptionLog.ErrorCode);
+            }
+
+            _logger.LogInformation("[MqttMessageHandler] 异常日志已创建: {ExceptionType}({Severity}), ErrorCode={ErrorCode}",
+                message.ExceptionType.ToDisplayText(), message.Severity.ToDisplayText(), exceptionLog.ErrorCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[MqttMessageHandler] 处理异常上报失败: AgvCode={AgvCode}", agvCode);
+        }
     }
 
 }

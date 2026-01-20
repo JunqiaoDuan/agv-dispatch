@@ -28,7 +28,7 @@ public class PositionInfo
     /// <summary>
     /// 当前站点ID，不在站点时为null
     /// </summary>
-    [JsonPropertyName("stationId")]
-    public string? StationId { get; set; }
+    [JsonPropertyName("stationCode")]
+    public string? StationCode { get; set; }
 
 }

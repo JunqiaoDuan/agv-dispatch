@@ -29,7 +29,7 @@ public class AgvSimulatorClient
     private double _positionX = 0;
     private double _positionY = 0;
     private double _positionAngle = 0;
-    private string _stationId = string.Empty;
+    private string _stationCode = string.Empty;
     private string? _currentTaskId = null;
 
     // 当前任务信息
@@ -319,7 +319,7 @@ public class AgvSimulatorClient
                 X = _positionX,
                 Y = _positionY,
                 Angle = _positionAngle,
-                StationId = _stationId,
+                StationCode = _stationCode,
             },
             CurrentTaskId = _currentTaskId,
             ErrorCode = null
@@ -374,7 +374,7 @@ public class AgvSimulatorClient
                 X = _positionX,
                 Y = _positionY,
                 Angle = _positionAngle,
-                StationId = _stationId,
+                StationCode = _stationCode,
             },
             TaskId = _currentTaskId
         };
@@ -468,12 +468,12 @@ public class AgvSimulatorClient
     /// <summary>
     /// 设置位置
     /// </summary>
-    public void SetPosition(double x, double y, double angle, string stationId)
+    public void SetPosition(double x, double y, double angle, string stationCode)
     {
         _positionX = x;
         _positionY = y;
         _positionAngle = angle;
-        _stationId = stationId;
+        _stationCode = stationCode;
     }
 
     /// <summary>

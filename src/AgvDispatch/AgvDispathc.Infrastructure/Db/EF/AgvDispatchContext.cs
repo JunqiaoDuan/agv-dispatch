@@ -30,7 +30,9 @@ public class AgvDispatchContext : DbContext
     public DbSet<TaskRoute> TaskRoutes { get; set; }
     public DbSet<TaskRouteSegment> TaskRouteSegments { get; set; }
     public DbSet<TaskRouteCheckpoint> TaskRouteCheckpoints { get; set; }
+    public DbSet<TaskProgressLog> TaskProgressLogs { get; set; }
     public DbSet<Agv> Agvs { get; set; }
+    public DbSet<AgvExceptionLog> AgvExceptionLogs { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<MqttMessageLog> MqttMessageLogs { get; set; }
     public DbSet<TaskJob> TaskJobs { get; set; }

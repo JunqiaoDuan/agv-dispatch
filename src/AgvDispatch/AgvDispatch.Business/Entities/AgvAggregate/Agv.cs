@@ -54,7 +54,7 @@ public class Agv : BaseEntity, IHasPassword
     public decimal PositionY { get; set; }
 
     /// <summary>
-    /// 朝向角度 (0-360度，正北为0)
+    /// 朝向角度 (0-360度，正东为0)
     /// </summary>
     public decimal PositionAngle { get; set; }
 
