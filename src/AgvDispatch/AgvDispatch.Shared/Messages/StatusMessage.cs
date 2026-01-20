@@ -34,6 +34,12 @@ public class StatusMessage
     public int Battery { get; set; }
 
     /// <summary>
+    /// 电池电压真实值 (V)
+    /// </summary>
+    [JsonPropertyName("batteryVoltage")]
+    public double BatteryVoltage { get; set; }
+
+    /// <summary>
     /// 当前速度 (m/s)
     /// </summary>
     [JsonPropertyName("speed")]

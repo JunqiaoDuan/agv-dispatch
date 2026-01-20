@@ -17,6 +17,7 @@ namespace AgvDispatch.Shared.DTOs.Agvs
         public string DisplayName { get; set; } = string.Empty;
         public AgvStatus AgvStatus { get; set; }
         public int Battery { get; set; }
+        public decimal BatteryVoltage { get; set; }
         public decimal Speed { get; set; }
         public decimal PositionX { get; set; }
         public decimal PositionY { get; set; }

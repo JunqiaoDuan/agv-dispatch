@@ -17,6 +17,7 @@ namespace AgvDispatch.Shared.DTOs.Agvs
         public string DisplayName { get; set; } = string.Empty;
         public AgvStatus AgvStatus { get; set; }
         public int Battery { get; set; }
+        public decimal BatteryVoltage { get; set; }
         public decimal Speed { get; set; }
         public decimal PositionX { get; set; }
         public decimal PositionY { get; set; }
@@ -24,6 +25,8 @@ namespace AgvDispatch.Shared.DTOs.Agvs
         public bool HasCargo { get; set; }
         public string? ErrorCode { get; set; }
         public DateTimeOffset? LastOnlineTime { get; set; }
+        public Guid? CurrentStationId { get; set; }
+        public Guid? CurrentTaskId { get; set; }
         public int SortNo { get; set; }
         public string? Description { get; set; }
         public DateTimeOffset? CreationDate { get; set; }
