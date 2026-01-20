@@ -22,6 +22,12 @@ public class AgvClient : IAgvClient
         return response?.Success == true && response.Data != null ? response.Data : [];
     }
 
+    public async Task<List<AgvMonitorItemDto>> GetMonitorListAsync()
+    {
+        var response = await _http.GetFromJsonAsync<ApiResponse<List<AgvMonitorItemDto>>>("api/agvs/monitor");
+        return response?.Success == true && response.Data != null ? response.Data : [];
+    }
+
     public async Task<AgvDetailDto?> GetByIdAsync(Guid id)
     {
         var response = await _http.GetFromJsonAsync<ApiResponse<AgvDetailDto>>($"api/agvs/{id}");
@@ -61,6 +67,41 @@ public class AgvClient : IAgvClient
     public async Task<bool> DeleteAsync(Guid id)
     {
         var response = await _http.DeleteAsync($"api/agvs/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<AgvExceptionSummaryDto>> GetAgvUnresolvedExceptionsAsync(string agvCode)
+    {
+        var response = await _http.GetFromJsonAsync<ApiResponse<List<AgvExceptionSummaryDto>>>($"api/agvs/{agvCode}/exceptions/unresolved");
+        return response?.Success == true && response.Data != null ? response.Data : [];
+    }
+
+    public async Task<PagedResponse<AgvExceptionSummaryDto>> GetAllAgvExceptionsAsync(string agvCode, PagedAgvExceptionRequest request)
+    {
+        var queryParams = new List<string>();
+        queryParams.Add($"PageIndex={request.PageIndex}");
+        queryParams.Add($"PageSize={request.PageSize}");
+
+        if (request.OnlyUnresolved.HasValue)
+            queryParams.Add($"OnlyUnresolved={request.OnlyUnresolved.Value}");
+
+        if (request.Severity.HasValue)
+            queryParams.Add($"Severity={(int)request.Severity.Value}");
+
+        if (!string.IsNullOrEmpty(request.SortBy))
+            queryParams.Add($"SortBy={request.SortBy}");
+
+        queryParams.Add($"SortDescending={request.SortDescending}");
+
+        var queryString = string.Join("&", queryParams);
+        var response = await _http.GetFromJsonAsync<ApiResponse<PagedResponse<AgvExceptionSummaryDto>>>($"api/agvs/{agvCode}/exceptions/all?{queryString}");
+
+        return response?.Success == true && response.Data != null ? response.Data : new PagedResponse<AgvExceptionSummaryDto>();
+    }
+
+    public async Task<bool> ResolveExceptionsAsync(List<Guid> exceptionIds)
+    {
+        var response = await _http.PostAsJsonAsync("api/agvs/exceptions/resolve", exceptionIds);
         return response.IsSuccessStatusCode;
     }
 }

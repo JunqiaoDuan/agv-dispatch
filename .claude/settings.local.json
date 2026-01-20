@@ -14,7 +14,8 @@
       "Bash(del \"E:\\Repos\\Release\\agv-dispatch\\src\\AgvDispatch\\AgvDispatch.Host\\Services\\DatabaseSeeder.cs\")",
       "Bash(dir:*)",
       "Bash(findstr:*)",
-      "Bash(ren:*)"
+      "Bash(ren:*)",
+      "Bash(dotnet sln:*)"
     ]
   }
 }

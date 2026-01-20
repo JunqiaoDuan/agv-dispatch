@@ -1,3 +1,4 @@
+using AgvDispatch.Shared.DTOs;
 using AgvDispatch.Shared.DTOs.Agvs;
 
 namespace AgvDispatch.Web.Services;
@@ -11,6 +12,11 @@ public interface IAgvClient
     /// 获取所有 AGV 列表
     /// </summary>
     Task<List<AgvListItemDto>> GetAllAsync();
+
+    /// <summary>
+    /// 获取 AGV 监控列表（包含异常统计）
+    /// </summary>
+    Task<List<AgvMonitorItemDto>> GetMonitorListAsync();
 
     /// <summary>
     /// 获取单个 AGV 详情
@@ -39,4 +45,19 @@ public interface IAgvClient
     /// </summary>
     /// <returns>成功返回 true</returns>
     Task<bool> DeleteAsync(Guid id);
+
+    /// <summary>
+    /// 获取指定AGV的所有未解决异常
+    /// </summary>
+    Task<List<AgvExceptionSummaryDto>> GetAgvUnresolvedExceptionsAsync(string agvCode);
+
+    /// <summary>
+    /// 获取指定AGV的所有异常（包括已解决的）- 分页查询
+    /// </summary>
+    Task<PagedResponse<AgvExceptionSummaryDto>> GetAllAgvExceptionsAsync(string agvCode, PagedAgvExceptionRequest request);
+
+    /// <summary>
+    /// 批量解决异常
+    /// </summary>
+    Task<bool> ResolveExceptionsAsync(List<Guid> exceptionIds);
 }

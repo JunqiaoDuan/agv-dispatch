@@ -11,6 +11,7 @@
 @using AgvDispatch.Shared.PathFinding
 @using AgvDispatch.Shared.Simulation
 @using AgvDispatch.Web.Services
+@using AgvDispatch.Web.Components.Shared
 @using System.Timers
 @rendermode InteractiveServer
 @inject IMapClient MapClient
@@ -188,113 +189,13 @@
             }
         </div>
 
-        @* 右侧状态面板 - 任务列表和监控 *@
+        @* 右侧状态面板 - AGV监控 *@
         <div class="monitor-panel right-panel">
             <div class="panel-content">
-                @* 任务筛选 *@
-                <div class="panel-section">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Style="vertical-align: middle;" />
-                        任务筛选
-                    </MudText>
-
-                    <MudChipSet T="string" @bind-SelectedValue="_selectedStatusValue" Filter="true" Mandatory="false" CheckedIcon="@Icons.Material.Filled.Check">
-                        <MudChip T="string" Text="全部" Value="@((string?)null)" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" />
-                        <MudChip T="string" Text="待分配" Value="@("Pending")" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined" />
-                        <MudChip T="string" Text="执行中" Value="@("Executing")" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" />
-                        <MudChip T="string" Text="已完成" Value="@("Completed")" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined" />
-                    </MudChipSet>
-                </div>
-
-                @* 任务列表 *@
-                <div class="panel-section mt-3" style="max-height: 500px; overflow-y: auto;">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Style="vertical-align: middle;" />
-                        任务列表 (@FilteredTasks.Count)
-                    </MudText>
-
-                    @if (!FilteredTasks.Any())
-                    {
-                        <MudAlert Severity="Severity.Info" Dense="true">暂无任务</MudAlert>
-                    }
-                    else
-                    {
-                        <MudStack Spacing="2">
-                            @foreach (var task in FilteredTasks.Take(20))
-                            {
-                                <MudCard Outlined="true" Class="@(_selectedTaskId == task.Id ? "selected-card" : "")"
-                                         @onclick="@(() => SelectTask(task.Id))">
-                                    <MudCardContent Class="pa-2">
-                                        <MudStack Spacing="1">
-                                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                                                <MudText Typo="Typo.body2"><strong>@task.TaskType.ToDisplayText()</strong></MudText>
-                                                <MudChip T="string" Color="@GetTaskStatusColor(task.TaskStatus)" Size="Size.Small">
-                                                    @task.TaskStatus.ToDisplayText()
-                                                </MudChip>
-                                            </MudStack>
-
-                                            <MudText Typo="Typo.caption">
-                                                @task.StartStationCode → @task.EndStationCode
-                                            </MudText>
-
-                                            @if (!string.IsNullOrEmpty(task.AssignedAgvCode))
-                                            {
-                                                <MudText Typo="Typo.caption">
-                                                    <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Size="Size.Small" />
-                                                    @task.AssignedAgvCode
-                                                </MudText>
-                                            }
-
-                                            @if (task.ProgressPercentage.HasValue)
-                                            {
-                                                <MudProgressLinear Color="Color.Primary"
-                                                                   Value="@((double)task.ProgressPercentage.Value)"
-                                                                   Size="Size.Small" />
-                                            }
-
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                @task.CreationDate?.ToString("MM-dd HH:mm")
-                                            </MudText>
-                                        </MudStack>
-                                    </MudCardContent>
-                                </MudCard>
-                            }
-                        </MudStack>
-                    }
-                </div>
-
-                @* AGV状态统计 *@
-                <div class="panel-section mt-3">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Size="Size.Small" Style="vertical-align: middle;" />
-                        AGV状态统计
-                    </MudText>
-
-                    <MudSimpleTable Dense="true" Size="Size.Small">
-                        <tbody>
-                            <tr>
-                                <td>总数</td>
-                                <td><strong>@_agvs.Count</strong></td>
-                            </tr>
-                            <tr>
-                                <td>空闲</td>
-                                <td><MudChip T="string" Size="Size.Small" Color="Color.Success">@_agvs.Count(a => a.AgvStatus == AgvStatus.Idle)</MudChip></td>
-                            </tr>
-                            <tr>
-                                <td>运行中</td>
-                                <td><MudChip T="string" Size="Size.Small" Color="Color.Info">@_agvs.Count(a => a.AgvStatus == AgvStatus.Running)</MudChip></td>
-                            </tr>
-                            <tr>
-                                <td>充电中</td>
-                                <td><MudChip T="string" Size="Size.Small" Color="Color.Warning">@_agvs.Count(a => a.AgvStatus == AgvStatus.Charging)</MudChip></td>
-                            </tr>
-                            <tr>
-                                <td>故障</td>
-                                <td><MudChip T="string" Size="Size.Small" Color="Color.Error">@_agvs.Count(a => a.AgvStatus == AgvStatus.Error)</MudChip></td>
-                            </tr>
-                        </tbody>
-                    </MudSimpleTable>
-                </div>
+                <AgvMonitorPanel AgvList="@_agvMonitorList"
+                                 Stations="@_stations"
+                                 Tasks="@_tasks"
+                                 OnRefreshData="RefreshData" />
             </div>
         </div>
     </div>
@@ -340,6 +241,7 @@
 
     // AGV和任务数据
     private List<AgvListItemDto> _agvs = [];
+    private List<AgvMonitorItemDto> _agvMonitorList = [];
     private List<TaskListItemDto> _tasks = [];
 
     // 弹窗控制
@@ -471,8 +373,13 @@
     {
         try
         {
+            // 原有逻辑用于地图渲染
             _agvs = await AgvClient.GetAllAsync();
             _tasks = await TaskClient.GetAllAsync();
+
+            // 加载AGV监控数据
+            _agvMonitorList = await AgvClient.GetMonitorListAsync();
+
             RenderAgvs();
         }
         catch (Exception ex)

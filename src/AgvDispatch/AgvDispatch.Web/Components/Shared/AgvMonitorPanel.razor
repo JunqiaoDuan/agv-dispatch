@@ -1,0 +1,301 @@
+@using AgvDispatch.Shared.DTOs.Agvs
+@using AgvDispatch.Shared.DTOs.Stations
+@using AgvDispatch.Shared.DTOs.Tasks
+@using AgvDispatch.Shared.Enums
+@inject IDialogService DialogService
+
+<div class="agv-monitor-panel">
+    <div class="panel-header">
+        <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+            <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Size="Size.Small" Style="vertical-align: middle;" />
+            AGV监控 (@AgvList.Count)
+        </MudText>
+    </div>
+
+    @if (!AgvList.Any())
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">暂无AGV</MudAlert>
+    }
+    else
+    {
+        <MudExpansionPanels MultiExpansion="true" Class="mt-2">
+            @foreach (var agv in AgvList.OrderBy(a => a.SortNo))
+            {
+                var currentStation = GetCurrentStation(agv);
+                var currentTask = GetCurrentTask(agv);
+
+                <MudExpansionPanel>
+                    <TitleContent>
+                        <div class="agv-panel-title">
+                            @* 第一行: 名称编号 + 异常 + 状态 *@
+                            <div class="agv-title-row">
+                                <div class="agv-title-left">
+                                    <MudText Typo="Typo.body2"><strong>@agv.DisplayName - @agv.AgvCode</strong></MudText>
+                                </div>
+
+                                <div class="agv-title-right">
+                                    @* 报警异常 - 一直显示 *@
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Color="@(agv.UnresolvedExceptionCount > 0 ? Color.Error : Color.Default)"
+                                             Icon="@Icons.Material.Filled.Warning"
+                                             OnClick="@(() => OpenExceptionsDialog(agv.AgvCode))"
+                                             Style="cursor: pointer;">
+                                        @agv.UnresolvedExceptionCount
+                                    </MudChip>
+
+                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(agv.AgvStatus)">
+                                        @agv.AgvStatus.ToDisplayText()
+                                    </MudChip>
+                                </div>
+                            </div>
+
+                            @* 第二行: 4个状态信息 *@
+                            <div class="agv-summary">
+                                <MudStack Row="true" Spacing="2" Class="mt-1" Wrap="Wrap.Wrap">
+                                    @* 站点 *@
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Icon="@Icons.Material.Filled.LocationOn">
+                                        @if (currentStation != null)
+                                        {
+                                            <span>@currentStation.StationCode @currentStation.DisplayName</span>
+                                        }
+                                        else
+                                        {
+                                            <span>不在站点</span>
+                                        }
+                                    </MudChip>
+
+                                    @* 电量 - 显示电压和百分比 *@
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Icon="@Icons.Material.Filled.BatteryStd" Color="@GetBatteryChipColor(agv.Battery)">
+                                        @agv.BatteryVoltage.ToString("F1")V / @agv.Battery%
+                                    </MudChip>
+
+                                    @* 速度 *@
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Icon="@Icons.Material.Filled.Speed">
+                                        @agv.Speed.ToString("F1")m/s
+                                    </MudChip>
+
+                                    @* 货物状态 *@
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@(agv.HasCargo ? Color.Info : Color.Default)" Icon="@Icons.Material.Filled.Inventory">
+                                        @(agv.HasCargo ? "有货物" : "无货物")
+                                    </MudChip>
+                                </MudStack>
+                            </div>
+                        </div>
+                    </TitleContent>
+
+                    <ChildContent>
+                        <div class="agv-detail-content">
+
+                            @* 详细状态信息 *@
+                            <div class="detail-section mt-2">
+                                <MudText Typo="Typo.caption" Color="Color.Primary" Class="mb-1">
+                                    <strong>详细状态</strong>
+                                </MudText>
+                                <MudSimpleTable Dense="true" Size="Size.Small">
+                                    <tbody>
+                                        <tr>
+                                            <td>位置</td>
+                                            <td>(@agv.PositionX.ToString("F1"), @agv.PositionY.ToString("F1"))</td>
+                                        </tr>
+                                        <tr>
+                                            <td>角度</td>
+                                            <td>@agv.PositionAngle.ToString("F0")°</td>
+                                        </tr>
+                                        <tr>
+                                            <td>电量</td>
+                                            <td>
+                                                <MudProgressLinear Color="@GetBatteryColor(agv.Battery)"
+                                                                   Value="@agv.Battery"
+                                                                   Style="width: 80px; display: inline-block;" />
+                                                @agv.Battery%
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>速度</td>
+                                            <td>@agv.Speed.ToString("F2") m/s</td>
+                                        </tr>
+                                        @if (!string.IsNullOrEmpty(agv.ErrorCode))
+                                        {
+                                            <tr>
+                                                <td>错误码</td>
+                                                <td><MudChip T="string" Size="Size.Small" Color="Color.Error">@agv.ErrorCode</MudChip></td>
+                                            </tr>
+                                        }
+                                        @if (agv.LastOnlineTime.HasValue)
+                                        {
+                                            <tr>
+                                                <td>最后在线</td>
+                                                <td>@agv.LastOnlineTime.Value.ToLocalTime().ToString("MM-dd HH:mm:ss")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            </div>
+                        </div>
+                    </ChildContent>
+                </MudExpansionPanel>
+            }
+        </MudExpansionPanels>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<AgvMonitorItemDto> AgvList { get; set; } = new();
+
+    [Parameter]
+    public List<StationListItemDto> Stations { get; set; } = new();
+
+    [Parameter]
+    public List<TaskListItemDto> Tasks { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnRefreshData { get; set; }
+
+    private StationListItemDto? GetCurrentStation(AgvListItemDto agv)
+    {
+        if (!agv.CurrentStationId.HasValue) return null;
+        return Stations.FirstOrDefault(s => s.Id == agv.CurrentStationId.Value);
+    }
+
+    private TaskListItemDto? GetCurrentTask(AgvListItemDto agv)
+    {
+        if (!agv.CurrentTaskId.HasValue) return null;
+        return Tasks.FirstOrDefault(t =>
+            t.Id == agv.CurrentTaskId.Value &&
+            (t.TaskStatus == TaskJobStatus.Executing || t.TaskStatus == TaskJobStatus.Assigned));
+    }
+
+    private async Task OpenExceptionsDialog(string agvCode)
+    {
+        var parameters = new DialogParameters
+        {
+            { "AgvCode", agvCode },
+            { "OnExceptionsResolved", EventCallback.Factory.Create(this, async () =>
+                {
+                    // 刷新数据
+                    await OnRefreshData.InvokeAsync();
+                })
+            }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        await DialogService.ShowAsync<AgvExceptionsDialog>("AGV异常", parameters, options);
+    }
+
+    private Color GetStatusColor(AgvStatus status) => status switch
+    {
+        AgvStatus.Offline => Color.Default,
+        AgvStatus.Idle => Color.Success,
+        AgvStatus.Running => Color.Info,
+        AgvStatus.Charging => Color.Warning,
+        AgvStatus.Error => Color.Error,
+        _ => Color.Default
+    };
+
+    private Color GetTaskStatusColor(TaskJobStatus status) => status switch
+    {
+        TaskJobStatus.Pending => Color.Default,
+        TaskJobStatus.Assigned => Color.Info,
+        TaskJobStatus.Executing => Color.Primary,
+        TaskJobStatus.Completed => Color.Success,
+        TaskJobStatus.Cancelled => Color.Warning,
+        TaskJobStatus.Failed => Color.Error,
+        _ => Color.Default
+    };
+
+    private Color GetBatteryColor(int battery) => battery switch
+    {
+        <= 20 => Color.Error,
+        <= 50 => Color.Warning,
+        _ => Color.Success
+    };
+
+    private Color GetBatteryChipColor(int battery) => battery switch
+    {
+        <= 20 => Color.Error,
+        <= 50 => Color.Warning,
+        _ => Color.Default
+    };
+
+    private Color GetSeverityColor(AgvExceptionSeverity severity) => severity switch
+    {
+        AgvExceptionSeverity.Info => Color.Info,
+        AgvExceptionSeverity.Warning => Color.Warning,
+        AgvExceptionSeverity.Error => Color.Error,
+        AgvExceptionSeverity.Critical => Color.Error,
+        _ => Color.Default
+    };
+}
+
+<style>
+    .agv-monitor-panel {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .panel-header {
+        padding: 12px;
+        background: #fafafa;
+        border-radius: 4px;
+    }
+
+    .agv-panel-title {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 4px;
+    }
+
+    .agv-title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    .agv-title-left {
+        flex: 1;
+    }
+
+    .agv-title-right {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .agv-summary {
+        width: 100%;
+    }
+
+    .agv-detail-content {
+        padding: 8px;
+    }
+
+    .detail-section {
+        margin-bottom: 8px;
+    }
+
+    /* 手风琴样式优化 */
+    .agv-monitor-panel .mud-expand-panel {
+        margin-bottom: 8px !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 4px !important;
+    }
+
+    .agv-monitor-panel .mud-expand-panel-header {
+        padding: 8px 12px !important;
+    }
+
+    .agv-monitor-panel .mud-expand-panel-content {
+        padding: 0 !important;
+    }
+</style>

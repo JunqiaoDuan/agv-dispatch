@@ -1,6 +1,7 @@
 using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Business.Entities.Common;
 using AgvDispatch.Business.Specifications.Agvs;
+using AgvDispatch.Business.Specifications.AgvExceptions;
 using AgvDispatch.Shared.DTOs;
 using AgvDispatch.Shared.DTOs.Agvs;
 using AgvDispatch.Shared.Enums;
@@ -18,11 +19,16 @@ namespace AgvDispatch.Host.Controllers;
 public class AgvsController : ControllerBase
 {
     private readonly IRepository<Agv> _agvRepository;
+    private readonly IRepository<AgvExceptionLog> _exceptionLogRepository;
     private readonly ILogger<AgvsController> _logger;
 
-    public AgvsController(IRepository<Agv> agvRepository, ILogger<AgvsController> logger)
+    public AgvsController(
+        IRepository<Agv> agvRepository,
+        IRepository<AgvExceptionLog> exceptionLogRepository,
+        ILogger<AgvsController> logger)
     {
         _agvRepository = agvRepository;
+        _exceptionLogRepository = exceptionLogRepository;
         _logger = logger;
     }
 
@@ -209,5 +215,132 @@ public class AgvsController : ControllerBase
 
         var nextCode = $"V{nextSeq:D3}";
         return Ok(ApiResponse<string>.Ok(nextCode));
+    }
+
+    /// <summary>
+    /// 获取AGV监控列表（包含异常统计）
+    /// </summary>
+    [HttpGet("monitor")]
+    public async Task<ActionResult<ApiResponse<List<AgvMonitorItemDto>>>> GetMonitorList()
+    {
+        var spec = new AgvListSpec();
+        var agvs = await _agvRepository.ListAsync(spec);
+
+        var monitorItems = new List<AgvMonitorItemDto>();
+
+        foreach (var agv in agvs)
+        {
+            var item = agv.MapTo<AgvMonitorItemDto>();
+
+            // 查询未解决异常数量
+            item.UnresolvedExceptionCount = await _exceptionLogRepository.CountAsync(
+                new AgvUnresolvedExceptionCountSpec(agv.AgvCode));
+
+            monitorItems.Add(item);
+        }
+
+        return Ok(ApiResponse<List<AgvMonitorItemDto>>.Ok(monitorItems));
+    }
+
+    /// <summary>
+    /// 获取指定AGV的所有未解决异常
+    /// </summary>
+    [HttpGet("{agvCode}/exceptions/unresolved")]
+    public async Task<ActionResult<ApiResponse<List<AgvExceptionSummaryDto>>>> GetAgvUnresolvedExceptions(string agvCode)
+    {
+        var spec = new AgvAllUnresolvedExceptionsSpec(agvCode);
+        var unresolvedExceptions = await _exceptionLogRepository.ListAsync(spec);
+
+        var items = unresolvedExceptions.Select(ex => new AgvExceptionSummaryDto
+        {
+            Id = ex.Id,
+            ExceptionType = ex.ExceptionType,
+            Severity = ex.Severity,
+            Message = ex.Message,
+            ExceptionTime = ex.ExceptionTime,
+            StationCode = ex.StationCode
+        }).ToList();
+
+        return Ok(ApiResponse<List<AgvExceptionSummaryDto>>.Ok(items));
+    }
+
+    /// <summary>
+    /// 获取指定AGV的所有异常（包括已解决的）- 分页查询
+    /// </summary>
+    [HttpGet("{agvCode}/exceptions/all")]
+    public async Task<ActionResult<ApiResponse<PagedResponse<AgvExceptionSummaryDto>>>> GetAllAgvExceptions(
+        string agvCode,
+        [FromQuery] PagedAgvExceptionRequest request)
+    {
+        // 获取总数
+        var countSpec = new AgvExceptionsCountSpec(agvCode, request.OnlyUnresolved, request.Severity);
+        var totalCount = await _exceptionLogRepository.CountAsync(countSpec);
+
+        // 分页查询
+        var pagedSpec = new AgvExceptionsPagedSpec(
+            agvCode,
+            request.OnlyUnresolved,
+            request.Severity,
+            request.SortBy,
+            request.SortDescending,
+            request.PageIndex,
+            request.PageSize);
+
+        var exceptions = await _exceptionLogRepository.ListAsync(pagedSpec);
+
+        var items = exceptions.Select(ex => new AgvExceptionSummaryDto
+        {
+            Id = ex.Id,
+            ExceptionType = ex.ExceptionType,
+            Severity = ex.Severity,
+            Message = ex.Message,
+            ExceptionTime = ex.ExceptionTime,
+            StationCode = ex.StationCode,
+            IsResolved = ex.IsResolved,
+            ResolvedTime = ex.ResolvedTime
+        }).ToList();
+
+        var response = new PagedResponse<AgvExceptionSummaryDto>
+        {
+            Items = items,
+            TotalCount = totalCount
+        };
+
+        return Ok(ApiResponse<PagedResponse<AgvExceptionSummaryDto>>.Ok(response));
+    }
+
+    /// <summary>
+    /// 批量解决异常
+    /// </summary>
+    [HttpPost("exceptions/resolve")]
+    public async Task<ActionResult<ApiResponse<bool>>> ResolveExceptions([FromBody] List<Guid> exceptionIds)
+    {
+        if (exceptionIds == null || !exceptionIds.Any())
+        {
+            return BadRequest(ApiResponse<bool>.Fail("异常ID列表不能为空"));
+        }
+
+        var exceptions = await _exceptionLogRepository.ListAsync();
+        var toUpdate = exceptions.Where(e => exceptionIds.Contains(e.Id) && !e.IsResolved).ToList();
+
+        if (!toUpdate.Any())
+        {
+            return Ok(ApiResponse<bool>.Ok(true, "没有需要处理的异常"));
+        }
+
+        foreach (var exception in toUpdate)
+        {
+            exception.IsResolved = true;
+            exception.ResolvedTime = DateTimeOffset.UtcNow;
+            exception.ResolvedRemark = "手动消除";
+            exception.OnUpdate();
+        }
+
+        await _exceptionLogRepository.UpdateRangeAsync(toUpdate);
+        await _exceptionLogRepository.SaveChangesAsync();
+
+        _logger.LogInformation("批量解决异常成功，共处理 {Count} 条异常", toUpdate.Count);
+
+        return Ok(ApiResponse<bool>.Ok(true, $"成功处理 {toUpdate.Count} 条异常"));
     }
 }

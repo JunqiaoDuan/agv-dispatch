@@ -1,3 +1,4 @@
+@using AgvDispatch.Shared.DTOs
 @using AgvDispatch.Shared.DTOs.Agvs
 @using AgvDispatch.Shared.Enums
 @using AgvDispatch.Web.Services
@@ -29,7 +30,7 @@
                     }
                     else
                     {
-                        <MudTable Items="@_paginatedUnresolvedExceptions"
+                        <MudTable Items="@GetPaginatedUnresolvedExceptions()"
                                   MultiSelection="true"
                                   @bind-SelectedItems="_selectedExceptions"
                                   Dense="true"
@@ -68,14 +69,17 @@
                             </RowTemplate>
                         </MudTable>
 
-                        @* 分页控件 - 未确认的异常 *@
-                        <div class="d-flex justify-center mt-3">
-                            <MudPagination Count="@_unresolvedTotalPages"
-                                         SelectedChanged="OnUnresolvedPageChanged"
-                                         Selected="@_unresolvedCurrentPage"
-                                         Color="Color.Primary"
-                                         Variant="Variant.Filled" />
-                        </div>
+                        @* 未确认异常的分页控件 - 客户端分页 *@
+                        @if (_unresolvedTotalPages > 1)
+                        {
+                            <div class="d-flex justify-center mt-3">
+                                <MudPagination Count="@_unresolvedTotalPages"
+                                             SelectedChanged="OnUnresolvedPageChanged"
+                                             Selected="@_unresolvedCurrentPage"
+                                             Color="Color.Primary"
+                                             Variant="Variant.Filled" />
+                            </div>
+                        }
 
                         <div class="mt-3">
                             <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info">
@@ -85,14 +89,14 @@
                     }
                 </MudTabPanel>
 
-                <MudTabPanel Text="@($"所有异常 ({_allExceptions.Count})")">
-                    @if (!_allExceptions.Any())
+                <MudTabPanel Text="@($"所有异常 ({_allExceptionsTotalCount})")">
+                    @if (_allExceptionsTotalCount == 0)
                     {
                         <MudAlert Severity="Severity.Info" Dense="true">暂无异常记录</MudAlert>
                     }
                     else
                     {
-                        <MudTable Items="@_paginatedAllExceptions"
+                        <MudTable Items="@_allExceptions"
                                   Dense="true"
                                   Hover="true"
                                   FixedHeader="true"
@@ -140,14 +144,17 @@
                             </RowTemplate>
                         </MudTable>
 
-                        @* 分页控件 - 所有异常 *@
-                        <div class="d-flex justify-center mt-3">
-                            <MudPagination Count="@_allTotalPages"
-                                         SelectedChanged="OnAllPageChanged"
-                                         Selected="@_allCurrentPage"
-                                         Color="Color.Primary"
-                                         Variant="Variant.Filled" />
-                        </div>
+                        @* 所有异常的分页控件 - 服务端分页 *@
+                        @if (_allTotalPages > 1)
+                        {
+                            <div class="d-flex justify-center mt-3">
+                                <MudPagination Count="@_allTotalPages"
+                                             SelectedChanged="OnAllPageChanged"
+                                             Selected="@_allCurrentPage"
+                                             Color="Color.Primary"
+                                             Variant="Variant.Filled" />
+                            </div>
+                        }
                     }
                 </MudTabPanel>
             </MudTabs>
@@ -194,23 +201,16 @@
     // Tab状态
     private int _activeTabIndex = 0;
 
-    // 分页 - 未确认的异常
+    // 分页 - 未确认的异常（客户端分页）
     private int _unresolvedCurrentPage = 1;
     private int _unresolvedPageSize = 20;
     private int _unresolvedTotalPages => (int)Math.Ceiling(_unresolvedExceptions.Count / (double)_unresolvedPageSize);
-    private List<AgvExceptionSummaryDto> _paginatedUnresolvedExceptions =>
-        _unresolvedExceptions.Skip((_unresolvedCurrentPage - 1) * _unresolvedPageSize)
-                             .Take(_unresolvedPageSize)
-                             .ToList();
 
-    // 分页 - 所有异常
+    // 分页 - 所有异常（服务端分页）
     private int _allCurrentPage = 1;
     private int _allPageSize = 20;
-    private int _allTotalPages => (int)Math.Ceiling(_allExceptions.Count / (double)_allPageSize);
-    private List<AgvExceptionSummaryDto> _paginatedAllExceptions =>
-        _allExceptions.Skip((_allCurrentPage - 1) * _allPageSize)
-                      .Take(_allPageSize)
-                      .ToList();
+    private int _allExceptionsTotalCount = 0;
+    private int _allTotalPages => (int)Math.Ceiling(_allExceptionsTotalCount / (double)_allPageSize);
 
     // UI状态
     private bool _loading = true;
@@ -226,11 +226,11 @@
         _loading = true;
         try
         {
-            // 加载未解决的异常
-            _unresolvedExceptions = await AgvClient.GetAgvExceptionsAsync(AgvCode);
+            // 加载未解决的异常（全部加载，客户端分页）
+            _unresolvedExceptions = await AgvClient.GetAgvUnresolvedExceptionsAsync(AgvCode);
 
-            // 加载所有异常
-            _allExceptions = await AgvClient.GetAllAgvExceptionsAsync(AgvCode);
+            // 加载所有异常（服务端分页）
+            await LoadAllExceptions();
         }
         catch (Exception ex)
         {
@@ -242,20 +242,45 @@
         }
     }
 
+    private async Task LoadAllExceptions()
+    {
+        var request = new PagedAgvExceptionRequest
+        {
+            PageIndex = _allCurrentPage - 1, // 转换为0基索引
+            PageSize = _allPageSize,
+            SortBy = "ExceptionTime",
+            SortDescending = true
+        };
+
+        var pagedResult = await AgvClient.GetAllAgvExceptionsAsync(AgvCode, request);
+        _allExceptions = pagedResult.Items;
+        _allExceptionsTotalCount = pagedResult.TotalCount;
+    }
+
     private void OnUnresolvedPageChanged(int page)
     {
         _unresolvedCurrentPage = page;
         _selectedExceptions.Clear();
     }
 
-    private void OnAllPageChanged(int page)
+    private async Task OnAllPageChanged(int page)
     {
         _allCurrentPage = page;
+        await LoadAllExceptions();
     }
 
     private void SelectAll()
     {
-        _selectedExceptions = _paginatedUnresolvedExceptions.ToHashSet();
+        // 客户端分页：选中当前页的未解决异常
+        _selectedExceptions = GetPaginatedUnresolvedExceptions().ToHashSet();
+    }
+
+    private List<AgvExceptionSummaryDto> GetPaginatedUnresolvedExceptions()
+    {
+        return _unresolvedExceptions
+            .Skip((_unresolvedCurrentPage - 1) * _unresolvedPageSize)
+            .Take(_unresolvedPageSize)
+            .ToList();
     }
 
     private async Task ResolveSelected()

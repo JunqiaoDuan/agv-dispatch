@@ -10,8 +10,4 @@ public class AgvMonitorItemDto : AgvListItemDto
     /// </summary>
     public int UnresolvedExceptionCount { get; set; }
 
-    /// <summary>
-    /// 最新的未解决异常（最多30条）
-    /// </summary>
-    public List<AgvExceptionSummaryDto> LatestExceptions { get; set; } = new();
 }
