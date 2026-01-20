@@ -24,7 +24,7 @@ public class AgvSimulatorClient
 
     // 模拟状态
     private AgvStatus _currentStatus = AgvStatus.Idle;
-    private int _battery = 100;
+    private double _batteryVoltage = (double)AgvConstants.MaxBatteryVoltage; // 默认满电电压
     private double _speed = 0;
     private double _positionX = 0;
     private double _positionY = 0;
@@ -43,7 +43,7 @@ public class AgvSimulatorClient
 
     public string AgvCode => _agvCode;
     public AgvStatus CurrentStatus => _currentStatus;
-    public int Battery => _battery;
+    public double BatteryVoltage => _batteryVoltage;
     public double PositionX => _positionX;
     public double PositionY => _positionY;
     public bool IsConnected => _mqttClient?.IsConnected ?? false;
@@ -312,7 +312,7 @@ public class AgvSimulatorClient
             AgvCode = _agvCode,
             Timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             Status = _currentStatus,
-            Battery = _battery,
+            BatteryVoltage = _batteryVoltage,
             Speed = _speed,
             Position = new PositionInfo
             {
@@ -447,8 +447,6 @@ public class AgvSimulatorClient
 
             await PublishTaskProgressAsync(TaskJobStatus.Executing, stage.Message, stage.Progress);
 
-            // 模拟电量消耗
-            _battery = Math.Max(0, _battery - 2);
         }
 
         // 任务完成
@@ -477,11 +475,11 @@ public class AgvSimulatorClient
     }
 
     /// <summary>
-    /// 设置电量
+    /// 设置电池电压（会自动计算电量百分比）
     /// </summary>
-    public void SetBattery(int battery)
+    public void SetBatteryVoltage(double voltage)
     {
-        _battery = Math.Clamp(battery, 0, 100);
+        _batteryVoltage = voltage;
     }
 
     /// <summary>

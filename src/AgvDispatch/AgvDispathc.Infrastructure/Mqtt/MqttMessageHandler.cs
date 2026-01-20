@@ -41,8 +41,8 @@ public class MqttMessageHandler : IMqttMessageHandler
     public async Task HandleStatusAsync(string agvCode, StatusMessage message)
     {
         _logger.LogInformation(
-            "[MqttMessageHandler] 收到小车 {AgvCode} 的状态上报: Battery={Battery}%, Speed={Speed}m/s, Position=({X},{Y},{Angle}°), Station={Station}",
-            agvCode, message.Battery, message.Speed, message.Position.X, message.Position.Y, message.Position.Angle, message.Position.StationCode);
+            "[MqttMessageHandler] 收到小车 {AgvCode} 的状态上报: BatteryVoltage={BatteryVoltage}V, Speed={Speed}m/s, Position=({X},{Y},{Angle}°), Station={Station}",
+            agvCode, message.BatteryVoltage, message.Speed, message.Position.X, message.Position.Y, message.Position.Angle, message.Position.StationCode);
 
         try
         {
@@ -61,8 +61,15 @@ public class MqttMessageHandler : IMqttMessageHandler
             }
 
             // ========== 只更新物理状态 ==========
-            // 电量和速度
-            agv.Battery = message.Battery;
+            // 电量：使用电压值计算百分比
+            // 根据电压值计算电量百分比
+            agv.Battery = AgvConstants.CalculateBatteryPercentage((decimal)message.BatteryVoltage);
+            agv.BatteryVoltage = (decimal)message.BatteryVoltage;
+
+            _logger.LogDebug("[MqttMessageHandler] 小车 {AgvCode} 电池电压={BatteryVoltage}V, 计算得电量={Battery}%",
+                agvCode, message.BatteryVoltage, agv.Battery);
+
+            // 速度
             agv.Speed = (decimal)message.Speed;
 
             // 当前站点 - 根据 StationCode 反向查询 StationId

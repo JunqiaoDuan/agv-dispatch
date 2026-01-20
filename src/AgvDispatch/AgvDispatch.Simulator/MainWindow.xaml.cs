@@ -84,7 +84,7 @@ public partial class MainWindow : Window
             {
                 if (_simulatorClient != null && _simulatorClient.IsConnected)
                 {
-                    TxtBattery.Text = _simulatorClient.Battery.ToString();
+                    TxtBatteryVoltage.Text = _simulatorClient.BatteryVoltage.ToString("F1");
                     TxtPosition.Text = $"({_simulatorClient.PositionX:F1}, {_simulatorClient.PositionY:F1})";
                 }
                 else
@@ -112,7 +112,7 @@ public partial class MainWindow : Window
         {
             var x = double.Parse(TxtPositionX.Text.Trim());
             var y = double.Parse(TxtPositionY.Text.Trim());
-            var battery = int.Parse(TxtBatteryInput.Text.Trim());
+            var batteryVoltage = double.Parse(TxtBatteryVoltageInput.Text.Trim());
 
             // 获取站点ID
             var stationCode = string.Empty;
@@ -127,9 +127,9 @@ public partial class MainWindow : Window
             }
 
             _simulatorClient.SetPosition(x, y, 0, stationCode);
-            _simulatorClient.SetBattery(battery);
+            _simulatorClient.SetBatteryVoltage(batteryVoltage);
 
-            MessageBox.Show("位置和电量已更新", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("位置和电压已更新", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {

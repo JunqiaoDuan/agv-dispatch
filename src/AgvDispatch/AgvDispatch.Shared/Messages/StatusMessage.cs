@@ -28,12 +28,6 @@ public class StatusMessage
     public AgvStatus Status { get; set; }
 
     /// <summary>
-    /// 电量百分比 (0-100)
-    /// </summary>
-    [JsonPropertyName("battery")]
-    public int Battery { get; set; }
-
-    /// <summary>
     /// 电池电压真实值 (V)
     /// </summary>
     [JsonPropertyName("batteryVoltage")]
