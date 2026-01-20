@@ -19,9 +19,7 @@
             @* Logo 区域 *@
             <div class="login-header">
                 <div class="logo-wrapper">
-                    <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing"
-                             Size="Size.Large"
-                             Class="logo-icon" />
+                    <img src="/logo.png" alt="AGV Logo" class="logo-image" />
                 </div>
                 <MudText Typo="Typo.h4" Class="login-title">AGV 调度系统</MudText>
                 <MudText Typo="Typo.body2" Class="login-subtitle">海宁市农业科技创新园物流管理平台</MudText>
@@ -180,14 +178,15 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+        background: white;
         border-radius: 16px;
-        box-shadow: 0 8px 24px rgba(25, 118, 210, 0.3);
+        overflow: hidden;
     }
 
-    .logo-icon {
-        color: white !important;
-        font-size: 36px !important;
+    .logo-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
 
     .login-title {
