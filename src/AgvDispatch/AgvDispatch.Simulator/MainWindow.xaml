@@ -120,31 +120,31 @@
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="站点:" VerticalAlignment="Center" Margin="0,5,10,0"/>
                 <ComboBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="5" x:Name="CmbStation" IsEditable="True" Margin="0,5,10,0" SelectedIndex="0">
                     <ComboBoxItem Content="无" Tag=""/>
-                    <ComboBoxItem Content="S005 - 取货1" Tag="S005"/>
-                    <ComboBoxItem Content="S006 - 取货2" Tag="S006"/>
-                    <ComboBoxItem Content="S007 - 取货5" Tag="S007"/>
-                    <ComboBoxItem Content="S008 - 取货6" Tag="S008"/>
-                    <ComboBoxItem Content="S009 - 取货9" Tag="S009"/>
-                    <ComboBoxItem Content="S010 - 取货10" Tag="S010"/>
-                    <ComboBoxItem Content="S011 - 取货13" Tag="S011"/>
-                    <ComboBoxItem Content="S012 - 取货14" Tag="S012"/>
-                    <ComboBoxItem Content="S013 - 取货17" Tag="S013"/>
-                    <ComboBoxItem Content="S014 - 取货18" Tag="S014"/>
-                    <ComboBoxItem Content="S015 - 取货21" Tag="S015"/>
-                    <ComboBoxItem Content="S016 - 取货22" Tag="S016"/>
-                    <ComboBoxItem Content="S017 - 取货3" Tag="S017"/>
-                    <ComboBoxItem Content="S018 - 取货7" Tag="S018"/>
-                    <ComboBoxItem Content="S019 - 取货11" Tag="S019"/>
-                    <ComboBoxItem Content="S020 - 取货15" Tag="S020"/>
-                    <ComboBoxItem Content="S021 - 取货19" Tag="S021"/>
-                    <ComboBoxItem Content="S022 - 取货23" Tag="S022"/>
-                    <ComboBoxItem Content="S023 - 充电1" Tag="S023"/>
-                    <ComboBoxItem Content="S024 - 充电2" Tag="S024"/>
-                    <ComboBoxItem Content="S025 - 充电3" Tag="S025"/>
-                    <ComboBoxItem Content="S026 - 卸货1" Tag="S026"/>
-                    <ComboBoxItem Content="S027 - 待命1" Tag="S027"/>
-                    <ComboBoxItem Content="S028 - 待命2" Tag="S028"/>
-                    <ComboBoxItem Content="S029 - 待命3" Tag="S029"/>
+                    <ComboBoxItem Content="S101 - 大棚B1" Tag="S101"/>
+                    <ComboBoxItem Content="S102 - 大棚B2" Tag="S102"/>
+                    <ComboBoxItem Content="S103 - 大棚B3" Tag="S103"/>
+                    <ComboBoxItem Content="S105 - 大棚B5" Tag="S105"/>
+                    <ComboBoxItem Content="S106 - 大棚B6" Tag="S106"/>
+                    <ComboBoxItem Content="S107 - 大棚B7" Tag="S107"/>
+                    <ComboBoxItem Content="S109 - 大棚B9" Tag="S109"/>
+                    <ComboBoxItem Content="S110 - 大棚B10" Tag="S110"/>
+                    <ComboBoxItem Content="S111 - 大棚B11" Tag="S111"/>
+                    <ComboBoxItem Content="S113 - 大棚B13" Tag="S113"/>
+                    <ComboBoxItem Content="S114 - 大棚B14" Tag="S114"/>
+                    <ComboBoxItem Content="S115 - 大棚B15" Tag="S115"/>
+                    <ComboBoxItem Content="S117 - 大棚B17" Tag="S117"/>
+                    <ComboBoxItem Content="S118 - 大棚B18" Tag="S118"/>
+                    <ComboBoxItem Content="S119 - 大棚B19" Tag="S119"/>
+                    <ComboBoxItem Content="S121 - 大棚B21" Tag="S121"/>
+                    <ComboBoxItem Content="S122 - 大棚B22" Tag="S122"/>
+                    <ComboBoxItem Content="S123 - 大棚B23" Tag="S123"/>
+                    <ComboBoxItem Content="S201 - 卸料1" Tag="S201"/>
+                    <ComboBoxItem Content="S301 - 充电1" Tag="S301"/>
+                    <ComboBoxItem Content="S302 - 充电2" Tag="S302"/>
+                    <ComboBoxItem Content="S303 - 充电3" Tag="S303"/>
+                    <ComboBoxItem Content="S401 - 待命1" Tag="S401"/>
+                    <ComboBoxItem Content="S402 - 待命2" Tag="S402"/>
+                    <ComboBoxItem Content="S403 - 待命3" Tag="S403"/>
                 </ComboBox>
 
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="任务:" VerticalAlignment="Center" Margin="0,5,10,0"/>
