@@ -16,4 +16,10 @@
     <ProjectReference Include="..\AgvDispatch.Shared\AgvDispatch.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

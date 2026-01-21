@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/docs/">
+    <File Path="../../CLAUDE.md" />
     <File Path="../../docs/方案-任务下发与调度流程.md" />
     <File Path="../../docs/方案-任务监控实时路径可视化.md" />
     <File Path="../../docs/方案-地图模拟功能.md" />

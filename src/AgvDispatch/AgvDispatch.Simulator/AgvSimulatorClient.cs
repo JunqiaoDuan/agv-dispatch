@@ -482,17 +482,18 @@ public class AgvSimulatorClient
     /// <summary>
     /// 手动上报任务进度
     /// </summary>
-    public async Task PublishTaskProgressAsync(string taskId, int progress)
+    public async Task PublishTaskProgressAsync(string taskId, int progress, TaskJobStatus? status = null)
     {
         if (_mqttClient == null || !_mqttClient.IsConnected)
             return;
 
         _currentTaskId = taskId;
 
-        var status = progress >= 100 ? TaskJobStatus.Completed : TaskJobStatus.Executing;
+        // 如果未指定状态，则根据进度自动判断
+        var taskStatus = status ?? (progress >= 100 ? TaskJobStatus.Completed : TaskJobStatus.Executing);
         var message = progress >= 100 ? "任务已完成（手动上报）" : $"任务进度: {progress}%";
 
-        await PublishTaskProgressAsync(status, message, progress);
+        await PublishTaskProgressAsync(taskStatus, message, progress);
 
         if (progress >= 100)
         {
@@ -501,7 +502,7 @@ public class AgvSimulatorClient
             UpdateStatus(AgvStatus.Idle);
         }
 
-        Log($"已上报任务进度: {taskId}, 进度: {progress}%");
+        Log($"已上报任务进度: {taskId}, 状态: {taskStatus}, 进度: {progress}%");
     }
 
     #endregion
