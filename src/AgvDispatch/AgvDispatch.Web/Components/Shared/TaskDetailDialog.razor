@@ -1,0 +1,274 @@
+@using AgvDispatch.Shared.DTOs.Tasks
+@using AgvDispatch.Shared.Enums
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Assignment" Color="@GetTaskTypeColor(Task.TaskType)" Style="vertical-align: middle;" />
+            任务详情
+        </MudText>
+
+        <MudSimpleTable Dense="true" Bordered="true" Class="mt-2">
+            <tbody>
+                <tr>
+                    <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">任务ID</td>
+                    <td>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace; font-size: 0.85em;">
+                            @Task.Id.ToString()
+                        </MudText>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">任务类型</td>
+                    <td>
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Color="@GetTaskTypeColor(Task.TaskType)"
+                                 Variant="Variant.Filled">
+                            @Task.TaskType.ToDisplayText()
+                        </MudChip>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">任务状态</td>
+                    <td>
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Color="@GetTaskStatusColor(Task.TaskStatus)"
+                                 Variant="Variant.Filled">
+                            @Task.TaskStatus.ToDisplayText()
+                        </MudChip>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">优先级</td>
+                    <td>
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Color="@GetPriorityColor(Task.Priority)">
+                            @Task.Priority
+                        </MudChip>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">起点站点</td>
+                    <td>
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.TripOrigin" Size="Size.Small" Color="Color.Success" Style="vertical-align: middle;" />
+                            @Task.StartStationCode
+                        </MudText>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">终点站点</td>
+                    <td>
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Error" Style="vertical-align: middle;" />
+                            @Task.EndStationCode
+                        </MudText>
+                    </td>
+                </tr>
+                @if (!string.IsNullOrEmpty(Task.AssignedAgvCode))
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">分配车辆</td>
+                        <td>
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Size="Size.Small" Color="Color.Info" Style="vertical-align: middle;" />
+                                @Task.AssignedAgvCode
+                            </MudText>
+                        </td>
+                    </tr>
+                }
+                @if (Task.ProgressPercentage.HasValue)
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">任务进度</td>
+                        <td>
+                            <MudProgressLinear Value="@((double)Task.ProgressPercentage.Value)"
+                                             Color="Color.Primary"
+                                             Size="Size.Small"
+                                             Class="mb-1" />
+                            <MudText Typo="Typo.caption">@Task.ProgressPercentage.Value.ToString("F1")%</MudText>
+                        </td>
+                    </tr>
+                }
+                @if (!string.IsNullOrEmpty(Task.Description))
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">任务描述</td>
+                        <td>
+                            <MudText Typo="Typo.body2">@Task.Description</MudText>
+                        </td>
+                    </tr>
+                }
+                @if (Task.CreationDate.HasValue)
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">创建时间</td>
+                        <td>
+                            <MudText Typo="Typo.body2">
+                                @Task.CreationDate.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            </MudText>
+                        </td>
+                    </tr>
+                }
+                @* 如果任务是Pending状态，显示等待时间 *@
+                @if (Task.CreationDate.HasValue && Task.TaskStatus == TaskJobStatus.Pending)
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">等待时间</td>
+                        <td>
+                            <MudText Typo="Typo.body2" Color="Color.Warning">
+                                @GetElapsedTime(Task.CreationDate.Value)
+                            </MudText>
+                        </td>
+                    </tr>
+                }
+                @if (Task.AssignedAt.HasValue)
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">分配时间</td>
+                        <td>
+                            <MudText Typo="Typo.body2">
+                                @Task.AssignedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            </MudText>
+                        </td>
+                    </tr>
+                }
+                @* 如果任务已分配但未开始，显示分配后等待时间 *@
+                @if (Task.AssignedAt.HasValue && !Task.StartedAt.HasValue && Task.TaskStatus == TaskJobStatus.Assigned)
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">分配后等待</td>
+                        <td>
+                            <MudText Typo="Typo.body2" Color="Color.Info">
+                                @GetElapsedTime(Task.AssignedAt.Value)
+                            </MudText>
+                        </td>
+                    </tr>
+                }
+                @if (Task.StartedAt.HasValue)
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">开始时间</td>
+                        <td>
+                            <MudText Typo="Typo.body2">
+                                @Task.StartedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            </MudText>
+                        </td>
+                    </tr>
+                }
+                @if (Task.CompletedAt.HasValue)
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">完成时间</td>
+                        <td>
+                            <MudText Typo="Typo.body2">
+                                @Task.CompletedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            </MudText>
+                        </td>
+                    </tr>
+                }
+                @* 如果任务已开始且未完成，计算已耗时 *@
+                @if (Task.StartedAt.HasValue && !Task.CompletedAt.HasValue)
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">已耗时</td>
+                        <td>
+                            <MudText Typo="Typo.body2" Color="Color.Warning">
+                                @GetElapsedTime(Task.StartedAt.Value)
+                            </MudText>
+                        </td>
+                    </tr>
+                }
+                @* 如果任务已完成，计算总耗时 *@
+                @if (Task.StartedAt.HasValue && Task.CompletedAt.HasValue)
+                {
+                    <tr>
+                        <td style="width: 30%; font-weight: bold; background-color: #f5f5f5;">总耗时</td>
+                        <td>
+                            <MudText Typo="Typo.body2" Color="Color.Info">
+                                @GetTotalTime(Task.StartedAt.Value, Task.CompletedAt.Value)
+                            </MudText>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Color="Color.Primary" Variant="Variant.Filled">关闭</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public TaskListItemDto Task { get; set; } = new();
+
+    private void Close()
+    {
+        MudDialog?.Close();
+    }
+
+    private Color GetTaskTypeColor(TaskJobType taskType) => taskType switch
+    {
+        TaskJobType.CallForLoading => Color.Success,     // 绿色 - 召唤小车上料
+        TaskJobType.SendToUnloading => Color.Info,       // 蓝色 - 告知小车去下料
+        TaskJobType.ReturnToWaiting => Color.Warning,    // 橙色 - 确认下料去等待区
+        TaskJobType.SendToCharge => Color.Primary,       // 主色 - 让小车充电
+        _ => Color.Default
+    };
+
+    private Color GetTaskStatusColor(TaskJobStatus status) => status switch
+    {
+        TaskJobStatus.Pending => Color.Default,
+        TaskJobStatus.Assigned => Color.Info,
+        TaskJobStatus.Executing => Color.Primary,
+        TaskJobStatus.Completed => Color.Success,
+        TaskJobStatus.Cancelled => Color.Warning,
+        TaskJobStatus.Failed => Color.Error,
+        _ => Color.Default
+    };
+
+    private Color GetPriorityColor(int priority) => priority switch
+    {
+        >= 80 => Color.Error,      // 高优先级
+        >= 50 => Color.Warning,    // 中优先级
+        _ => Color.Default         // 低优先级
+    };
+
+    /// <summary>
+    /// 获取已耗时
+    /// </summary>
+    private string GetElapsedTime(DateTimeOffset startTime)
+    {
+        var elapsed = DateTimeOffset.Now - startTime;
+        if (elapsed.TotalDays >= 1)
+            return $"{(int)elapsed.TotalDays}天{elapsed.Hours}小时{elapsed.Minutes}分钟";
+        if (elapsed.TotalHours >= 1)
+            return $"{elapsed.Hours}小时{elapsed.Minutes}分钟";
+        if (elapsed.TotalMinutes >= 1)
+            return $"{elapsed.Minutes}分钟{elapsed.Seconds}秒";
+        return $"{elapsed.Seconds}秒";
+    }
+
+    /// <summary>
+    /// 获取总耗时
+    /// </summary>
+    private string GetTotalTime(DateTimeOffset startTime, DateTimeOffset endTime)
+    {
+        var total = endTime - startTime;
+        if (total.TotalDays >= 1)
+            return $"{(int)total.TotalDays}天{total.Hours}小时{total.Minutes}分钟";
+        if (total.TotalHours >= 1)
+            return $"{total.Hours}小时{total.Minutes}分钟";
+        if (total.TotalMinutes >= 1)
+            return $"{total.Minutes}分钟{total.Seconds}秒";
+        return $"{total.Seconds}秒";
+    }
+}
