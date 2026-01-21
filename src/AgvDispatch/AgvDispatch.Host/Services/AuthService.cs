@@ -45,10 +45,13 @@ public class AuthService : IAuthService
             return null;
         }
 
+        _logger.LogWarning("开始验证密码");
+
         // 验证密码
-        if (!user.VerifyPassword(request.Password))
+        var (isValid, message) = user.VerifyPassword(request.Password);
+        if (!isValid)
         {
-            _logger.LogWarning("登录失败：用户 {Username} 密码错误", request.Username);
+            _logger.LogWarning("登录失败：{Message}", message);
             return null;
         }
 

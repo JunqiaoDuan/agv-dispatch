@@ -53,6 +53,9 @@ try
     // 全局异常处理（必须在最前面）
     app.UseGlobalExceptionHandler();
 
+    // API 请求/响应日志
+    app.UseApiRequestLogging();
+
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
     {

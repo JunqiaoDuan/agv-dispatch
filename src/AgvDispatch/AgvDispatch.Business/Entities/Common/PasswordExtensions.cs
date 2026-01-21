@@ -20,14 +20,24 @@ public static class PasswordExtensions
     /// <summary>
     /// 验证密码
     /// </summary>
-    public static bool VerifyPassword(this IHasPassword entity, string password)
+    /// <returns>验证结果和消息</returns>
+    public static (bool IsValid, string Message) VerifyPassword(this IHasPassword entity, string password)
     {
         if (string.IsNullOrEmpty(entity.PasswordSalt) || string.IsNullOrEmpty(entity.PasswordHash))
-            return false;
+        {
+            return (false, $"实体 {entity.GetType().Name} 的密码盐或哈希为空");
+        }
 
         var saltBytes = Convert.FromBase64String(entity.PasswordSalt);
         var hash = HashPassword(password, saltBytes);
-        return hash == entity.PasswordHash;
+        var isValid = hash == entity.PasswordHash;
+
+        if (isValid)
+        {
+            return (true, $"实体 {entity.GetType().Name} 密码验证成功");
+        }
+
+        return (false, $"实体 {entity.GetType().Name} 密码哈希不匹配");
     }
 
     private static string HashPassword(string password, byte[] salt)

@@ -15,7 +15,8 @@
       "Bash(dir:*)",
       "Bash(findstr:*)",
       "Bash(ren:*)",
-      "Bash(dotnet sln:*)"
+      "Bash(dotnet sln:*)",
+      "Bash(ls:*)"
     ]
   }
 }

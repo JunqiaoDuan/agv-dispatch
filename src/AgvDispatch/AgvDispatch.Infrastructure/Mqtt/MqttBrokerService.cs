@@ -161,9 +161,10 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
             }
 
             // 验证密码
-            if (!agv.VerifyPassword(password))
+            var (isValid, message) = agv.VerifyPassword(password);
+            if (!isValid)
             {
-                _logger.LogWarning("[MQTT Broker] 客户端 {ClientId} 认证失败: 密码错误", clientId);
+                _logger.LogWarning("[MQTT Broker] 客户端 {ClientId} 认证失败 - {Message}", clientId, message);
                 args.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
                 return;
             }
