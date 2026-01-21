@@ -60,6 +60,35 @@
                                      Disabled="@(!LocalAutoRefresh)" />
                 </MudStack>
             </MudPaper>
+
+            @* 自动模拟设置 *@
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.DirectionsRun" Size="Size.Small" Style="vertical-align: middle;" />
+                    自动模拟运动
+                </MudText>
+
+                <MudStack Spacing="2">
+                    <MudSwitch T="bool"
+                               @bind-Value="@LocalEnableAutoSimulation"
+                               Color="Color.Primary"
+                               Label="启用自动模拟运动" />
+
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        开启后，收到最新进度时会按照配置的速度比例自动模拟运动轨迹，直到下一次更新最新位置
+                    </MudText>
+
+                    <MudNumericField T="int"
+                                     @bind-Value="@LocalSimulationSpeedRatio"
+                                     Label="模拟速度比例（%）"
+                                     Variant="Variant.Outlined"
+                                     Min="1"
+                                     Max="200"
+                                     Step="10"
+                                     HelperText="相对于实际速度的百分比，默认 60%"
+                                     Disabled="@(!LocalEnableAutoSimulation)" />
+                </MudStack>
+            </MudPaper>
         </MudStack>
     </DialogContent>
     <DialogActions>
@@ -85,6 +114,12 @@
     public int RefreshInterval { get; set; } = 2;
 
     [Parameter]
+    public bool EnableAutoSimulation { get; set; } = true;
+
+    [Parameter]
+    public int SimulationSpeedRatio { get; set; } = 60;
+
+    [Parameter]
     public EventCallback<MapRenderOptions> OnRenderOptionsChanged { get; set; }
 
     [Parameter]
@@ -93,9 +128,17 @@
     [Parameter]
     public EventCallback<int> OnRefreshIntervalChanged { get; set; }
 
+    [Parameter]
+    public EventCallback<bool> OnAutoSimulationChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnSimulationSpeedRatioChanged { get; set; }
+
     private MapRenderOptions LocalRenderOptions { get; set; } = new();
     private bool LocalAutoRefresh { get; set; }
     private int LocalRefreshInterval { get; set; } = 2;
+    private bool LocalEnableAutoSimulation { get; set; } = true;
+    private int LocalSimulationSpeedRatio { get; set; } = 60;
     private bool _wasVisible = false;
 
     private DialogOptions DialogOptions = new()
@@ -127,6 +170,8 @@
 
             LocalAutoRefresh = AutoRefresh;
             LocalRefreshInterval = RefreshInterval;
+            LocalEnableAutoSimulation = EnableAutoSimulation;
+            LocalSimulationSpeedRatio = SimulationSpeedRatio;
         }
 
         _wasVisible = Visible;
@@ -138,6 +183,8 @@
         await OnRenderOptionsChanged.InvokeAsync(LocalRenderOptions);
         await OnAutoRefreshChanged.InvokeAsync(LocalAutoRefresh);
         await OnRefreshIntervalChanged.InvokeAsync(LocalRefreshInterval);
+        await OnAutoSimulationChanged.InvokeAsync(LocalEnableAutoSimulation);
+        await OnSimulationSpeedRatioChanged.InvokeAsync(LocalSimulationSpeedRatio);
 
         await OnDialogVisibleChanged(false);
     }
