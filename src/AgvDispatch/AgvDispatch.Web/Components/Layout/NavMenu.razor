@@ -1,4 +1,5 @@
 @rendermode InteractiveServer
+@inject IAuthStateService AuthStateService
 
 <MudNavMenu>
     <MudText Typo="Typo.h6" Class="px-4 py-3">导航菜单</MudText>
@@ -8,23 +9,42 @@
         首页
     </MudNavLink>
 
-    <MudNavGroup Title="设备管理" Icon="@Icons.Material.Filled.Devices" Expanded="true">
-        <MudNavLink Href="/agvs" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocalShipping">
-            小车管理
-        </MudNavLink>
-    </MudNavGroup>
+    @if (_currentUser?.Role != "User")
+    {
+        <MudNavGroup Title="设备管理" Icon="@Icons.Material.Filled.Devices" Expanded="true">
+            <MudNavLink Href="/agvs" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocalShipping">
+                小车管理
+            </MudNavLink>
+        </MudNavGroup>
 
-    <MudNavLink Href="/maps" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
-        地图管理
-    </MudNavLink>
+        <MudNavLink Href="/maps" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
+            地图管理
+        </MudNavLink>
+    }
 
     <MudNavLink Href="/task-monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Dashboard">
         任务调度与监控
     </MudNavLink>
 
-    <MudNavGroup Title="系统工具" Icon="@Icons.Material.Filled.Settings" Expanded="false">
-        <MudNavLink Href="/mqtt-monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Message">
-            MQTT消息监控
-        </MudNavLink>
-    </MudNavGroup>
+    @if (_currentUser?.Role != "User")
+    {
+        <MudNavGroup Title="系统工具" Icon="@Icons.Material.Filled.Settings" Expanded="false">
+            <MudNavLink Href="/mqtt-monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Message">
+                MQTT消息监控
+            </MudNavLink>
+        </MudNavGroup>
+    }
 </MudNavMenu>
+
+@code {
+    private UserInfoDto? _currentUser;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _currentUser = await AuthStateService.GetCurrentUserAsync();
+            StateHasChanged();
+        }
+    }
+}
