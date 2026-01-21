@@ -109,6 +109,35 @@
                         </MudStack>
                     </MudPaper>
                 </MudStack>
+
+                @* 追踪小车控制 *@
+                @if (_tasks.Any(t => t.TaskStatus == TaskJobStatus.Executing))
+                {
+                    <div class="panel-section mt-3">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.MyLocation" Size="Size.Small" Style="vertical-align: middle;" />
+                            追踪小车
+                        </MudText>
+
+                        <MudRadioGroup T="string" Value="_trackingMode" ValueChanged="OnTrackingModeChanged">
+                            <MudRadio T="string" Value="@("none")" Color="Color.Default" Size="Size.Small">
+                                不跟踪
+                            </MudRadio>
+                            @foreach (var task in _tasks.Where(t => t.TaskStatus == TaskJobStatus.Executing).OrderBy(t => t.Id))
+                            {
+                                var agv = _agvs.FirstOrDefault(a => a.AgvCode == task.AssignedAgvCode);
+                                var displayName = agv?.DisplayName ?? task.AssignedAgvCode ?? "未分配";
+                                <MudRadio T="string" Value="@(task.Id.ToString())" Color="Color.Primary" Size="Size.Small">
+                                    @displayName
+                                </MudRadio>
+                            }
+                        </MudRadioGroup>
+
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                            开启追踪后，画面会自动跟随小车移动
+                        </MudText>
+                    </div>
+                }
             </div>
         </div>
 
@@ -133,6 +162,11 @@
                 @* 地图层 *@
                 <div class="map-layer">
                     @((MarkupString)_mapSvg)
+                </div>
+
+                @* 任务路径层 *@
+                <div class="task-paths-layer">
+                    @((MarkupString)_taskPathsSvg)
                 </div>
 
                 @* AGV层 *@
@@ -229,9 +263,13 @@
                            RenderOptions="_renderOptions"
                            AutoRefresh="_autoRefresh"
                            RefreshInterval="_refreshIntervalSeconds"
+                           EnableAutoSimulation="_enableAutoSimulation"
+                           SimulationSpeedRatio="_simulationSpeedRatio"
                            OnRenderOptionsChanged="OnRenderOptionsChanged"
                            OnAutoRefreshChanged="OnAutoRefreshChanged"
-                           OnRefreshIntervalChanged="OnRefreshIntervalChanged" />
+                           OnRefreshIntervalChanged="OnRefreshIntervalChanged"
+                           OnAutoSimulationChanged="OnAutoSimulationChanged"
+                           OnSimulationSpeedRatioChanged="OnSimulationSpeedRatioChanged" />
 
 @code {
     // 地图数据
@@ -259,13 +297,23 @@
     // 渲染
     private MapRenderer _mapRenderer = new();
     private MiniMapRenderer _minimapRenderer = new();
+    private SimulationRenderer _simulationRenderer = new();
     private MapRenderOptions _renderOptions = new() { ShowGrid = true, ShowArrows = true, ShowNodeLabels = false, ShowEdgeLabels = false, ShowStationLabels = true };
     private MapRenderData _renderData = new();
     private string _mapSvg = string.Empty;
     private string _agvSvg = string.Empty;
+    private string _taskPathsSvg = string.Empty;
     private string _minimapMapSvg = string.Empty;
     private string _minimapAgvSvg = string.Empty;
     private string _minimapOverlaySvg = string.Empty;
+
+    // 任务模拟
+    private Dictionary<Guid, PathfindingResult> _taskPathCache = new();
+    private Dictionary<Guid, AgvSimulator> _taskSimulators = new();
+    private Dictionary<Guid, decimal> _lastTaskProgress = new();
+    private System.Timers.Timer? _simulationTimer;
+    private bool _enableAutoSimulation = true;
+    private int _simulationSpeedRatio = 60;
 
     // 视图控制
     private float _viewWidth = 1200f;
@@ -291,6 +339,9 @@
     private int _refreshIntervalSeconds = 2;
     private System.Timers.Timer? _refreshTimer;
 
+    // 追踪控制
+    private string _trackingMode = "none"; // "none" 或 任务ID
+
     private List<TaskListItemDto> FilteredTasks
     {
         get
@@ -314,12 +365,20 @@
             await LoadAgvsAndTasks();
             _loading = false;
 
-            // 启动自动刷新
+            // 启动自动刷新定时器
             _refreshTimer = new System.Timers.Timer(_refreshIntervalSeconds * 1000);
             _refreshTimer.Elapsed += OnRefreshTimerElapsed;
             if (_autoRefresh)
             {
                 _refreshTimer.Start();
+            }
+
+            // 启动模拟定时器
+            _simulationTimer = new System.Timers.Timer(50);
+            _simulationTimer.Elapsed += OnSimulationTimerElapsed;
+            if (_enableAutoSimulation)
+            {
+                _simulationTimer.Start();
             }
 
             StateHasChanged();
@@ -389,6 +448,9 @@
 
             // 加载AGV监控数据
             _agvMonitorList = await AgvClient.GetMonitorListAsync();
+
+            // 处理执行中的任务
+            ProcessExecutingTasks();
 
             RenderAgvs();
         }
@@ -478,6 +540,325 @@
         }
     }
 
+    private void OnAutoSimulationChanged(bool enabled)
+    {
+        _enableAutoSimulation = enabled;
+        if (_enableAutoSimulation)
+        {
+            _simulationTimer?.Start();
+        }
+        else
+        {
+            _simulationTimer?.Stop();
+        }
+    }
+
+    private void OnSimulationSpeedRatioChanged(int ratio)
+    {
+        _simulationSpeedRatio = ratio;
+    }
+
+    #endregion
+
+    #region 追踪控制
+
+    /// <summary>
+    /// 切换追踪模式
+    /// </summary>
+    private void OnTrackingModeChanged(string mode)
+    {
+        _trackingMode = mode;
+
+        // 如果切换到追踪模式，立即跟随选中的小车
+        if (_trackingMode != "none" && Guid.TryParse(_trackingMode, out var taskId))
+        {
+            ApplyTracking(taskId);
+        }
+    }
+
+    /// <summary>
+    /// 应用追踪逻辑
+    /// </summary>
+    private void ApplyTracking(Guid taskId)
+    {
+        if (!_taskSimulators.TryGetValue(taskId, out var simulator))
+            return;
+
+        var agvX = (float)simulator.CurrentPosition.X;
+        var agvY = (float)simulator.CurrentPosition.Y;
+
+        // 使小车位置居中
+        _offsetX = -agvX * _scale + _viewWidth / 2f;
+        _offsetY = -agvY * _scale + _viewHeight / 2f;
+
+        // 重新渲染整个地图（包括地图层、任务路径层和缩略图）
+        RenderMap();
+    }
+
+    #endregion
+
+    #region 任务模拟
+
+    /// <summary>
+    /// 处理执行中的任务
+    /// </summary>
+    private void ProcessExecutingTasks()
+    {
+        var executingTasks = _tasks.Where(t => t.TaskStatus == TaskJobStatus.Executing).ToList();
+
+        // 清理已完成或取消的任务
+        var taskIdsToRemove = _taskSimulators.Keys
+            .Where(id => !executingTasks.Any(t => t.Id == id))
+            .ToList();
+
+        foreach (var taskId in taskIdsToRemove)
+        {
+            if (_taskSimulators.TryGetValue(taskId, out var simulator))
+            {
+                simulator.Stop();
+            }
+            _taskSimulators.Remove(taskId);
+            _taskPathCache.Remove(taskId);
+            _lastTaskProgress.Remove(taskId);
+
+            // 如果正在追踪的任务已完成，取消追踪
+            if (_trackingMode == taskId.ToString())
+            {
+                _trackingMode = "none";
+            }
+        }
+
+        // 处理每个执行中的任务
+        foreach (var task in executingTasks)
+        {
+            OnTaskProgressUpdated(task);
+        }
+
+        // 渲染任务路径
+        RenderTaskPaths();
+    }
+
+    /// <summary>
+    /// 任务进度更新处理
+    /// </summary>
+    private void OnTaskProgressUpdated(TaskListItemDto task)
+    {
+        // 如果进度为 null，初始化为 0，以便启动自动模拟
+        var progress = task.ProgressPercentage ?? 0m;
+
+        if (progress < 0)
+            return;
+
+        // 检查进度是否变化
+        var progressChanged = !_lastTaskProgress.ContainsKey(task.Id) ||
+                              _lastTaskProgress[task.Id] != progress;
+
+        if (!progressChanged && _taskSimulators.ContainsKey(task.Id))
+            return; // 进度未变化且模拟器已存在，无需处理
+
+        _lastTaskProgress[task.Id] = progress;
+
+        // 获取或创建路径
+        if (!_taskPathCache.ContainsKey(task.Id))
+        {
+            var path = CalculateTaskPath(task);
+            if (path == null || !path.Success)
+                return;
+
+            _taskPathCache[task.Id] = path;
+        }
+
+        var pathResult = _taskPathCache[task.Id];
+
+        // 获取或创建模拟器
+        if (!_taskSimulators.ContainsKey(task.Id))
+        {
+            var simulator = CreateTaskSimulator(pathResult, task);
+            if (simulator == null)
+                return;
+
+            _taskSimulators[task.Id] = simulator;
+        }
+
+        // 跳转到新进度并启动模拟
+        var taskSimulator = _taskSimulators[task.Id];
+        taskSimulator.JumpToProgress(progress);
+
+        // 如果任务已完成，不再启动模拟器
+        if (_enableAutoSimulation &&
+            taskSimulator.State != SimulationState.Running &&
+            taskSimulator.State != SimulationState.Completed)
+        {
+            taskSimulator.Start();
+        }
+    }
+
+    /// <summary>
+    /// 计算任务路径
+    /// </summary>
+    private PathfindingResult? CalculateTaskPath(TaskListItemDto task)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(task.StartStationCode) || string.IsNullOrEmpty(task.EndStationCode))
+                return null;
+
+            // 根据StationCode查找Station
+            var startStation = _stations.FirstOrDefault(s => s.StationCode == task.StartStationCode);
+            var endStation = _stations.FirstOrDefault(s => s.StationCode == task.EndStationCode);
+
+            if (startStation == null || endStation == null)
+                return null;
+
+            var pathfinder = new AStarPathfinder(_nodes, _edges, _stations);
+            return pathfinder.FindPath(startStation.Id, endStation.Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"计算任务路径失败: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 创建任务模拟器
+    /// </summary>
+    private AgvSimulator? CreateTaskSimulator(PathfindingResult path, TaskListItemDto task)
+    {
+        try
+        {
+            // 获取AGV信息以获取速度
+            var agv = string.IsNullOrEmpty(task.AssignedAgvCode)
+                ? null
+                : _agvs.FirstOrDefault(a => a.AgvCode == task.AssignedAgvCode);
+            var speed = agv?.Speed ?? 100m; // 默认速度 100 cm/s
+
+            var config = new AgvSimulationConfig
+            {
+                Speed = speed,
+                UpdateIntervalMs = 50
+            };
+
+            var simulator = new AgvSimulator(path, _nodes, _edges, config);
+
+            return simulator;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"创建任务模拟器失败: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 模拟定时器更新
+    /// </summary>
+    private void OnSimulationTimerElapsed(object? sender, ElapsedEventArgs e)
+    {
+        if (!_enableAutoSimulation) return;
+
+        var needsRender = false;
+
+        foreach (var (taskId, simulator) in _taskSimulators.ToList())
+        {
+            if (simulator.State == SimulationState.Running)
+            {
+                // 使用配置的速度比例进行模拟
+                var speedRatio = _simulationSpeedRatio / 100m;
+                simulator.UpdateWithSpeedRatio(speedRatio);
+                needsRender = true;
+            }
+        }
+
+        if (needsRender)
+        {
+            InvokeAsync(() =>
+            {
+                // 应用追踪逻辑
+                if (_trackingMode != "none" && Guid.TryParse(_trackingMode, out var trackedTaskId))
+                {
+                    if (_taskSimulators.TryGetValue(trackedTaskId, out var trackedSimulator))
+                    {
+                        var agvX = (float)trackedSimulator.CurrentPosition.X;
+                        var agvY = (float)trackedSimulator.CurrentPosition.Y;
+
+                        // 使小车位置居中
+                        _offsetX = -agvX * _scale + _viewWidth / 2f;
+                        _offsetY = -agvY * _scale + _viewHeight / 2f;
+
+                        // 重新渲染整个地图（包括地图层、任务路径层和缩略图）
+                        RenderMap();
+                    }
+                    else
+                    {
+                        // 如果追踪的任务已完成或不存在，更新任务路径和小地图
+                        RenderTaskPaths();
+                        RenderMinimapAgvs();
+                    }
+                }
+                else
+                {
+                    // 不追踪时更新任务路径和小地图
+                    RenderTaskPaths();
+                    RenderMinimapAgvs();
+                }
+
+                StateHasChanged();
+            });
+        }
+    }
+
+    /// <summary>
+    /// 渲染任务路径
+    /// </summary>
+    private void RenderTaskPaths()
+    {
+        if (_map == null || _taskSimulators.Count == 0)
+        {
+            _taskPathsSvg = string.Empty;
+            return;
+        }
+
+        // 准备模拟数据
+        var simulatedAgvs = new List<AgvSimulationData>();
+
+        foreach (var (taskId, simulator) in _taskSimulators)
+        {
+            if (!_taskPathCache.TryGetValue(taskId, out var path))
+                continue;
+
+            simulatedAgvs.Add(new AgvSimulationData
+            {
+                Position = simulator.CurrentPosition,
+                StartNodeId = path.NodePath.First(),
+                EndNodeId = path.NodePath.Last(),
+                PathEdgeIds = path.EdgePath,
+                Config = new AgvSimulationConfig
+                {
+                    AgvSize = 20f,
+                    AgvColor = "#2196F3",
+                    StartMarkerColor = "#4CAF50",
+                    EndMarkerColor = "#F44336",
+                    TraveledPathColor = "#2196F3",
+                    TraveledPathWidth = 3f,
+                    ToEndLineColor = "#9E9E9E",
+                    ToEndLineDashArray = "5,5"
+                }
+            });
+        }
+
+        _renderData.SimulatedAgvs = simulatedAgvs;
+
+        _taskPathsSvg = _simulationRenderer.RenderSimulationLayer(
+            _renderData,
+            _viewWidth,
+            _viewHeight,
+            _scale,
+            _offsetX,
+            _offsetY,
+            elementScale: _elementScale);
+    }
+
     #endregion
 
     #region 任务操作
@@ -507,6 +888,7 @@
             elementScale: _elementScale);
 
         RenderAgvs();
+        RenderTaskPaths();
         RenderMinimap();
     }
 
@@ -517,15 +899,33 @@
         var svg = new System.Text.StringBuilder();
         svg.AppendLine($"<svg width=\"{_viewWidth}\" height=\"{_viewHeight}\" xmlns=\"http://www.w3.org/2000/svg\">");
 
-        // 如果AGV在站点
+        // 构建任务到模拟器的映射（AgvCode -> Simulator）
+        var agvSimulatorMap = new Dictionary<string, (AgvSimulator Simulator, PathfindingResult Path)>();
+        foreach (var (taskId, simulator) in _taskSimulators)
+        {
+            var task = _tasks.FirstOrDefault(t => t.Id == taskId);
+            if (task == null || task.TaskStatus != TaskJobStatus.Executing || string.IsNullOrEmpty(task.AssignedAgvCode))
+                continue;
+
+            if (!_taskPathCache.TryGetValue(taskId, out var path))
+                continue;
+
+            agvSimulatorMap[task.AssignedAgvCode] = (simulator, path);
+        }
+
+        // 遍历所有 AGV，每个 AGV 只渲染一次
         foreach (var agv in _agvs)
         {
-            // 除了离线，其它都显示
+            // 离线的 AGV 不显示
             if (agv.AgvStatus == AgvStatus.Offline)
                 continue;
 
-            // 获取AGV所在站点的坐标
-            var station = _stations.FirstOrDefault(s => s.Id == agv.CurrentStationId);
+            // 优先显示：如果 AGV 在模拟器中（正在执行任务），跳过（由任务路径层渲染）
+            if (agvSimulatorMap.ContainsKey(agv.AgvCode))
+                continue;
+
+            // 否则：使用站点位置渲染
+            var station = _stations.FirstOrDefault(s => s.StationCode == agv.CurrentStationCode);
             if (station == null)
                 continue;
 
@@ -626,60 +1026,105 @@
         svg.AppendLine($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{MinimapWidth}\" height=\"{MinimapHeight}\" " +
             $"style=\"position:absolute;top:0;left:0;pointer-events:none;\">");
 
-        // 如果AGV在站点
+        // 构建任务到模拟器的映射（AgvCode -> Simulator）
+        var agvSimulatorMap = new Dictionary<string, (AgvSimulator Simulator, PathfindingResult Path)>();
+        foreach (var (taskId, simulator) in _taskSimulators)
+        {
+            var task = _tasks.FirstOrDefault(t => t.Id == taskId);
+            if (task == null || task.TaskStatus != TaskJobStatus.Executing || string.IsNullOrEmpty(task.AssignedAgvCode))
+                continue;
+
+            if (!_taskPathCache.TryGetValue(taskId, out var path))
+                continue;
+
+            agvSimulatorMap[task.AssignedAgvCode] = (simulator, path);
+        }
+
+        // 遍历所有 AGV，每个 AGV 只渲染一次
         foreach (var agv in _agvs)
         {
-            // 除了离线，其它都显示
+            // 离线的 AGV 不显示
             if (agv.AgvStatus == AgvStatus.Offline)
                 continue;
 
-            // 获取AGV所在站点的坐标
-            var station = _stations.FirstOrDefault(s => s.Id == agv.CurrentStationId);
-            if (station == null)
-                continue;
+            // 优先显示：如果 AGV 在模拟器中（正在执行任务），使用模拟位置
+            if (agvSimulatorMap.TryGetValue(agv.AgvCode, out var simData))
+            {
+                // 渲染任务终点标记
+                var endNodeId = simData.Path.NodePath.Last();
+                var endNode = _nodes.FirstOrDefault(n => n.Id == endNodeId);
+                if (endNode != null)
+                {
+                    var endX = _minimapOffsetX + (float)endNode.X * _minimapScale;
+                    var endY = _minimapOffsetY + (float)endNode.Y * _minimapScale;
+                    var radius = 8f;
+                    svg.AppendLine($"  <circle cx=\"{endX}\" cy=\"{endY}\" r=\"{radius}\" " +
+                        $"fill=\"none\" stroke=\"#F44336\" stroke-width=\"2\" />");
+                }
 
-            // 转换到小地图坐标
-            var agvX = _minimapOffsetX + (float)station.X * _minimapScale;
-            var agvY = _minimapOffsetY + (float)station.Y * _minimapScale;
-            var agvAngleInDegrees = (double)agv.PositionAngle; // 从数据库读取的是度数(0-360)
-            var agvAngleInRadians = agvAngleInDegrees * Math.PI / 180.0; // 转换为弧度
-            var size = 16f; // 小地图上的AGV尺寸
-            var color = "#4CAF50"; // 空闲状态绿色
+                // 渲染 AGV（使用模拟位置）
+                var agvX = _minimapOffsetX + (float)simData.Simulator.CurrentPosition.X * _minimapScale;
+                var agvY = _minimapOffsetY + (float)simData.Simulator.CurrentPosition.Y * _minimapScale;
+                var agvAngle = simData.Simulator.CurrentPosition.Angle;
+                var size = 16f;
+                var color = "#2196F3"; // 执行中使用蓝色
 
-            // 三角形顶点（未旋转时，箭头指向右侧）
-            var halfSize = size * 0.5f;
-            var tipLength = size * 0.8f;
+                RenderAgvTriangle(svg, agvX, agvY, agvAngle, size, color);
+            }
+            else
+            {
+                // 否则：使用站点位置渲染
+                var station = _stations.FirstOrDefault(s => s.StationCode == agv.CurrentStationCode);
+                if (station == null)
+                    continue;
 
-            var p1X = tipLength;
-            var p1Y = 0f;
-            var p2X = -tipLength * 0.3f;
-            var p2Y = -halfSize;
-            var p3X = -tipLength * 0.3f;
-            var p3Y = halfSize;
+                var agvX = _minimapOffsetX + (float)station.X * _minimapScale;
+                var agvY = _minimapOffsetY + (float)station.Y * _minimapScale;
+                var agvAngleInDegrees = (double)agv.PositionAngle;
+                var agvAngleInRadians = agvAngleInDegrees * Math.PI / 180.0;
+                var size = 16f;
+                var color = "#4CAF50"; // 空闲状态绿色
 
-            // 旋转并平移
-            var cos = (float)Math.Cos(agvAngleInRadians);
-            var sin = (float)Math.Sin(agvAngleInRadians);
-
-            float RotateX(float px, float py) => agvX + px * cos - py * sin;
-            float RotateY(float px, float py) => agvY + px * sin + py * cos;
-
-            var r1X = RotateX(p1X, p1Y);
-            var r1Y = RotateY(p1X, p1Y);
-            var r2X = RotateX(p2X, p2Y);
-            var r2Y = RotateY(p2X, p2Y);
-            var r3X = RotateX(p3X, p3Y);
-            var r3Y = RotateY(p3X, p3Y);
-
-            // 绘制填充的三角形
-            svg.AppendLine($"  <path d=\"M{r1X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r1Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
-                $"L{r2X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r2Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
-                $"L{r3X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r3Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} Z\" " +
-                $"fill=\"{color}\" stroke=\"white\" stroke-width=\"1\" />");
+                RenderAgvTriangle(svg, agvX, agvY, agvAngleInRadians, size, color);
+            }
         }
 
         svg.AppendLine("</svg>");
         _minimapAgvSvg = svg.ToString();
+    }
+
+    /// <summary>
+    /// 渲染 AGV 三角形图标（辅助方法）
+    /// </summary>
+    private void RenderAgvTriangle(System.Text.StringBuilder svg, float x, float y, double angle, float size, string color)
+    {
+        var halfSize = size * 0.5f;
+        var tipLength = size * 0.8f;
+
+        var p1X = tipLength;
+        var p1Y = 0f;
+        var p2X = -tipLength * 0.3f;
+        var p2Y = -halfSize;
+        var p3X = -tipLength * 0.3f;
+        var p3Y = halfSize;
+
+        var cos = (float)Math.Cos(angle);
+        var sin = (float)Math.Sin(angle);
+
+        float RotateX(float px, float py) => x + px * cos - py * sin;
+        float RotateY(float px, float py) => y + px * sin + py * cos;
+
+        var r1X = RotateX(p1X, p1Y);
+        var r1Y = RotateY(p1X, p1Y);
+        var r2X = RotateX(p2X, p2Y);
+        var r2Y = RotateY(p2X, p2Y);
+        var r3X = RotateX(p3X, p3Y);
+        var r3Y = RotateY(p3X, p3Y);
+
+        svg.AppendLine($"  <path d=\"M{r1X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r1Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
+            $"L{r2X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r2Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
+            $"L{r3X.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{r3Y.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} Z\" " +
+            $"fill=\"{color}\" stroke=\"white\" stroke-width=\"1\" />");
     }
 
     #endregion
@@ -764,6 +1209,12 @@
         _lastMouseX = e.ClientX;
         _lastMouseY = e.ClientY;
 
+        // 手动拖动地图时，取消追踪模式
+        if (_trackingMode != "none")
+        {
+            _trackingMode = "none";
+        }
+
         RenderMap();
     }
 
@@ -797,6 +1248,12 @@
         _offsetX = -mapX * _scale + _viewWidth / 2f;
         _offsetY = -mapY * _scale + _viewHeight / 2f;
 
+        // 手动导航时，取消追踪模式
+        if (_trackingMode != "none")
+        {
+            _trackingMode = "none";
+        }
+
         RenderMap();
     }
 
@@ -820,6 +1277,15 @@
     public void Dispose()
     {
         _refreshTimer?.Dispose();
+        _simulationTimer?.Dispose();
+
+        // 清理所有模拟器
+        foreach (var simulator in _taskSimulators.Values)
+        {
+            simulator.Stop();
+        }
+        _taskSimulators.Clear();
+        _taskPathCache.Clear();
     }
 }
 
@@ -921,7 +1387,7 @@
             cursor: grabbing;
         }
 
-    .map-layer, .agv-layer {
+    .map-layer, .task-paths-layer, .agv-layer {
         position: absolute;
         top: 0;
         left: 0;
