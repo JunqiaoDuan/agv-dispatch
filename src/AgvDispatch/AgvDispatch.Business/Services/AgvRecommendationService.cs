@@ -52,9 +52,10 @@ public class AgvRecommendationService : IAgvRecommendationService
         {
             // 获取当前站点信息
             Station? currentStation = null;
-            if (agv.CurrentStationId.HasValue)
+            if (!string.IsNullOrEmpty(agv.CurrentStationCode))
             {
-                currentStation = await _stationRepository.GetByIdAsync(agv.CurrentStationId.Value);
+                var stationSpec = new StationByStationCodeSpec(agv.CurrentStationCode);
+                currentStation = await _stationRepository.FirstOrDefaultAsync(stationSpec);
             }
 
             // 判断是否可用及原因
@@ -97,9 +98,10 @@ public class AgvRecommendationService : IAgvRecommendationService
         {
             // 获取当前站点信息
             Station? currentStation = null;
-            if (agv.CurrentStationId.HasValue)
+            if (!string.IsNullOrEmpty(agv.CurrentStationCode))
             {
-                currentStation = await _stationRepository.GetByIdAsync(agv.CurrentStationId.Value);
+                var stationSpec = new StationByStationCodeSpec(agv.CurrentStationCode);
+                currentStation = await _stationRepository.FirstOrDefaultAsync(stationSpec);
             }
 
             // 判断是否可用及原因
@@ -145,9 +147,10 @@ public class AgvRecommendationService : IAgvRecommendationService
         {
             // 获取当前站点信息
             Station? currentStation = null;
-            if (agv.CurrentStationId.HasValue)
+            if (!string.IsNullOrEmpty(agv.CurrentStationCode))
             {
-                currentStation = await _stationRepository.GetByIdAsync(agv.CurrentStationId.Value);
+                var stationSpec = new StationByStationCodeSpec(agv.CurrentStationCode);
+                currentStation = await _stationRepository.FirstOrDefaultAsync(stationSpec);
             }
 
             // 判断是否可用及原因
@@ -193,9 +196,10 @@ public class AgvRecommendationService : IAgvRecommendationService
         {
             // 获取当前站点信息
             Station? currentStation = null;
-            if (agv.CurrentStationId.HasValue)
+            if (!string.IsNullOrEmpty(agv.CurrentStationCode))
             {
-                currentStation = await _stationRepository.GetByIdAsync(agv.CurrentStationId.Value);
+                var stationSpec = new StationByStationCodeSpec(agv.CurrentStationCode);
+                currentStation = await _stationRepository.FirstOrDefaultAsync(stationSpec);
             }
 
             // 判断是否可用及原因
@@ -245,9 +249,10 @@ public class AgvRecommendationService : IAgvRecommendationService
         int? currentStationPriority = null;
         Station? currentStation = null;
 
-        if (agv.AgvStatus == AgvStatus.Idle && agv.CurrentStationId.HasValue)
+        if (agv.AgvStatus == AgvStatus.Idle && !string.IsNullOrEmpty(agv.CurrentStationCode))
         {
-            currentStation = await _stationRepository.GetByIdAsync(agv.CurrentStationId.Value);
+            var stationSpec = new StationByStationCodeSpec(agv.CurrentStationCode);
+            currentStation = await _stationRepository.FirstOrDefaultAsync(stationSpec);
             if (currentStation != null)
             {
                 currentStationCode = currentStation.StationCode;
@@ -451,7 +456,7 @@ public class AgvRecommendationService : IAgvRecommendationService
         }
 
         // 检查当前站点
-        if (!agv.CurrentStationId.HasValue)
+        if (string.IsNullOrEmpty(agv.CurrentStationCode))
         {
             isAvailable = false;
             reasons.Add("未在任何站点");
@@ -522,7 +527,7 @@ public class AgvRecommendationService : IAgvRecommendationService
         }
 
         // 检查当前站点
-        if (!agv.CurrentStationId.HasValue)
+        if (string.IsNullOrEmpty(agv.CurrentStationCode))
         {
             isAvailable = false;
             reasons.Add("未在任何站点");

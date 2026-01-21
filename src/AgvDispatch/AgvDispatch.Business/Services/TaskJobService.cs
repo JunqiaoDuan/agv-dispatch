@@ -116,7 +116,7 @@ public class TaskJobService : ITaskJobService
         }
 
         // 3. 验证小车是否在站点上
-        if (!agv.CurrentStationId.HasValue)
+        if (string.IsNullOrEmpty(agv.CurrentStationCode))
         {
             _logger.LogWarning("[TaskJobService] 小车未在任何站点: AgvId={AgvId}", selectedAgvId);
             throw new InvalidOperationException("无法分配任务: 小车未在任何站点");
@@ -129,7 +129,7 @@ public class TaskJobService : ITaskJobService
             TaskType = taskType,
             TaskStatus = TaskJobStatus.Assigned,
             Priority = 30, // 默认优先级
-            StartStationCode = agv.CurrentStationId?.ToString() ?? "", // 起点为小车当前位置
+            StartStationCode = agv.CurrentStationCode, // 起点为小车当前位置
             EndStationCode = targetStationCode,
             Description = $"{taskType.ToDisplayText()} - {targetStationCode}",
             AssignedAgvId = selectedAgvId,

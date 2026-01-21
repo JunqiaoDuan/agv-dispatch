@@ -64,9 +64,9 @@ public class Agv : BaseEntity, IHasPassword
     public decimal PositionAngle { get; set; }
 
     /// <summary>
-    /// 当前所在站点ID
+    /// 当前所在站点编码
     /// </summary>
-    public Guid? CurrentStationId { get; set; }
+    public string? CurrentStationCode { get; set; }
 
     /// <summary>
     /// 当前执行的任务ID

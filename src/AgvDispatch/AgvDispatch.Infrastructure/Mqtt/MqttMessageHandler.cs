@@ -48,7 +48,6 @@ public class MqttMessageHandler : IMqttMessageHandler
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var agvRepository = scope.ServiceProvider.GetRequiredService<IRepository<Agv>>();
-            var stationRepository = scope.ServiceProvider.GetRequiredService<IRepository<Station>>();
 
             // 查询小车
             var spec = new AgvByAgvCodeSpec(agvCode);
@@ -72,27 +71,8 @@ public class MqttMessageHandler : IMqttMessageHandler
             // 速度
             agv.Speed = (decimal)message.Speed;
 
-            // 当前站点 - 根据 StationCode 反向查询 StationId
-            if (!string.IsNullOrEmpty(message.Position.StationCode))
-            {
-                var stationSpec = new StationByStationCodeSpec(message.Position.StationCode);
-                var station = await stationRepository.FirstOrDefaultAsync(stationSpec);
-
-                if (station != null)
-                {
-                    agv.CurrentStationId = station.Id;
-                }
-                else
-                {
-                    _logger.LogWarning("[MqttMessageHandler] 小车 {AgvCode} 上报的站点编号 {StationCode} 不存在",
-                        agvCode, message.Position.StationCode);
-                    agv.CurrentStationId = null;
-                }
-            }
-            else
-            {
-                agv.CurrentStationId = null;
-            }
+            // 当前站点编码
+            agv.CurrentStationCode = message.Position.StationCode;
 
             // 位置信息
             if (message.Position.X.HasValue)

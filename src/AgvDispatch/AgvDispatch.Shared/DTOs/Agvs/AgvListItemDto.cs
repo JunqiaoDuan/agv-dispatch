@@ -25,7 +25,7 @@ namespace AgvDispatch.Shared.DTOs.Agvs
         public bool HasCargo { get; set; }
         public string? ErrorCode { get; set; }
         public DateTimeOffset? LastOnlineTime { get; set; }
-        public Guid? CurrentStationId { get; set; }
+        public string? CurrentStationCode { get; set; }
         public Guid? CurrentTaskId { get; set; }
         public int SortNo { get; set; }
         public string? Description { get; set; }
