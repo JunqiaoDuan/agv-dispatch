@@ -154,6 +154,66 @@ public class AgvSimulator
     }
 
     /// <summary>
+    /// 跳转到指定进度百分比（用于实际进度更新）
+    /// </summary>
+    /// <param name="progressPercentage">进度百分比 (0-100)</param>
+    public void JumpToProgress(decimal progressPercentage)
+    {
+        if (progressPercentage < 0 || progressPercentage > 100)
+            throw new ArgumentOutOfRangeException(nameof(progressPercentage), "进度百分比必须在 0-100 之间");
+
+        // 计算已行驶距离
+        var targetDistance = _path.TotalDistance * (progressPercentage / 100m);
+        _accumulatedDistance = targetDistance;
+        _currentPosition.TraveledDistance = targetDistance;
+
+        // 计算总进度
+        var overallProgress = progressPercentage / 100m;
+
+        if (overallProgress >= 1m)
+        {
+            // 到达终点
+            var finalNodeId = _path.NodePath.Last();
+            var finalNode = _nodeDict[finalNodeId];
+            _currentPosition.X = finalNode.X;
+            _currentPosition.Y = finalNode.Y;
+            _currentPosition.OverallProgress = 1m;
+            _currentPosition.CurrentEdgeIndex = _path.EdgePath.Count - 1;
+            _currentPosition.EdgeProgress = 1m;
+
+            _state = SimulationState.Completed;
+            OnPositionUpdated?.Invoke(_currentPosition);
+            OnCompleted?.Invoke();
+            return;
+        }
+
+        _currentPosition.OverallProgress = overallProgress;
+
+        // 映射到当前边索引和边内进度
+        var (edgeIndex, edgeProgress) = MapProgressToEdge(targetDistance);
+        _currentPosition.CurrentEdgeIndex = edgeIndex;
+        _currentPosition.EdgeProgress = edgeProgress;
+
+        // 插值计算位置和角度
+        var edgeId = _path.EdgePath[edgeIndex];
+        var edge = _edgeDict[edgeId];
+        var startNodeId = _path.NodePath[edgeIndex];
+        var endNodeId = _path.NodePath[edgeIndex + 1];
+        var startNode = _nodeDict[startNodeId];
+        var endNode = _nodeDict[endNodeId];
+
+        var (x, y, angle) = PathInterpolator.Interpolate(edge, startNode, endNode, edgeProgress);
+        _currentPosition.X = x;
+        _currentPosition.Y = y;
+        _currentPosition.Angle = angle;
+
+        // 更新最后更新时间
+        _lastUpdateTime = DateTime.Now;
+
+        OnPositionUpdated?.Invoke(_currentPosition);
+    }
+
+    /// <summary>
     /// 更新模拟（定时调用）
     /// </summary>
     public void Update()
@@ -167,6 +227,66 @@ public class AgvSimulator
 
         // 计算距离增量
         var distanceIncrement = _config.Speed * deltaTime;
+        _accumulatedDistance += distanceIncrement;
+        _currentPosition.TraveledDistance = _accumulatedDistance;
+
+        // 计算总进度
+        var overallProgress = _accumulatedDistance / _path.TotalDistance;
+        if (overallProgress >= 1m)
+        {
+            // 到达终点
+            var finalNodeId = _path.NodePath.Last();
+            var finalNode = _nodeDict[finalNodeId];
+            _currentPosition.X = finalNode.X;
+            _currentPosition.Y = finalNode.Y;
+            _currentPosition.OverallProgress = 1m;
+            _currentPosition.CurrentEdgeIndex = _path.EdgePath.Count - 1;
+            _currentPosition.EdgeProgress = 1m;
+
+            _state = SimulationState.Completed;
+            OnPositionUpdated?.Invoke(_currentPosition);
+            OnCompleted?.Invoke();
+            return;
+        }
+
+        _currentPosition.OverallProgress = overallProgress;
+
+        // 映射到当前边索引和边内进度
+        var (edgeIndex, edgeProgress) = MapProgressToEdge(_accumulatedDistance);
+        _currentPosition.CurrentEdgeIndex = edgeIndex;
+        _currentPosition.EdgeProgress = edgeProgress;
+
+        // 插值计算位置和角度
+        var edgeId = _path.EdgePath[edgeIndex];
+        var edge = _edgeDict[edgeId];
+        var startNodeId = _path.NodePath[edgeIndex];
+        var endNodeId = _path.NodePath[edgeIndex + 1];
+        var startNode = _nodeDict[startNodeId];
+        var endNode = _nodeDict[endNodeId];
+
+        var (x, y, angle) = PathInterpolator.Interpolate(edge, startNode, endNode, edgeProgress);
+        _currentPosition.X = x;
+        _currentPosition.Y = y;
+        _currentPosition.Angle = angle;
+
+        OnPositionUpdated?.Invoke(_currentPosition);
+    }
+
+    /// <summary>
+    /// 使用速度比例更新模拟（用于自动模拟）
+    /// </summary>
+    /// <param name="speedRatio">速度比例（0-2.0，例如 0.6 表示 60% 速度）</param>
+    public void UpdateWithSpeedRatio(decimal speedRatio)
+    {
+        if (_state != SimulationState.Running)
+            return;
+
+        var now = DateTime.Now;
+        var deltaTime = (decimal)(now - _lastUpdateTime).TotalSeconds;
+        _lastUpdateTime = now;
+
+        // 使用速度比例计算距离增量
+        var distanceIncrement = _config.Speed * speedRatio * deltaTime;
         _accumulatedDistance += distanceIncrement;
         _currentPosition.TraveledDistance = _accumulatedDistance;
 
