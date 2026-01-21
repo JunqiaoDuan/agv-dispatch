@@ -50,9 +50,33 @@
                                 </div>
                             </div>
 
-                            @* 第二行: 4个状态信息 *@
+                            @* 第二行: 5个状态信息 *@
                             <div class="agv-summary">
                                 <MudStack Row="true" Spacing="2" Class="mt-1" Wrap="Wrap.Wrap">
+                                    @* 任务标签 - 新增 *@
+                                    @if (currentTask != null)
+                                    {
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Filled"
+                                                 Color="@GetTaskTypeColor(currentTask.TaskType)"
+                                                 Icon="@Icons.Material.Filled.Assignment"
+                                                 OnClick="@(() => OpenTaskDetailDialog(currentTask))"
+                                                 Style="cursor: pointer;">
+                                            @currentTask.TaskType.ToDisplayText()
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Text"
+                                                 Color="Color.Default"
+                                                 Icon="@Icons.Material.Filled.Assignment">
+                                            无任务
+                                        </MudChip>
+                                    }
+
                                     @* 站点 *@
                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Icon="@Icons.Material.Filled.LocationOn">
                                         @if (currentStation != null)
@@ -155,8 +179,8 @@
 
     private StationListItemDto? GetCurrentStation(AgvListItemDto agv)
     {
-        if (!agv.CurrentStationId.HasValue) return null;
-        return Stations.FirstOrDefault(s => s.Id == agv.CurrentStationId.Value);
+        if (string.IsNullOrEmpty(agv.CurrentStationCode)) return null;
+        return Stations.FirstOrDefault(s => s.StationCode == agv.CurrentStationCode);
     }
 
     private TaskListItemDto? GetCurrentTask(AgvListItemDto agv)
@@ -233,6 +257,38 @@
         AgvExceptionSeverity.Critical => Color.Error,
         _ => Color.Default
     };
+
+    /// <summary>
+    /// 根据任务类型获取颜色
+    /// </summary>
+    private Color GetTaskTypeColor(TaskJobType taskType) => taskType switch
+    {
+        TaskJobType.CallForLoading => Color.Success,     // 绿色 - 召唤小车上料
+        TaskJobType.SendToUnloading => Color.Info,       // 蓝色 - 告知小车去下料
+        TaskJobType.ReturnToWaiting => Color.Warning,    // 橙色 - 确认下料去等待区
+        TaskJobType.SendToCharge => Color.Primary,       // 主色 - 让小车充电
+        _ => Color.Default
+    };
+
+    /// <summary>
+    /// 打开任务详情对话框
+    /// </summary>
+    private async Task OpenTaskDetailDialog(TaskListItemDto task)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Task", task }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        await DialogService.ShowAsync<TaskDetailDialog>("任务详情", parameters, options);
+    }
 }
 
 <style>
