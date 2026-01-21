@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:AgvDispatch.Mobile.Converters"
              x:Class="AgvDispatch.Mobile.App"
              RequestedThemeVariant="Default">
 
@@ -30,5 +31,13 @@
         <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
         <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
         <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource InfoColor}" />
+
+        <!-- 值转换器 -->
+        <converters:ExceptionCountToBrushConverter x:Key="ExceptionCountToBrushConverter"/>
+        <converters:AgvStatusToBrushConverter x:Key="AgvStatusToBrushConverter"/>
+        <converters:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
+        <converters:BoolToCargoTextConverter x:Key="BoolToCargoTextConverter"/>
+        <converters:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter"/>
+        <converters:BoolToSelectTextConverter x:Key="BoolToSelectTextConverter"/>
     </Application.Resources>
 </Application>

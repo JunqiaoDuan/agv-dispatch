@@ -64,6 +64,9 @@
                 <DataTemplate DataType="vm:AgvListViewModel">
                     <views:AgvListView DataContext="{Binding}"/>
                 </DataTemplate>
+                <DataTemplate DataType="vm:TaskMonitorViewModel">
+                    <views:TaskMonitorView DataContext="{Binding}"/>
+                </DataTemplate>
             </ContentControl.DataTemplates>
         </ContentControl>
     </Grid>

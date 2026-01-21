@@ -1,0 +1,160 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
+        xmlns:dto="using:AgvDispatch.Shared.DTOs.Agvs"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="600"
+        x:Class="AgvDispatch.Mobile.Views.Dialogs.AgvExceptionsDialog"
+        x:DataType="vm:AgvExceptionsDialogViewModel"
+        Title="AGV异常列表"
+        Width="360"
+        Height="600"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- 标题栏 -->
+        <Border Grid.Row="0" Background="{StaticResource PrimaryBrush}" Padding="16">
+            <StackPanel Spacing="4">
+                <TextBlock Text="AGV异常列表" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="{Binding AgvCode}" FontSize="14" Foreground="White" Opacity="0.9"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 内容区 -->
+        <ScrollViewer Grid.Row="1" Padding="16">
+            <StackPanel Spacing="12">
+                <!-- 加载指示器 -->
+                <ProgressBar IsIndeterminate="True"
+                             IsVisible="{Binding IsLoading}"
+                             Foreground="{StaticResource PrimaryBrush}"/>
+
+                <!-- 错误信息 -->
+                <Border Background="{StaticResource ErrorBrush}"
+                        CornerRadius="8"
+                        Padding="12"
+                        IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Foreground="White"
+                               TextWrapping="Wrap"/>
+                </Border>
+
+                <!-- 未解决的异常列表 -->
+                <TextBlock Text="{Binding UnresolvedExceptions.Count, StringFormat='未解决的异常 ({0})'}"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="#212121"/>
+
+                <ItemsControl ItemsSource="{Binding UnresolvedExceptions}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="dto:AgvExceptionSummaryDto">
+                            <Border Background="White"
+                                    CornerRadius="8"
+                                    BoxShadow="0 2 4 0 #10000000"
+                                    Padding="12"
+                                    Margin="0,0,0,8">
+                                <Grid RowDefinitions="Auto,Auto,Auto">
+                                    <!-- 第一行：类型和级别 -->
+                                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding ExceptionType}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#212121"/>
+                                        <Border Grid.Column="1"
+                                                Background="{StaticResource ErrorBrush}"
+                                                CornerRadius="10"
+                                                Padding="8,4">
+                                            <TextBlock Text="{Binding Severity}"
+                                                       FontSize="12"
+                                                       Foreground="White"/>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- 第二行：消息 -->
+                                    <TextBlock Grid.Row="1"
+                                               Text="{Binding Message}"
+                                               FontSize="13"
+                                               Foreground="#424242"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,8"/>
+
+                                    <!-- 第三行：详细信息 -->
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
+                                        <TextBlock FontSize="12" Foreground="#757575">
+                                            <Run Text="站点: "/>
+                                            <Run Text="{Binding StationCode}"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="12" Foreground="#757575">
+                                            <Run Text="时间: "/>
+                                            <Run Text="{Binding ExceptionTime, StringFormat='{}{0:MM-dd HH:mm:ss}'}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                    <!-- 选择框 -->
+                                    <CheckBox Grid.Row="0" Grid.RowSpan="3"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Top"
+                                              IsChecked="{Binding $parent[ItemsControl].((vm:AgvExceptionsDialogViewModel)DataContext).SelectedExceptions, Mode=TwoWay}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- 空状态 -->
+                <Border Background="#F5F5F5"
+                        CornerRadius="8"
+                        Padding="32"
+                        IsVisible="{Binding !UnresolvedExceptions.Count}">
+                    <StackPanel Spacing="8" HorizontalAlignment="Center">
+                        <PathIcon Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"
+                                  Width="48" Height="48"
+                                  Foreground="{StaticResource SuccessBrush}"/>
+                        <TextBlock Text="当前无未解决的异常"
+                                   FontSize="14"
+                                   Foreground="#757575"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 底部按钮栏 -->
+        <Border Grid.Row="2"
+                Background="White"
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,1,0,0"
+                Padding="16">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0"
+                        Content="全选"
+                        Command="{Binding SelectAllCommand}"
+                        Padding="16,8"
+                        CornerRadius="6"
+                        Background="Transparent"
+                        BorderBrush="{StaticResource PrimaryBrush}"
+                        BorderThickness="1"
+                        Foreground="{StaticResource PrimaryBrush}"
+                        IsVisible="{Binding UnresolvedExceptions.Count}"/>
+
+                <Button Grid.Column="2"
+                        Content="消除选中"
+                        Command="{Binding ResolveSelectedCommand}"
+                        IsEnabled="{Binding !IsResolving}"
+                        Padding="16,8"
+                        CornerRadius="6"
+                        Background="{StaticResource ErrorBrush}"
+                        Foreground="White"
+                        IsVisible="{Binding UnresolvedExceptions.Count}">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Opacity" Value="0.8"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

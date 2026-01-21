@@ -33,15 +33,15 @@ public partial class MainWindowViewModel : ObservableObject
             // 延迟创建页面，避免构造函数中出现问题
             try
             {
-                var agvListViewModel = App.Services.GetRequiredService<AgvListViewModel>();
-                CurrentPage = agvListViewModel;
+                var taskMonitorViewModel = App.Services.GetRequiredService<TaskMonitorViewModel>();
+                CurrentPage = taskMonitorViewModel;
 
                 // 触发数据加载
-                agvListViewModel.OnNavigatedTo();
+                taskMonitorViewModel.OnNavigatedTo();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"创建AgvListViewModel失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"创建TaskMonitorViewModel失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"堆栈跟踪: {ex.StackTrace}");
                 throw;
             }

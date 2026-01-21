@@ -1,0 +1,177 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="600"
+        x:Class="AgvDispatch.Mobile.Views.Dialogs.CallForLoadingDialog"
+        x:DataType="vm:CallForLoadingDialogViewModel"
+        Title="召唤小车上料"
+        Width="400"
+        Height="600"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- 标题栏 -->
+        <Border Grid.Row="0" Background="{StaticResource SuccessBrush}" Padding="16">
+            <StackPanel Spacing="4">
+                <TextBlock Text="召唤小车上料" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="选择站点和小车" FontSize="12" Foreground="White" Opacity="0.9"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 内容区 -->
+        <ScrollViewer Grid.Row="1" Padding="16">
+            <StackPanel Spacing="16">
+                <!-- 目标站点选择 -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="目标站点" FontSize="14" FontWeight="SemiBold" Foreground="#212121"/>
+                    <ComboBox ItemsSource="{Binding Stations}"
+                              SelectedItem="{Binding SelectedStation}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock>
+                                    <Run Text="{Binding StationCode}"/>
+                                    <Run Text=" - "/>
+                                    <Run Text="{Binding DisplayName}"/>
+                                </TextBlock>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Text="请选择上料站点" FontSize="12" Foreground="#757575"/>
+                </StackPanel>
+
+                <!-- 加载推荐中 -->
+                <StackPanel Spacing="8" IsVisible="{Binding IsLoadingRecommendations}">
+                    <ProgressBar IsIndeterminate="True" Height="4"/>
+                    <TextBlock Text="查询推荐小车中..." FontSize="12" Foreground="#757575" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- 推荐列表 -->
+                <StackPanel Spacing="12" IsVisible="{Binding !IsLoadingRecommendations}">
+                    <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="#212121">
+                        <Run Text="推荐小车 ("/>
+                        <Run Text="{Binding Recommendations.Count}"/>
+                        <Run Text=" 辆)"/>
+                    </TextBlock>
+
+                    <!-- 无推荐提示 -->
+                    <Border Background="#FFF3E0"
+                            CornerRadius="4"
+                            Padding="12"
+                            IsVisible="{Binding !Recommendations.Count}">
+                        <TextBlock Text="暂无推荐小车" Foreground="#F57C00"/>
+                    </Border>
+
+                    <!-- 推荐小车列表 -->
+                    <ItemsControl ItemsSource="{Binding Recommendations}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="White"
+                                        CornerRadius="8"
+                                        BoxShadow="0 2 4 0 #10000000"
+                                        Padding="12"
+                                        Margin="0,0,0,8">
+                                    <StackPanel Spacing="8">
+                                        <!-- AGV信息 -->
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding AgvCode}"
+                                                       FontSize="14"
+                                                       FontWeight="Bold"
+                                                       Foreground="#212121"
+                                                       Margin="0,0,8,0"/>
+                                            <Border Grid.Column="2"
+                                                    Background="{Binding Status, Converter={StaticResource AgvStatusToBrushConverter}}"
+                                                    CornerRadius="4"
+                                                    Padding="6,2">
+                                                <TextBlock Text="{Binding Status}"
+                                                           FontSize="11"
+                                                           Foreground="White"/>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- 详细信息 -->
+                                        <TextBlock FontSize="12" Foreground="#757575">
+                                            <Run Text="电量: "/>
+                                            <Run Text="{Binding Battery}"/>
+                                            <Run Text="% | 得分: "/>
+                                            <Run Text="{Binding TotalScore, StringFormat={}{0:F1}}"/>
+                                        </TextBlock>
+
+                                        <!-- 推荐理由 -->
+                                        <TextBlock Text="{Binding RecommendReason}"
+                                                   FontSize="12"
+                                                   Foreground="#2196F3"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding !!RecommendReason}"/>
+
+                                        <!-- 可用性标识 -->
+                                        <Border Background="#FFEBEE"
+                                                CornerRadius="4"
+                                                Padding="6,2"
+                                                IsVisible="{Binding !IsAvailable}">
+                                            <TextBlock Text="不可用" FontSize="11" Foreground="#C62828"/>
+                                        </Border>
+
+                                        <!-- 选择按钮 -->
+                                        <Button Content="选择"
+                                                Click="OnSelectRecommendationClick"
+                                                Tag="{Binding}"
+                                                IsEnabled="{Binding IsAvailable}"
+                                                HorizontalAlignment="Stretch"
+                                                Padding="0,8"
+                                                Background="{StaticResource PrimaryBrush}"
+                                                Foreground="White"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- 错误消息 -->
+                <Border Background="#FFEBEE"
+                        CornerRadius="4"
+                        Padding="12"
+                        IsVisible="{Binding !!ErrorMessage}">
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Foreground="#C62828"
+                               TextWrapping="Wrap"/>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 底部按钮栏 -->
+        <Border Grid.Row="2"
+                Background="White"
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,1,0,0"
+                Padding="16">
+            <Grid ColumnDefinitions="*,*">
+                <Button Grid.Column="0"
+                        Content="取消"
+                        Click="OnCancelClick"
+                        HorizontalAlignment="Stretch"
+                        Padding="16,10"
+                        CornerRadius="6"
+                        Background="#E0E0E0"
+                        Foreground="#424242"
+                        Margin="0,0,4,0"/>
+                <Button Grid.Column="1"
+                        Content="确认分配"
+                        Command="{Binding ConfirmCommand}"
+                        Click="OnConfirmClick"
+                        IsEnabled="{Binding !IsCreatingTask}"
+                        HorizontalAlignment="Stretch"
+                        Padding="16,10"
+                        CornerRadius="6"
+                        Background="{StaticResource SuccessBrush}"
+                        Foreground="White"
+                        Margin="4,0,0,0"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
