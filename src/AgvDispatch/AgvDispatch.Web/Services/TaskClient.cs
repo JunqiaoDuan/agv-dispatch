@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
+using AgvDispatch.Business.Entities.TaskAggregate;
 using AgvDispatch.Shared.DTOs;
 using AgvDispatch.Shared.DTOs.Tasks;
+using AgvDispatch.Shared.Enums;
 
 namespace AgvDispatch.Web.Services;
 
@@ -83,6 +85,39 @@ public class TaskClient : ITaskClient
     public async Task<TaskDetailDto?> GetByIdAsync(Guid id)
     {
         var response = await _http.GetFromJsonAsync<ApiResponse<TaskDetailDto>>($"api/tasks/{id}");
+        return response?.Success == true ? response.Data : null;
+    }
+
+    public async Task<PagedResponse<TaskJob>?> GetPagedTasksAsync(
+        string? startTime = null,
+        string? endTime = null,
+        string? agvCode = null,
+        TaskJobStatus? status = null,
+        TaskJobType? taskType = null,
+        int pageIndex = 0,
+        int pageSize = 50)
+    {
+        var query = new List<string>();
+        query.Add($"pageIndex={pageIndex}");
+        query.Add($"pageSize={pageSize}");
+
+        if (!string.IsNullOrWhiteSpace(startTime))
+            query.Add($"startTime={Uri.EscapeDataString(startTime)}");
+
+        if (!string.IsNullOrWhiteSpace(endTime))
+            query.Add($"endTime={Uri.EscapeDataString(endTime)}");
+
+        if (!string.IsNullOrWhiteSpace(agvCode))
+            query.Add($"agvCode={Uri.EscapeDataString(agvCode)}");
+
+        if (status.HasValue)
+            query.Add($"status={status.Value}");
+
+        if (taskType.HasValue)
+            query.Add($"taskType={taskType.Value}");
+
+        var queryString = string.Join("&", query);
+        var response = await _http.GetFromJsonAsync<ApiResponse<PagedResponse<TaskJob>>>($"api/tasks/paged?{queryString}");
         return response?.Success == true ? response.Data : null;
     }
 

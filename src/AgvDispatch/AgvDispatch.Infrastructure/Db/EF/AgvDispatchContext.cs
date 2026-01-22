@@ -1,4 +1,5 @@
 using AgvDispatch.Business.Entities.AgvAggregate;
+using AgvDispatch.Business.Entities.BackgroundJobLogAggregate;
 using AgvDispatch.Business.Entities.MapAggregate;
 using AgvDispatch.Business.Entities.MqttMessageLogAggregate;
 using AgvDispatch.Business.Entities.RouteAggregate;
@@ -35,6 +36,7 @@ public class AgvDispatchContext : DbContext
     public DbSet<AgvExceptionLog> AgvExceptionLogs { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<MqttMessageLog> MqttMessageLogs { get; set; }
+    public DbSet<BackgroundJobLog> BackgroundJobLogs { get; set; }
     public DbSet<TaskJob> TaskJobs { get; set; }
 
     #endregion

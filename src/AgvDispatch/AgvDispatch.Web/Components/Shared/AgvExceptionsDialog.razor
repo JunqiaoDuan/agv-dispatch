@@ -216,9 +216,12 @@
     private bool _loading = true;
     private bool _resolving = false;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadExceptions();
+        if (firstRender)
+        {
+            await LoadExceptions();
+        }
     }
 
     private async Task LoadExceptions()

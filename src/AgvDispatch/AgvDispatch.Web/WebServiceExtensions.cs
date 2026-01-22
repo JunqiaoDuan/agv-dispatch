@@ -41,6 +41,7 @@ public static class WebServiceExtensions
         services.AddScoped<IRouteClient, RouteClient>();
         services.AddScoped<IStationClient, StationClient>();
         services.AddScoped<IMqttMessageClient, MqttMessageClient>();
+        services.AddScoped<IBackgroundJobLogClient, BackgroundJobLogClient>();
         services.AddScoped<ITaskClient, TaskClient>();
 
         return services;

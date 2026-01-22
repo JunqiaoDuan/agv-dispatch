@@ -4,9 +4,12 @@ using AgvDispatch.Host.Extensions;
 using AgvDispatch.Host.Middlewares;
 using AgvDispatch.Host.Services;
 using AgvDispatch.Infrastructure;
+using AgvDispatch.Infrastructure.Jobs;
 using AgvDispatch.Infrastructure.Mqtt;
+using AgvDispatch.Infrastructure.Options;
 using AgvDispatch.Web;
 using AgvDispatch.Web.Components;
+using Quartz;
 using Serilog;
 
 try
@@ -34,6 +37,27 @@ try
 
     // 注册 Infrastructure 服务 (EF Core + PostgreSQL)
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    // 注册健康检测配置
+    builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthCheck"));
+
+    // 注册 Quartz 定时任务
+    builder.Services.AddQuartz(q =>
+    {
+        // 配置 AGV 健康检测任务
+        var jobKey = new JobKey("AgvHealthCheckJob");
+        q.AddJob<AgvHealthCheckJob>(opts => opts.WithIdentity(jobKey));
+
+        q.AddTrigger(opts => opts
+            .ForJob(jobKey)
+            .WithIdentity("AgvHealthCheckTrigger")
+            .WithSimpleSchedule(x => x
+                .WithIntervalInSeconds(builder.Configuration.GetValue<int>("HealthCheck:CheckIntervalSeconds", 30))
+                .RepeatForever())
+            .StartNow());
+    });
+
+    builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
     // 注册任务相关服务
     builder.Services.AddTaskServices();

@@ -1,0 +1,307 @@
+@page "/tasks-list"
+@using AgvDispatch.Business.Entities.TaskAggregate
+@using AgvDispatch.Web.Services
+@using AgvDispatch.Shared.DTOs
+@using AgvDispatch.Shared.DTOs.Tasks
+@using AgvDispatch.Shared.Enums
+@using AgvDispatch.Web.Components.Shared
+@using System.Text.Json
+@rendermode InteractiveServer
+@inject ITaskClient TaskClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@implements IDisposable
+
+<PageTitle>任务列表 - AGV 调度系统</PageTitle>
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4">任务列表</MudText>
+</MudStack>
+
+@* 统计信息卡片 *@
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">总任务数</MudText>
+                    <MudText Typo="Typo.h4">@_totalCount.ToString("N0")</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Color="Color.Primary" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">执行中</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Info">@_tasks.Count(t => t.TaskStatus == TaskJobStatus.Executing).ToString("N0")</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Info" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">已完成</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Success">@_tasks.Count(t => t.TaskStatus == TaskJobStatus.Completed).ToString("N0")</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Default">失败/取消</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Error">@_tasks.Count(t => t.TaskStatus == TaskJobStatus.Failed || t.TaskStatus == TaskJobStatus.Cancelled).ToString("N0")</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Large" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@* 筛选条件 *@
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudDatePicker Label="起始时间" @bind-Date="_startDate" DateFormat="yyyy-MM-dd" Editable="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudDatePicker Label="截至时间" @bind-Date="_endDate" DateFormat="yyyy-MM-dd" Editable="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudTextField T="string" Label="AGV编号" @bind-Value="_filterAgvCode" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="TaskJobStatus?" Label="任务状态" @bind-Value="_filterStatus" Clearable="true">
+                <MudSelectItem T="TaskJobStatus?" Value="null">全部</MudSelectItem>
+                <MudSelectItem T="TaskJobStatus?" Value="TaskJobStatus.Pending">待分配</MudSelectItem>
+                <MudSelectItem T="TaskJobStatus?" Value="TaskJobStatus.Assigned">已分配</MudSelectItem>
+                <MudSelectItem T="TaskJobStatus?" Value="TaskJobStatus.Executing">执行中</MudSelectItem>
+                <MudSelectItem T="TaskJobStatus?" Value="TaskJobStatus.Completed">已完成</MudSelectItem>
+                <MudSelectItem T="TaskJobStatus?" Value="TaskJobStatus.Cancelled">已取消</MudSelectItem>
+                <MudSelectItem T="TaskJobStatus?" Value="TaskJobStatus.Failed">失败</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="TaskJobType?" Label="任务类型" @bind-Value="_filterTaskType" Clearable="true">
+                <MudSelectItem T="TaskJobType?" Value="null">全部</MudSelectItem>
+                <MudSelectItem T="TaskJobType?" Value="TaskJobType.CallForLoading">召唤小车上料</MudSelectItem>
+                <MudSelectItem T="TaskJobType?" Value="TaskJobType.SendToUnloading">告知小车去下料</MudSelectItem>
+                <MudSelectItem T="TaskJobType?" Value="TaskJobType.ReturnToWaiting">确认下料去等待区</MudSelectItem>
+                <MudSelectItem T="TaskJobType?" Value="TaskJobType.SendToCharge">让小车充电</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchTasks" StartIcon="@Icons.Material.Filled.Search">
+            查询
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="ClearFilters" StartIcon="@Icons.Material.Filled.Clear">
+            清除
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="LoadTasks" StartIcon="@Icons.Material.Filled.Refresh">
+            刷新
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@* 任务列表 *@
+<MudPaper Class="pa-4" Elevation="2">
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+
+    <MudTable T="TaskJob" Items="@_tasks" Hover="true" Breakpoint="Breakpoint.Sm" FixedHeader="true" Height="600px" Dense="true">
+        <HeaderContent>
+            <MudTh>任务ID</MudTh>
+            <MudTh>任务类型</MudTh>
+            <MudTh>状态</MudTh>
+            <MudTh>AGV编号</MudTh>
+            <MudTh>起点</MudTh>
+            <MudTh>终点</MudTh>
+            <MudTh>进度</MudTh>
+            <MudTh>优先级</MudTh>
+            <MudTh>创建时间</MudTh>
+            <MudTh>操作</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="任务ID">@context.Id.ToString().Substring(0, 8)...</MudTd>
+            <MudTd DataLabel="任务类型">@context.TaskType.ToDisplayText()</MudTd>
+            <MudTd DataLabel="状态">
+                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.TaskStatus)">
+                    @context.TaskStatus.ToDisplayText()
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="AGV编号">@(context.AssignedAgvCode ?? "-")</MudTd>
+            <MudTd DataLabel="起点">@context.StartStationCode</MudTd>
+            <MudTd DataLabel="终点">@context.EndStationCode</MudTd>
+            <MudTd DataLabel="进度">
+                @if (context.ProgressPercentage.HasValue)
+                {
+                    <MudProgressLinear Value="@((double)context.ProgressPercentage.Value)" Color="Color.Primary" Size="Size.Small" />
+                    <MudText Typo="Typo.caption">@context.ProgressPercentage.Value.ToString("F1")%</MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption">-</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="优先级">@context.Priority</MudTd>
+            <MudTd DataLabel="创建时间">@context.CreationDate?.ToString("yyyy-MM-dd HH:mm:ss")</MudTd>
+            <MudTd DataLabel="操作">
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => ShowTaskDetails(context))" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    @* 分页 *@
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-3">
+        <MudText Typo="Typo.body2">
+            显示 @((_currentPage * _pageSize) + 1)-@Math.Min((_currentPage + 1) * _pageSize, _totalCount) 条，共 @_totalCount 条
+        </MudText>
+        <MudPagination Count="@_totalPages" Selected="@(_currentPage + 1)" SelectedChanged="OnPageChanged"
+                       BoundaryCount="1" MiddleCount="3" />
+    </MudStack>
+</MudPaper>
+
+@code {
+    private List<TaskJob> _tasks = new();
+    private bool _loading = true;
+
+    // 日期范围（默认最近7天）
+    private DateTime? _startDate;
+    private DateTime? _endDate;
+
+    // 分页相关
+    private int _currentPage = 0;
+    private int _pageSize = 50;
+    private int _totalCount = 0;
+    private int _totalPages => (_totalCount + _pageSize - 1) / _pageSize;
+
+    // 过滤条件
+    private string? _filterAgvCode;
+    private TaskJobStatus? _filterStatus;
+    private TaskJobType? _filterTaskType;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _endDate = DateTime.Today;
+            _startDate = DateTime.Today.AddDays(-7);
+            await LoadTasks();
+        }
+    }
+
+    private async Task LoadTasks()
+    {
+        _loading = true;
+        try
+        {
+            string? startTime = _startDate?.ToString("yyyyMMdd");
+            string? endTime = _endDate?.ToString("yyyyMMdd");
+
+            var result = await TaskClient.GetPagedTasksAsync(
+                startTime, endTime, _filterAgvCode, _filterStatus, _filterTaskType,
+                _currentPage, _pageSize);
+
+            if (result != null)
+            {
+                _tasks = result.Items;
+                _totalCount = result.TotalCount;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载任务失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SearchTasks()
+    {
+        _currentPage = 0;
+        await LoadTasks();
+    }
+
+    private async Task OnPageChanged(int page)
+    {
+        _currentPage = page - 1;
+        await LoadTasks();
+    }
+
+    private async Task ClearFilters()
+    {
+        _filterAgvCode = null;
+        _filterStatus = null;
+        _filterTaskType = null;
+        _endDate = DateTime.Today;
+        _startDate = DateTime.Today.AddDays(-7);
+        _currentPage = 0;
+        await LoadTasks();
+    }
+
+    private async Task ShowTaskDetails(TaskJob task)
+    {
+        // 将 TaskJob 实体转换为 TaskListItemDto
+        var taskDto = new TaskListItemDto
+        {
+            Id = task.Id,
+            TaskType = task.TaskType,
+            TaskStatus = task.TaskStatus,
+            Priority = task.Priority,
+            StartStationCode = task.StartStationCode,
+            EndStationCode = task.EndStationCode,
+            AssignedAgvCode = task.AssignedAgvCode,
+            ProgressPercentage = task.ProgressPercentage,
+            Description = task.Description,
+            CreationDate = task.CreationDate,
+            AssignedAt = task.AssignedAt,
+            StartedAt = task.StartedAt,
+            CompletedAt = task.CompletedAt
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Task"] = taskDto,
+            ["OnTaskStopped"] = EventCallback.Factory.Create(this, LoadTasks)
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        await DialogService.ShowAsync<TaskDetailDialog>("任务详情", parameters, options);
+    }
+
+    private Color GetStatusColor(TaskJobStatus status) => status switch
+    {
+        TaskJobStatus.Pending => Color.Default,
+        TaskJobStatus.Assigned => Color.Info,
+        TaskJobStatus.Executing => Color.Primary,
+        TaskJobStatus.Completed => Color.Success,
+        TaskJobStatus.Cancelled => Color.Warning,
+        TaskJobStatus.Failed => Color.Error,
+        _ => Color.Default
+    };
+
+    public void Dispose()
+    {
+    }
+}

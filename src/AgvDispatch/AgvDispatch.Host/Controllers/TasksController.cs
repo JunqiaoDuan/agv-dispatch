@@ -9,6 +9,7 @@ using AgvDispatch.Shared.Extensions;
 using AgvDispatch.Shared.Repository;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TaskStatusEnum = AgvDispatch.Shared.Enums.TaskJobStatus;
 
 namespace AgvDispatch.Host.Controllers;
@@ -174,6 +175,51 @@ public class TasksController : ControllerBase
         var items = tasks.MapToList<TaskListItemDto>();
 
         return Ok(ApiResponse<List<TaskListItemDto>>.Ok(items));
+    }
+
+    /// <summary>
+    /// 分页查询任务列表
+    /// </summary>
+    [HttpGet("paged")]
+    public async Task<ActionResult<ApiResponse<PagedResponse<TaskJob>>>> GetPagedTasks(
+        [FromQuery] string? startTime = null,
+        [FromQuery] string? endTime = null,
+        [FromQuery] string? agvCode = null,
+        [FromQuery] TaskJobStatus? status = null,
+        [FromQuery] TaskJobType? taskType = null,
+        [FromQuery] int pageIndex = 0,
+        [FromQuery] int pageSize = 50)
+    {
+        pageSize = Math.Min(pageSize, 200);
+
+        // 解析日期参数
+        DateTime? startDate = null;
+        if (!string.IsNullOrWhiteSpace(startTime) && DateTime.TryParseExact(startTime, "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out var start))
+        {
+            startDate = start;
+        }
+
+        DateTime? endDate = null;
+        if (!string.IsNullOrWhiteSpace(endTime) && DateTime.TryParseExact(endTime, "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out var end))
+        {
+            endDate = end;
+        }
+
+        // 使用规约查询总数
+        var countSpec = new TaskJobCountSpec(startDate, endDate, agvCode, status, taskType);
+        var totalCount = await _taskRepository.CountAsync(countSpec);
+
+        // 使用规约分页查询
+        var pagedSpec = new TaskJobPagedSpec(startDate, endDate, agvCode, status, taskType, pageIndex, pageSize);
+        var tasks = await _taskRepository.ListAsync(pagedSpec);
+
+        var response = new PagedResponse<TaskJob>
+        {
+            Items = tasks,
+            TotalCount = totalCount
+        };
+
+        return Ok(ApiResponse<PagedResponse<TaskJob>>.Ok(response));
     }
 
     /// <summary>

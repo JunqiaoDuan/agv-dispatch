@@ -39,32 +39,12 @@ AgvDispatch 是一个 AGV（自动导引车）调度管理系统，采用分层�
 ## 1. 解决方案文件
 - 项目使用 **AgvDispatch.slnx**（新格式），而非 AgvDispatch.sln
 - 执行构建、测试等命令时，确保使用正确的解决方案文件
-
+- 
 ## 2. 代码风格：快速失败（Fail Fast）
 优先使用早期返回，避免深层嵌套：
-```csharp
-// ✅ 推荐：早期返回
-if (task == null) return;
-if (task.Status != TaskStatus.Pending) return;
-ExecuteTask(task);
-
-// ❌ 避免：深层嵌套
-if (task != null) {
-    if (task.Status == TaskStatus.Pending) { ... }
-}
-```
 
 ## 3. 避免硬编码
 使用常量、枚举、配置文件代替魔法值：
-```csharp
-// ✅ 推荐
-public const int MaxRetryCount = 3;
-public enum TaskStatus { Pending, Running, Completed }
-
-// ❌ 避免
-if (retryCount > 3) { ... }
-if (status == "pending") { ... }
-```
 
 ## 4. 命名规范
 - **实体类**: 使用领域术语（如 `Agv`、`TaskJob`、`Station`）
@@ -78,36 +58,18 @@ Web 端已配置全局异常处理，仅在以下场景使用 try-catch：
 - 需要转换或包装异常类型
 - 需要从异常中恢复并继续执行
 
-```csharp
-// ✅ 推荐：让全局异常处理器处理
-public async Task<AgvDto> GetAgvAsync(int id)
-{
-    var agv = await _repository.GetByIdAsync(id);
-    if (agv == null) throw new NotFoundException($"AGV {id} not found");
-    return _mapper.Map<AgvDto>(agv);
-}
-
-// ❌ 避免：不必要的 try-catch
-try {
-    var agv = await _repository.GetByIdAsync(id);
-    return _mapper.Map<AgvDto>(agv);
-} catch (Exception ex) {
-    _logger.LogError(ex, "Error getting AGV"); // 全局处理器已经会做
-    throw;
-}
-```
-
 ## 6. 服务方法返回值设计
 对于可能失败的操作，服务方法应返回详细的错误信息，便于调用方处理：
 
-```csharp
-// ✅ 推荐：返回元组，包含成功标志和错误消息
-public async Task<(bool Success, string? Message)> CancelTaskAsync(Guid taskId, string? reason, Guid? userId)
-{}
-```
-
 ## 7. 数据库表结构设计
 每次对表结构进行调整时，记得在AgvDispatch.DbUpper中添加脚本文件
+
+## 8. 规格书模式
+所有查询，优先使用规格书模式
+
+## 9. OnAfterRenderAsync 生命周期
+Razor 组件中的数据加载应优先使用 `OnAfterRenderAsync` 而非 `OnInitializedAsync`，以确保在首次渲染后再执行 API 请求。
+这样可以避免因本地存储中的 JWT Token 尚未加载完成而导致的 401 未授权错误和意外的登录页跳转。
 
 ## 99. 文档更新原则
 **当学习到新的项目规则、模式或约定时，立即更新此 CLAUDE.md 文件，确保文档始终反映项目最新实践。**

@@ -1,4 +1,7 @@
+using AgvDispatch.Business.Entities.TaskAggregate;
+using AgvDispatch.Shared.DTOs;
 using AgvDispatch.Shared.DTOs.Tasks;
+using AgvDispatch.Shared.Enums;
 
 namespace AgvDispatch.Web.Services;
 
@@ -52,6 +55,18 @@ public interface ITaskClient
     /// 获取任务详情
     /// </summary>
     Task<TaskDetailDto?> GetByIdAsync(Guid id);
+
+    /// <summary>
+    /// 分页查询任务列表
+    /// </summary>
+    Task<PagedResponse<TaskJob>?> GetPagedTasksAsync(
+        string? startTime = null,
+        string? endTime = null,
+        string? agvCode = null,
+        TaskJobStatus? status = null,
+        TaskJobType? taskType = null,
+        int pageIndex = 0,
+        int pageSize = 50);
 
     #endregion
 
