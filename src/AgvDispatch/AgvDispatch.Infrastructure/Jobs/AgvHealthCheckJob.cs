@@ -86,7 +86,6 @@ public class AgvHealthCheckJob : IJob
                     agv.AgvCode, _options.AgvOfflineThresholdSeconds, lastOnlineTimeText);
 
                 agv.AgvStatus = AgvStatus.Offline;
-                agv.CurrentTaskId = null;  // 清空当前任务
 
                 await agvRepository.UpdateAsync(agv);
                 offlineAgvCodes.Add(agv.AgvCode);

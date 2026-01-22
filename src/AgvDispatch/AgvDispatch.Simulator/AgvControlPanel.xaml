@@ -152,7 +152,7 @@
                 <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtBatteryVoltageInput" Text="53.0" Margin="0,5,10,0"/>
 
                 <TextBlock Grid.Row="2" Grid.Column="2" Text="速度(m/s):" VerticalAlignment="Center" Margin="0,5,10,0"/>
-                <TextBox Grid.Row="2" Grid.Column="3" x:Name="TxtSpeedInput" Text="0" Margin="0,5,10,0"/>
+                <TextBox Grid.Row="2" Grid.Column="3" x:Name="TxtSpeedInput" Text="0.5" Margin="0,5,10,0"/>
             </Grid>
         </GroupBox>
 
