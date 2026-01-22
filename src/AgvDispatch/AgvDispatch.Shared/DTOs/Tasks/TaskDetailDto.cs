@@ -16,9 +16,8 @@ public class TaskDetailDto
     public string EndStationCode { get; set; } = string.Empty;
 
     /// <summary>
-    /// 已分配的小车ID
+    /// 已分配的小车编号
     /// </summary>
-    public Guid? AssignedAgvId { get; set; }
     public string? AssignedAgvCode { get; set; }
     public Guid? AssignedBy { get; set; }
     public string? AssignedByName { get; set; }

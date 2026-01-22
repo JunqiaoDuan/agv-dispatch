@@ -112,7 +112,7 @@ public class TasksController : ControllerBase
         var task = await _taskJobService.CreateTaskWithAgvAsync(
             request.TaskType,
             request.TargetStationCode,
-            request.SelectedAgvId,
+            request.SelectedAgvCode,
             userId);
 
         var response = new CreateTaskResponseDto
@@ -120,8 +120,8 @@ public class TasksController : ControllerBase
             TaskId = task.Id
         };
 
-        _logger.LogInformation("[TasksController] 创建任务成功: TaskId={TaskId}, AgvId={AgvId}",
-            task.Id, request.SelectedAgvId);
+        _logger.LogInformation("[TasksController] 创建任务成功: TaskId={TaskId}, AgvCode={AgvCode}",
+            task.Id, request.SelectedAgvCode);
 
         return Ok(ApiResponse<CreateTaskResponseDto>.Ok(response, "任务创建成功，已下发"));
     }
@@ -134,32 +134,20 @@ public class TasksController : ControllerBase
     {
         var userId = GetCurrentUserId();
 
-        var success = await _taskJobService.CancelTaskAsync(
+        var (success, message) = await _taskJobService.CancelTaskAsync(
             request.TaskId,
             request.Reason,
             userId);
 
         if (!success)
         {
-            return BadRequest(ApiResponse<bool>.Fail("取消失败，任务状态不允许取消"));
+            return BadRequest(ApiResponse<bool>.Fail(message ?? "取消失败"));
         }
 
-        _logger.LogInformation("[TasksController] 取消任务成功: TaskId={TaskId}", request.TaskId);
+        _logger.LogInformation("[TasksController] 取消任务成功: TaskId={TaskId}, Reason={Reason}",
+            request.TaskId, request.Reason);
 
         return Ok(ApiResponse<bool>.Ok(true, "取消成功"));
-    }
-
-    /// <summary>
-    /// 获取任务列表
-    /// </summary>
-    [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<TaskListItemDto>>>> GetAll()
-    {
-        var spec = new TaskListSpec();
-        var tasks = await _taskRepository.ListAsync(spec);
-        var items = tasks.MapToList<TaskListItemDto>();
-
-        return Ok(ApiResponse<List<TaskListItemDto>>.Ok(items));
     }
 
     /// <summary>
@@ -169,6 +157,19 @@ public class TasksController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<TaskListItemDto>>>> GetByStatus(TaskStatusEnum status)
     {
         var spec = new TaskByStatusSpec(status);
+        var tasks = await _taskRepository.ListAsync(spec);
+        var items = tasks.MapToList<TaskListItemDto>();
+
+        return Ok(ApiResponse<List<TaskListItemDto>>.Ok(items));
+    }
+
+    /// <summary>
+    /// 获取活动任务列表（待分配、已分配、执行中）
+    /// </summary>
+    [HttpGet("active")]
+    public async Task<ActionResult<ApiResponse<List<TaskListItemDto>>>> GetActiveTasks()
+    {
+        var spec = new TaskActiveSpec();
         var tasks = await _taskRepository.ListAsync(spec);
         var items = tasks.MapToList<TaskListItemDto>();
 

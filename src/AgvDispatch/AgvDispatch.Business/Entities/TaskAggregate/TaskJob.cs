@@ -34,9 +34,9 @@ public class TaskJob : BaseEntity
     public string EndStationCode { get; set; } = string.Empty;
 
     /// <summary>
-    /// 分配的小车ID
+    /// 分配的小车编号
     /// </summary>
-    public Guid? AssignedAgvId { get; set; }
+    public string? AssignedAgvCode { get; set; }
 
     /// <summary>
     /// 进度百分比(0-100)

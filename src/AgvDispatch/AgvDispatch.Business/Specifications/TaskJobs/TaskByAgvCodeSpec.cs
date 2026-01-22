@@ -4,13 +4,13 @@ using Ardalis.Specification;
 namespace AgvDispatch.Business.Specifications.TaskJobs;
 
 /// <summary>
-/// 根据小车ID获取任务列表
+/// 根据小车编号获取任务列表
 /// </summary>
-public class TaskByAgvIdSpec : Specification<TaskJob>
+public class TaskByAgvCodeSpec : Specification<TaskJob>
 {
-    public TaskByAgvIdSpec(Guid agvId)
+    public TaskByAgvCodeSpec(string agvCode)
     {
-        Query.Where(x => x.AssignedAgvId == agvId && x.IsValid)
+        Query.Where(x => x.AssignedAgvCode == agvCode && x.IsValid)
             .OrderByDescending(x => x.CreationDate);
     }
 }

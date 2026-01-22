@@ -123,7 +123,7 @@ public partial class SendToChargeDialogViewModel : ObservableObject
             {
                 TaskType = TaskJobType.SendToCharge,
                 TargetStationCode = SelectedStation.StationCode,
-                SelectedAgvId = SelectedItem.AgvId
+                SelectedAgvCode = SelectedItem.AgvCode
             };
 
             var response = await _agvApiService.CreateTaskAsync(request);

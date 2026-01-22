@@ -49,7 +49,7 @@
                                 @* 如果没有可用小车，全部折叠；如果有可用小车，只显示第一个可用的，其它折叠 *@
                                 @if (ShouldShowItem(index, item.IsAvailable))
                                 {
-                                    <MudCard Outlined="true" Class="@(SelectedAgvId == item.AgvId ? "selected-card" : "")">
+                                    <MudCard Outlined="true" Class="@(SelectedAgvCode == item.AgvCode ? "selected-card" : "")">
                                         <MudCardContent Class="pa-2">
                                             <MudStack Spacing="1">
                                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
@@ -83,13 +83,13 @@
                                                     </MudText>
                                                 }
 
-                                                <MudButton Variant="@(SelectedAgvId == item.AgvId ? Variant.Filled : Variant.Outlined)"
+                                                <MudButton Variant="@(SelectedAgvCode == item.AgvCode ? Variant.Filled : Variant.Outlined)"
                                                            Color="Color.Primary"
                                                            Size="Size.Small"
                                                            FullWidth="true"
-                                                           OnClick="@(() => SelectAgv(item.AgvId))"
+                                                           OnClick="@(() => SelectAgv(item.AgvCode))"
                                                            Disabled="@(!item.IsAvailable)">
-                                                    @(SelectedAgvId == item.AgvId ? "已选择" : item.IsAvailable ? "选择" : "不可用")
+                                                    @(SelectedAgvCode == item.AgvCode ? "已选择" : item.IsAvailable ? "选择" : "不可用")
                                                 </MudButton>
                                             </MudStack>
                                         </MudCardContent>
@@ -127,7 +127,7 @@
                        Color="Color.Success"
                        StartIcon="@Icons.Material.Filled.Check"
                        OnClick="ConfirmAssignment"
-                       Disabled="@(Assigning || SelectedAgvId == null || string.IsNullOrWhiteSpace(TargetStationCode))">
+                       Disabled="@(Assigning || string.IsNullOrWhiteSpace(SelectedAgvCode) || string.IsNullOrWhiteSpace(TargetStationCode))">
                 @if (Assigning)
                 {
                     <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -165,7 +165,7 @@
 
     private string TargetStationCode = string.Empty;
     private List<AgvPendingItemDto> PendingItems = [];
-    private Guid? SelectedAgvId;
+    private string? SelectedAgvCode;
     private bool LoadingPendingItems = false;
     private bool Assigning = false;
     private bool _previousVisible = false;
@@ -179,7 +179,7 @@
             // 打开弹窗时重置状态并加载数据
             TargetStationCode = string.Empty;
             PendingItems.Clear();
-            SelectedAgvId = null;
+            SelectedAgvCode = null;
             await LoadPendingAgvs();
         }
 
@@ -199,7 +199,7 @@
     {
         LoadingPendingItems = true;
         PendingItems.Clear();
-        SelectedAgvId = null;
+        SelectedAgvCode = null;
 
         try
         {
@@ -225,14 +225,14 @@
         }
     }
 
-    private void SelectAgv(Guid agvId)
+    private void SelectAgv(string agvCode)
     {
-        SelectedAgvId = agvId;
+        SelectedAgvCode = agvCode;
     }
 
     private async Task ConfirmAssignment()
     {
-        if (SelectedAgvId == null) return;
+        if (string.IsNullOrWhiteSpace(SelectedAgvCode)) return;
 
         Assigning = true;
 
@@ -242,7 +242,7 @@
             {
                 TaskType = TaskJobType.SendToCharge,
                 TargetStationCode = TargetStationCode,
-                SelectedAgvId = SelectedAgvId.Value
+                SelectedAgvCode = SelectedAgvCode
             };
 
             var response = await TaskClient.CreateTaskAsync(request);
@@ -273,7 +273,7 @@
         Visible = false;
         await VisibleChanged.InvokeAsync(Visible);
         PendingItems.Clear();
-        SelectedAgvId = null;
+        SelectedAgvCode = null;
         TargetStationCode = string.Empty;
     }
 

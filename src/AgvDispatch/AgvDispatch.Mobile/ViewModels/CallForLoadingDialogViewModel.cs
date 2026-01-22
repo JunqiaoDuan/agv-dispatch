@@ -128,7 +128,7 @@ public partial class CallForLoadingDialogViewModel : ObservableObject
             {
                 TaskType = TaskJobType.CallForLoading,
                 TargetStationCode = SelectedStation.StationCode,
-                SelectedAgvId = SelectedRecommendation.AgvId
+                SelectedAgvCode = SelectedRecommendation.AgvCode
             };
 
             var response = await _agvApiService.CreateTaskAsync(request);

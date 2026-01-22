@@ -25,6 +25,7 @@ public interface IAgvApiService
 
     // 任务相关
     Task<List<TaskListItemDto>> GetAllTasksAsync();
+    Task<List<TaskListItemDto>> GetActiveTasksAsync();
     Task<List<AgvRecommendationDto>> GetRecommendationsAsync(GetRecommendationsRequestDto request);
     Task<CreateTaskResponseDto?> CreateTaskAsync(CreateTaskWithAgvRequestDto request);
     Task<List<AgvPendingItemDto>> GetPendingUnloadingAgvsAsync();

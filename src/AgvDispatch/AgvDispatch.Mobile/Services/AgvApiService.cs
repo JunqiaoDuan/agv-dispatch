@@ -159,6 +159,20 @@ public class AgvApiService : IAgvApiService
         }
     }
 
+    public async Task<List<TaskListItemDto>> GetActiveTasksAsync()
+    {
+        try
+        {
+            var client = GetHttpClient();
+            var response = await client.GetFromJsonAsync<ApiResponse<List<TaskListItemDto>>>("api/tasks/active");
+            return response?.Success == true && response.Data != null ? response.Data : new List<TaskListItemDto>();
+        }
+        catch
+        {
+            return new List<TaskListItemDto>();
+        }
+    }
+
     public async Task<List<AgvRecommendationDto>> GetRecommendationsAsync(GetRecommendationsRequestDto request)
     {
         try

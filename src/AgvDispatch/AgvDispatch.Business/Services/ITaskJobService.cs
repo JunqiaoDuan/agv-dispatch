@@ -42,7 +42,7 @@ public interface ITaskJobService
     Task<TaskJob> CreateTaskWithAgvAsync(
         TaskJobType taskType,
         string targetStationCode,
-        Guid selectedAgvId,
+        string selectedAgvCode,
         Guid? userId);
 
     /// <summary>
@@ -53,7 +53,8 @@ public interface ITaskJobService
     /// <summary>
     /// 取消任务
     /// </summary>
-    Task<bool> CancelTaskAsync(Guid taskId, string? reason, Guid? userId);
+    /// <returns>成功标志和错误消息（成功时为 null）</returns>
+    Task<(bool Success, string? Message)> CancelTaskAsync(Guid taskId, string? reason, Guid? userId);
 
     #endregion
 

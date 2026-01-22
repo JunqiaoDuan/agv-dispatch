@@ -123,7 +123,7 @@ public partial class ReturnToWaitingDialogViewModel : ObservableObject
             {
                 TaskType = TaskJobType.ReturnToWaiting,
                 TargetStationCode = SelectedStation.StationCode,
-                SelectedAgvId = SelectedItem.AgvId
+                SelectedAgvCode = SelectedItem.AgvCode
             };
 
             var response = await _agvApiService.CreateTaskAsync(request);

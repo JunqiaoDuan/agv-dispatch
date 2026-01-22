@@ -97,5 +97,14 @@ try {
 }
 ```
 
-## 6. 文档更新原则
+## 6. 服务方法返回值设计
+对于可能失败的操作，服务方法应返回详细的错误信息，便于调用方处理：
+
+```csharp
+// ✅ 推荐：返回元组，包含成功标志和错误消息
+public async Task<(bool Success, string? Message)> CancelTaskAsync(Guid taskId, string? reason, Guid? userId)
+{}
+```
+
+## 99. 文档更新原则
 **当学习到新的项目规则、模式或约定时，立即更新此 CLAUDE.md 文件，确保文档始终反映项目最新实践。**

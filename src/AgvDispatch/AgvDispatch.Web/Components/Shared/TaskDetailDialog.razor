@@ -1,5 +1,6 @@
 @using AgvDispatch.Shared.DTOs.Tasks
 @using AgvDispatch.Shared.Enums
+@using AgvDispatch.Web.Services
 @using MudBlazor
 
 <MudDialog>
@@ -199,6 +200,18 @@
         </MudSimpleTable>
     </DialogContent>
     <DialogActions>
+        @* 仅在未完成状态下显示取消按钮：Pending, Assigned, Executing *@
+        @if (Task.TaskStatus == TaskJobStatus.Pending ||
+             Task.TaskStatus == TaskJobStatus.Assigned ||
+             Task.TaskStatus == TaskJobStatus.Executing)
+        {
+            <MudButton OnClick="ShowCancelConfirmation"
+                       Color="Color.Error"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Cancel">
+                取消任务
+            </MudButton>
+        }
         <MudButton OnClick="Close" Color="Color.Primary" Variant="Variant.Filled">关闭</MudButton>
     </DialogActions>
 </MudDialog>
@@ -210,9 +223,52 @@
     [Parameter]
     public TaskListItemDto Task { get; set; } = new();
 
+    [Parameter]
+    public EventCallback OnTaskStopped { get; set; }
+
+    [Inject]
+    private ITaskClient TaskClient { get; set; } = default!;
+
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = default!;
+
+    [Inject]
+    private IDialogService DialogService { get; set; } = default!;
+
     private void Close()
     {
         MudDialog?.Close();
+    }
+
+    /// <summary>
+    /// 显示取消任务确认对话框
+    /// </summary>
+    private async Task ShowCancelConfirmation()
+    {
+        var parameters = new DialogParameters
+        {
+            ["TaskId"] = Task.Id,
+            ["TaskStatus"] = Task.TaskStatus,
+            ["AgvCode"] = Task.AssignedAgvCode
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = false,
+            BackdropClick = false,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<CancelTaskConfirmationDialog>("取消任务", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            // 取消成功，通知父组件并关闭对话框
+            await OnTaskStopped.InvokeAsync();
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
     }
 
     private Color GetTaskTypeColor(TaskJobType taskType) => taskType switch

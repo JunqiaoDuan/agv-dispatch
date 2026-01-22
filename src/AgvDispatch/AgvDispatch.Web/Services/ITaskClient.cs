@@ -44,9 +44,9 @@ public interface ITaskClient
     Task<string?> CancelTaskAsync(CancelTaskRequestDto request);
 
     /// <summary>
-    /// 获取所有任务列表
+    /// 获取活动任务列表（待分配、已分配、执行中）
     /// </summary>
-    Task<List<TaskListItemDto>> GetAllAsync();
+    Task<List<TaskListItemDto>> GetActiveTasksAsync();
 
     /// <summary>
     /// 获取任务详情

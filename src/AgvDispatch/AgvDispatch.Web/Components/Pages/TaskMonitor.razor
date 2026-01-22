@@ -442,9 +442,9 @@
     {
         try
         {
-            // 原有逻辑用于地图渲染
+            // 加载所有AGV和活动任务用于地图渲染
             _agvs = await AgvClient.GetAllAsync();
-            _tasks = await TaskClient.GetAllAsync();
+            _tasks = await TaskClient.GetActiveTasksAsync();
 
             // 加载AGV监控数据
             _agvMonitorList = await AgvClient.GetMonitorListAsync();

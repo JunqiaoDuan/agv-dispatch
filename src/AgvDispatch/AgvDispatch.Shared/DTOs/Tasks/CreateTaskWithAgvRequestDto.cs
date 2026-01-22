@@ -18,7 +18,7 @@ public class CreateTaskWithAgvRequestDto
     public string TargetStationCode { get; set; } = string.Empty;
 
     /// <summary>
-    /// 选中的小车ID
+    /// 选中的小车编号
     /// </summary>
-    public Guid SelectedAgvId { get; set; }
+    public string SelectedAgvCode { get; set; } = string.Empty;
 }

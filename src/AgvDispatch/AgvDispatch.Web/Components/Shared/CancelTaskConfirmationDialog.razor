@@ -1,0 +1,175 @@
+@using AgvDispatch.Shared.DTOs.Tasks
+@using AgvDispatch.Shared.Enums
+@using AgvDispatch.Web.Services
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudAlert Severity="Severity.Warning" Class="mb-4">
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-1" />
+                重要提示
+            </MudText>
+            <MudText Typo="Typo.body2" Class="mt-2">
+                <strong>此操作不可逆！</strong>取消任务后，系统将释放 AGV 并将其状态设置为空闲。
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-1">
+                <strong>注意：</strong>如果 AGV 正在执行任务，您需要<strong>手动将小车开回某个站点</strong>，否则会影响后续调度。
+            </MudText>
+        </MudAlert>
+
+        <MudText Typo="Typo.body1" Class="mb-3">
+            <strong>任务ID:</strong> <span style="font-family: monospace;">@TaskId</span>
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="mb-3">
+            <strong>任务状态:</strong>
+            <MudChip T="string" Size="Size.Small" Color="@GetTaskStatusColor(TaskStatus)">
+                @TaskStatus.ToDisplayText()
+            </MudChip>
+        </MudText>
+
+        @if (!string.IsNullOrEmpty(AgvCode))
+        {
+            <MudText Typo="Typo.body1" Class="mb-3">
+                <strong>分配车辆:</strong> @AgvCode
+            </MudText>
+        }
+
+        <MudSelect @bind-Value="SelectedReason"
+                   Label="取消原因（必选）"
+                   Variant="Variant.Outlined"
+                   Required="true"
+                   Class="mb-3">
+            @foreach (var reason in CancelReasons)
+            {
+                <MudSelectItem Value="@reason">@reason</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudTextField @bind-Value="AdditionalNote"
+                      Label="补充说明（选填）"
+                      Variant="Variant.Outlined"
+                      Lines="2"
+                      Placeholder="可补充详细说明..."
+                      Class="mb-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Color="Color.Default">返回</MudButton>
+        <MudButton OnClick="Confirm"
+                   Color="Color.Error"
+                   Variant="Variant.Filled"
+                   Disabled="@(!IsValid)"
+                   StartIcon="@Icons.Material.Filled.Cancel">
+            确认取消任务
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public Guid TaskId { get; set; }
+
+    [Parameter]
+    public TaskJobStatus TaskStatus { get; set; }
+
+    [Parameter]
+    public string? AgvCode { get; set; }
+
+    [Inject]
+    private ITaskClient TaskClient { get; set; } = default!;
+
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = default!;
+
+    private string? SelectedReason { get; set; }
+    private string CustomReason { get; set; } = string.Empty;
+    private string AdditionalNote { get; set; } = string.Empty;
+
+    private readonly List<string> CancelReasons = new()
+    {
+        "任务分配错误",
+        "AGV 故障",
+        "站点不可用",
+        "优先级调整",
+        "紧急任务插队",
+        "设备维护",
+        "误操作",
+        "其他"
+    };
+
+    private bool IsValid
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(SelectedReason))
+                return false;
+
+            if (SelectedReason == "其他" && string.IsNullOrWhiteSpace(CustomReason))
+                return false;
+
+            return true;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+    private async Task Confirm()
+    {
+        if (!IsValid)
+        {
+            Snackbar.Add("请选择取消原因", Severity.Warning);
+            return;
+        }
+
+        // 组合完整的取消原因
+        string finalReason;
+        if (SelectedReason == "其他")
+        {
+            finalReason = CustomReason;
+        }
+        else if (!string.IsNullOrWhiteSpace(AdditionalNote))
+        {
+            finalReason = $"{SelectedReason} - {AdditionalNote}";
+        }
+        else
+        {
+            finalReason = SelectedReason;
+        }
+
+        var request = new CancelTaskRequestDto
+        {
+            TaskId = TaskId,
+            Reason = finalReason
+        };
+
+        var error = await TaskClient.CancelTaskAsync(request);
+
+        if (error == null)
+        {
+            Snackbar.Add("任务已取消", Severity.Success);
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add($"取消失败: {error}", Severity.Error);
+        }
+    }
+
+    private Color GetTaskStatusColor(TaskJobStatus status) => status switch
+    {
+        TaskJobStatus.Pending => Color.Default,
+        TaskJobStatus.Assigned => Color.Info,
+        TaskJobStatus.Executing => Color.Primary,
+        TaskJobStatus.Completed => Color.Success,
+        TaskJobStatus.Cancelled => Color.Warning,
+        TaskJobStatus.Failed => Color.Error,
+        _ => Color.Default
+    };
+}

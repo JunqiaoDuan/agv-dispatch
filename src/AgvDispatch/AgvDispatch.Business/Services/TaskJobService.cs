@@ -87,16 +87,16 @@ public class TaskJobService : ITaskJobService
     public async Task<TaskJob> CreateTaskWithAgvAsync(
         TaskJobType taskType,
         string targetStationCode,
-        Guid selectedAgvId,
+        string selectedAgvCode,
         Guid? userId)
     {
         // 1. 查询小车
-        var agvSpec = new AgvByIdSpec(selectedAgvId);
+        var agvSpec = new AgvByAgvCodeSpec(selectedAgvCode);
         var agv = await _agvRepository.FirstOrDefaultAsync(agvSpec);
         if (agv == null)
         {
-            _logger.LogWarning("[TaskJobService] 小车不存在: AgvId={AgvId}", selectedAgvId);
-            throw new InvalidOperationException($"小车不存在: {selectedAgvId}");
+            _logger.LogWarning("[TaskJobService] 小车不存在: AgvCode={AgvCode}", selectedAgvCode);
+            throw new InvalidOperationException($"小车不存在: {selectedAgvCode}");
         }
 
         // 2. 验证小车状态
@@ -110,15 +110,15 @@ public class TaskJobService : ITaskJobService
                 AgvStatus.Offline => "小车离线",
                 _ => "小车状态不可用"
             };
-            _logger.LogWarning("[TaskJobService] 小车状态不可用: AgvId={AgvId}, Status={Status}",
-                selectedAgvId, agv.AgvStatus);
+            _logger.LogWarning("[TaskJobService] 小车状态不可用: AgvCode={AgvCode}, Status={Status}",
+                selectedAgvCode, agv.AgvStatus);
             throw new InvalidOperationException($"无法分配任务: {statusMessage}");
         }
 
         // 3. 验证小车是否在站点上
         if (string.IsNullOrEmpty(agv.CurrentStationCode))
         {
-            _logger.LogWarning("[TaskJobService] 小车未在任何站点: AgvId={AgvId}", selectedAgvId);
+            _logger.LogWarning("[TaskJobService] 小车未在任何站点: AgvCode={AgvCode}", selectedAgvCode);
             throw new InvalidOperationException("无法分配任务: 小车未在任何站点");
         }
 
@@ -132,7 +132,7 @@ public class TaskJobService : ITaskJobService
             StartStationCode = agv.CurrentStationCode, // 起点为小车当前位置
             EndStationCode = targetStationCode,
             Description = $"{taskType.ToDisplayText()} - {targetStationCode}",
-            AssignedAgvId = selectedAgvId,
+            AssignedAgvCode = selectedAgvCode,
             AssignedBy = userId,
             AssignedAt = DateTimeOffset.UtcNow
         };
@@ -148,6 +148,7 @@ public class TaskJobService : ITaskJobService
         // 6. 立即发送MQTT消息
         var message = new TaskAssignMessage
         {
+            TaskId = task.Id.ToString(),
             TaskType = task.TaskType,
             Priority = task.Priority,
             Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
@@ -169,9 +170,75 @@ public class TaskJobService : ITaskJobService
         return await _taskRepository.FirstOrDefaultAsync(spec);
     }
 
-    public async Task<bool> CancelTaskAsync(Guid taskId, string? reason, Guid? userId)
+    public async Task<(bool Success, string? Message)> CancelTaskAsync(Guid taskId, string? reason, Guid? userId)
     {
-        throw new NotImplementedException();
+        // 1. 查询任务
+        var spec = new TaskByIdSpec(taskId);
+        var task = await _taskRepository.FirstOrDefaultAsync(spec);
+        if (task == null)
+        {
+            _logger.LogWarning("[TaskJobService] 任务不存在: TaskId={TaskId}", taskId);
+            return (false, "任务不存在");
+        }
+
+        // 2. 验证任务状态：只允许取消未完成的任务（Pending, Assigned, Executing）
+        // 已完成/已取消/失败的任务不能再次取消
+        if (task.TaskStatus == TaskJobStatus.Completed)
+        {
+            _logger.LogWarning("[TaskJobService] 任务已完成，不能取消: TaskId={TaskId}", taskId);
+            return (false, "任务已完成，无法取消");
+        }
+
+        if (task.TaskStatus == TaskJobStatus.Cancelled)
+        {
+            _logger.LogWarning("[TaskJobService] 任务已取消: TaskId={TaskId}", taskId);
+            return (false, "任务已取消");
+        }
+
+        if (task.TaskStatus == TaskJobStatus.Failed)
+        {
+            _logger.LogWarning("[TaskJobService] 任务已失败: TaskId={TaskId}", taskId);
+            return (false, "任务已失败");
+        }
+
+        // 3. 更新任务状态为 Cancelled
+        task.TaskStatus = TaskJobStatus.Cancelled;
+        task.CompletedAt = DateTimeOffset.UtcNow;
+        task.OnUpdate(userId);
+        await _taskRepository.UpdateAsync(task);
+
+        // 4. 如果任务已分配给 AGV，需要释放 AGV 并发送取消消息
+        if (!string.IsNullOrEmpty(task.AssignedAgvCode))
+        {
+            var agvSpec = new AgvByAgvCodeSpec(task.AssignedAgvCode);
+            var agv = await _agvRepository.FirstOrDefaultAsync(agvSpec);
+            if (agv != null)
+            {
+                // 释放 AGV
+                agv.AgvStatus = AgvStatus.Idle;
+                agv.CurrentTaskId = null;
+                agv.OnUpdate(userId);
+                await _agvRepository.UpdateAsync(agv);
+
+                // 发送 MQTT 取消消息
+                var cancelMessage = new TaskCancelMessage
+                {
+                    TaskId = task.Id.ToString(),
+                    Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    Reason = reason
+                };
+                await _mqttBrokerService.PublishTaskCancelAsync(agv.AgvCode, cancelMessage);
+
+                _logger.LogInformation("[TaskJobService] 任务已取消并释放AGV: TaskId={TaskId}, AgvCode={AgvCode}, Reason={Reason}",
+                    taskId, agv.AgvCode, reason);
+            }
+        }
+        else
+        {
+            _logger.LogInformation("[TaskJobService] 任务已取消（未分配AGV）: TaskId={TaskId}", taskId);
+        }
+
+        return (true, null);
     }
 
     #endregion

@@ -74,9 +74,9 @@ public class TaskClient : ITaskClient
         return error?.Message ?? "取消失败";
     }
 
-    public async Task<List<TaskListItemDto>> GetAllAsync()
+    public async Task<List<TaskListItemDto>> GetActiveTasksAsync()
     {
-        var response = await _http.GetFromJsonAsync<ApiResponse<List<TaskListItemDto>>>("api/tasks");
+        var response = await _http.GetFromJsonAsync<ApiResponse<List<TaskListItemDto>>>("api/tasks/active");
         return response?.Success == true && response.Data != null ? response.Data : [];
     }
 
