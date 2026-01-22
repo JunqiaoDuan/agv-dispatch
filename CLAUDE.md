@@ -106,5 +106,8 @@ public async Task<(bool Success, string? Message)> CancelTaskAsync(Guid taskId, 
 {}
 ```
 
+## 7. 数据库表结构设计
+每次对表结构进行调整时，记得在AgvDispatch.DbUpper中添加脚本文件
+
 ## 99. 文档更新原则
 **当学习到新的项目规则、模式或约定时，立即更新此 CLAUDE.md 文件，确保文档始终反映项目最新实践。**
