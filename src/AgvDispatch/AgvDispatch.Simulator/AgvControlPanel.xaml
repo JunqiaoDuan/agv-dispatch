@@ -5,7 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="clr-namespace:AgvDispatch.Simulator"
              mc:Ignorable="d">
-    <Grid Margin="10">
+    <Grid Margin="5">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -16,7 +16,7 @@
         </Grid.RowDefinitions>
 
         <!-- 连接配置 -->
-        <GroupBox Header="连接配置" Grid.Row="0" Padding="10" Margin="0,0,0,10">
+        <GroupBox Header="连接配置" Grid.Row="0" Padding="5" Margin="0,0,0,5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -30,24 +30,24 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="服务器:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtBrokerHost" Text="localhost" Margin="0,0,10,5"/>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="服务器:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtBrokerHost" Text="localhost" Margin="0,0,5,2"/>
 
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="端口:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBox Grid.Row="0" Grid.Column="3" x:Name="TxtBrokerPort" Text="1883" Margin="0,0,10,5"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="端口:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox Grid.Row="0" Grid.Column="3" x:Name="TxtBrokerPort" Text="1883" Margin="0,0,5,2"/>
 
-                <Button Grid.Row="0" Grid.Column="4" x:Name="BtnConnect" Content="连接" Click="BtnConnect_Click" Width="80" Padding="5"/>
+                <Button Grid.Row="0" Grid.Column="4" x:Name="BtnConnect" Content="连接" Click="BtnConnect_Click" Width="70" Padding="3"/>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="小车ID:" VerticalAlignment="Center" Margin="0,5,10,0"/>
-                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtAgvId" Margin="0,5,10,0"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="小车ID:" VerticalAlignment="Center" Margin="0,3,5,0"/>
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtAgvId" Margin="0,3,5,0"/>
 
-                <TextBlock Grid.Row="1" Grid.Column="2" Text="密码:" VerticalAlignment="Center" Margin="0,5,10,0"/>
-                <PasswordBox Grid.Row="1" Grid.Column="3" x:Name="TxtPassword" Margin="0,5,10,0"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="密码:" VerticalAlignment="Center" Margin="0,3,5,0"/>
+                <PasswordBox Grid.Row="1" Grid.Column="3" x:Name="TxtPassword" Margin="0,3,5,0"/>
             </Grid>
         </GroupBox>
 
         <!-- 状态信息 -->
-        <GroupBox Header="状态信息" Grid.Row="1" Padding="10" Margin="0,0,0,10">
+        <GroupBox Header="状态信息" Grid.Row="1" Padding="5" Margin="0,0,0,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -57,40 +57,40 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                <StackPanel Grid.Column="0" Margin="0,0,5,0">
                     <TextBlock Text="状态:" FontWeight="Bold"/>
-                    <TextBlock x:Name="TxtStatus" Text="离线" FontSize="14" Foreground="Gray"/>
+                    <TextBlock x:Name="TxtStatus" Text="离线" FontSize="13" Foreground="Gray"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                <StackPanel Grid.Column="1" Margin="0,0,5,0">
                     <TextBlock Text="电量:" FontWeight="Bold"/>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="%" FontSize="14" Margin="2,0,0,0"/>
-                        <TextBlock Text=" (" FontSize="12" Margin="3,0,0,0" Foreground="Gray"/>
-                        <TextBlock x:Name="TxtBatteryVoltage" Text="53.0" FontSize="12" Foreground="Gray"/>
-                        <TextBlock Text="V)" FontSize="12" Margin="0,0,0,0" Foreground="Gray"/>
+                        <TextBlock Text="%" FontSize="13" Margin="2,0,0,0"/>
+                        <TextBlock Text=" (" FontSize="11" Margin="3,0,0,0" Foreground="Gray"/>
+                        <TextBlock x:Name="TxtBatteryVoltage" Text="53.0" FontSize="11" Foreground="Gray"/>
+                        <TextBlock Text="V)" FontSize="11" Margin="0,0,0,0" Foreground="Gray"/>
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                <StackPanel Grid.Column="2" Margin="0,0,5,0">
                     <TextBlock Text="位置:" FontWeight="Bold"/>
-                    <TextBlock x:Name="TxtPosition" Text="(0, 0)" FontSize="14"/>
+                    <TextBlock x:Name="TxtPosition" Text="(0, 0)" FontSize="13"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="3" Margin="0,0,10,0">
+                <StackPanel Grid.Column="3" Margin="0,0,5,0">
                     <TextBlock Text="站点:" FontWeight="Bold"/>
-                    <TextBlock x:Name="TxtStation" Text="无" FontSize="14"/>
+                    <TextBlock x:Name="TxtStation" Text="无" FontSize="13"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="4">
                     <TextBlock Text="当前任务:" FontWeight="Bold"/>
-                    <TextBlock x:Name="TxtCurrentTask" Text="无" FontSize="14"/>
+                    <TextBlock x:Name="TxtCurrentTask" Text="无" FontSize="13"/>
                 </StackPanel>
             </Grid>
         </GroupBox>
 
         <!-- 状态上报 -->
-        <GroupBox Header="状态上报" Grid.Row="2" Padding="10" Margin="0,0,0,10">
+        <GroupBox Header="状态上报" Grid.Row="2" Padding="5" Margin="0,0,0,5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -107,19 +107,19 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtPositionX" Text="0" Margin="0,0,10,5"/>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtPositionX" Text="0" Margin="0,0,5,2"/>
 
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBox Grid.Row="0" Grid.Column="3" x:Name="TxtPositionY" Text="0" Margin="0,0,10,5"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox Grid.Row="0" Grid.Column="3" x:Name="TxtPositionY" Text="0" Margin="0,0,5,2"/>
 
-                <TextBlock Grid.Row="0" Grid.Column="4" Text="角度:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBox Grid.Row="0" Grid.Column="5" x:Name="TxtPositionAngle" Text="0" Margin="0,0,10,5"/>
+                <TextBlock Grid.Row="0" Grid.Column="4" Text="角度:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox Grid.Row="0" Grid.Column="5" x:Name="TxtPositionAngle" Text="0" Margin="0,0,5,2"/>
 
-                <Button Grid.Row="0" Grid.Column="6" x:Name="BtnSetPosition" Content="更新" Click="BtnSetPosition_Click" Width="80" Padding="5" VerticalAlignment="Center"/>
+                <Button Grid.Row="0" Grid.Column="6" x:Name="BtnSetPosition" Content="更新" Click="BtnSetPosition_Click" Width="70" Padding="3" VerticalAlignment="Center"/>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="站点:" VerticalAlignment="Center" Margin="0,5,10,0"/>
-                <ComboBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="5" x:Name="CmbStation" IsEditable="True" Margin="0,5,10,0" SelectedIndex="0">
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="站点:" VerticalAlignment="Center" Margin="0,3,5,0"/>
+                <ComboBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="5" x:Name="CmbStation" IsEditable="True" Margin="0,3,5,0" SelectedIndex="0">
                     <ComboBoxItem Content="无" Tag=""/>
                     <ComboBoxItem Content="S101 - 大棚B1" Tag="S101"/>
                     <ComboBoxItem Content="S102 - 大棚B2" Tag="S102"/>
@@ -148,16 +148,16 @@
                     <ComboBoxItem Content="S403 - 待命3" Tag="S403"/>
                 </ComboBox>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="电压(V):" VerticalAlignment="Center" Margin="0,5,10,0"/>
-                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtBatteryVoltageInput" Text="53.0" Margin="0,5,10,0"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="电压(V):" VerticalAlignment="Center" Margin="0,3,5,0"/>
+                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtBatteryVoltageInput" Text="53.0" Margin="0,3,5,0"/>
 
-                <TextBlock Grid.Row="2" Grid.Column="2" Text="速度(m/s):" VerticalAlignment="Center" Margin="0,5,10,0"/>
-                <TextBox Grid.Row="2" Grid.Column="3" x:Name="TxtSpeedInput" Text="0.5" Margin="0,5,10,0"/>
+                <TextBlock Grid.Row="2" Grid.Column="2" Text="速度(m/s):" VerticalAlignment="Center" Margin="0,3,5,0"/>
+                <TextBox Grid.Row="2" Grid.Column="3" x:Name="TxtSpeedInput" Text="0.5" Margin="0,3,5,0"/>
             </Grid>
         </GroupBox>
 
         <!-- 任务进度上报 -->
-        <GroupBox Header="任务进度上报" Grid.Row="3" Padding="10" Margin="0,0,0,10">
+        <GroupBox Header="任务进度上报" Grid.Row="3" Padding="5" Margin="0,0,0,5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -171,11 +171,11 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="任务ID:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtTaskId" Margin="0,0,10,5"/>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="任务ID:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtTaskId" Margin="0,0,5,2"/>
 
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="状态:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <ComboBox Grid.Row="0" Grid.Column="3" x:Name="CmbTaskStatus" Margin="0,0,10,5" SelectedIndex="1">
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="状态:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox Grid.Row="0" Grid.Column="3" x:Name="CmbTaskStatus" Margin="0,0,5,2" SelectedIndex="1">
                     <ComboBoxItem Content="待分配" Tag="0"/>
                     <ComboBoxItem Content="已分配" Tag="10"/>
                     <ComboBoxItem Content="执行中" Tag="20"/>
@@ -185,18 +185,18 @@
                 </ComboBox>
 
                 <Button Grid.Row="0" Grid.Column="4" x:Name="BtnReportProgress" Content="上报进度"
-                        Click="BtnReportProgress_Click" Width="100" Padding="5"/>
+                        Click="BtnReportProgress_Click" Width="80" Padding="3"/>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="进度:" VerticalAlignment="Center" Margin="0,5,10,0"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="进度:" VerticalAlignment="Center" Margin="0,3,5,0"/>
                 <Slider Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" x:Name="SliderProgress" Minimum="0" Maximum="100" Value="0"
-                        VerticalAlignment="Center" Margin="0,5,10,0" ValueChanged="SliderProgress_ValueChanged"/>
-                <TextBlock Grid.Row="1" Grid.Column="4" x:Name="TxtProgressValue" Text="0%" Width="100"
-                           VerticalAlignment="Center" Margin="0,5,10,0" HorizontalAlignment="Center"/>
+                        VerticalAlignment="Center" Margin="0,3,5,0" ValueChanged="SliderProgress_ValueChanged"/>
+                <TextBlock Grid.Row="1" Grid.Column="4" x:Name="TxtProgressValue" Text="0%" Width="80"
+                           VerticalAlignment="Center" Margin="0,3,5,0" HorizontalAlignment="Center"/>
             </Grid>
         </GroupBox>
 
         <!-- 异常模拟 -->
-        <GroupBox Header="异常模拟" Grid.Row="4" Padding="10" Margin="0,0,0,10">
+        <GroupBox Header="异常模拟" Grid.Row="4" Padding="5" Margin="0,0,0,5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -209,8 +209,8 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="异常类型:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="CmbExceptionType" Margin="0,0,10,5" SelectedIndex="0">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="异常类型:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="CmbExceptionType" Margin="0,0,5,2" SelectedIndex="0">
                     <ComboBoxItem Content="障碍物" Tag="10"/>
                     <ComboBoxItem Content="低电量" Tag="20"/>
                     <ComboBoxItem Content="网络异常" Tag="30"/>
@@ -219,25 +219,25 @@
                     <ComboBoxItem Content="其它" Tag="80"/>
                 </ComboBox>
 
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="严重级别:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <ComboBox Grid.Row="0" Grid.Column="3" x:Name="CmbExceptionSeverity" Margin="0,0,10,5" SelectedIndex="1">
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="严重级别:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox Grid.Row="0" Grid.Column="3" x:Name="CmbExceptionSeverity" Margin="0,0,5,2" SelectedIndex="1">
                     <ComboBoxItem Content="信息" Tag="10"/>
                     <ComboBoxItem Content="警告" Tag="20"/>
                     <ComboBoxItem Content="错误" Tag="30"/>
                     <ComboBoxItem Content="严重" Tag="40"/>
                 </ComboBox>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="消息:" VerticalAlignment="Center" Margin="0,5,10,0"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="消息:" VerticalAlignment="Center" Margin="0,3,5,0"/>
                 <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" x:Name="TxtExceptionMessage"
-                         Margin="0,5,10,0" Text=""/>
+                         Margin="0,3,5,0" Text=""/>
 
                 <Button Grid.Row="1" Grid.Column="3" x:Name="BtnReportException" Content="上报异常"
-                        Click="BtnReportException_Click" Width="100" Padding="5" Margin="0,5,10,0"/>
+                        Click="BtnReportException_Click" Width="80" Padding="3" Margin="0,3,5,0"/>
             </Grid>
         </GroupBox>
 
         <!-- 日志输出 -->
-        <GroupBox Header="日志输出" Grid.Row="5" Padding="10">
+        <GroupBox Header="日志输出" Grid.Row="5" Padding="5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
@@ -247,11 +247,11 @@
                 <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                     <TextBox x:Name="TxtLog" IsReadOnly="True" TextWrapping="Wrap"
                              VerticalScrollBarVisibility="Auto" Background="#F0F0F0"
-                             FontFamily="Consolas" FontSize="12"/>
+                             FontFamily="Consolas" FontSize="11"/>
                 </ScrollViewer>
 
                 <Button Grid.Row="1" x:Name="BtnClearLog" Content="清空日志" Click="BtnClearLog_Click"
-                        Width="100" HorizontalAlignment="Right" Margin="0,5,0,0" Padding="5"/>
+                        Width="80" HorizontalAlignment="Right" Margin="0,3,0,0" Padding="3"/>
             </Grid>
         </GroupBox>
     </Grid>
