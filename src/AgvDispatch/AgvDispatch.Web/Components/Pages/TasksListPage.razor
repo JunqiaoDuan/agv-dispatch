@@ -201,6 +201,7 @@
             _endDate = DateTime.Today;
             _startDate = DateTime.Today.AddDays(-7);
             await LoadTasks();
+            StateHasChanged();
         }
     }
 
