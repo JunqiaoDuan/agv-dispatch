@@ -108,6 +108,16 @@ public class AgvRecommendationService : IAgvRecommendationService
         var agvSpec = new AgvListSpec();
         var allAgvs = await _agvRepository.ListAsync(agvSpec);
 
+        // 2. 批量查询所有运行中的任务（性能优化）
+        var runningTasksSpec = new TaskRunningSpec();
+        var runningTasks = await _taskRepository.ListAsync(runningTasksSpec);
+        var busyAgvCodes = new HashSet<string>(
+            runningTasks
+                .Where(t => !string.IsNullOrEmpty(t.AssignedAgvCode))
+                .Select(t => t.AssignedAgvCode!),
+            StringComparer.OrdinalIgnoreCase
+        );
+
         var pendingItems = new List<AgvPendingItem>();
         foreach (var agv in allAgvs)
         {
@@ -120,7 +130,7 @@ public class AgvRecommendationService : IAgvRecommendationService
             }
 
             // 判断是否可用及原因
-            var (isAvailable, reason) = EvaluateUnloadingAvailability(agv, currentStation);
+            var (isAvailable, reason) = EvaluateUnloadingAvailability(agv, currentStation, busyAgvCodes);
 
             pendingItems.Add(new AgvPendingItem
             {
@@ -157,6 +167,16 @@ public class AgvRecommendationService : IAgvRecommendationService
         var agvSpec = new AgvListSpec();
         var allAgvs = await _agvRepository.ListAsync(agvSpec);
 
+        // 2. 批量查询所有运行中的任务（性能优化）
+        var runningTasksSpec = new TaskRunningSpec();
+        var runningTasks = await _taskRepository.ListAsync(runningTasksSpec);
+        var busyAgvCodes = new HashSet<string>(
+            runningTasks
+                .Where(t => !string.IsNullOrEmpty(t.AssignedAgvCode))
+                .Select(t => t.AssignedAgvCode!),
+            StringComparer.OrdinalIgnoreCase
+        );
+
         var pendingItems = new List<AgvPendingItem>();
         foreach (var agv in allAgvs)
         {
@@ -169,7 +189,7 @@ public class AgvRecommendationService : IAgvRecommendationService
             }
 
             // 判断是否可用及原因
-            var (isAvailable, reason) = EvaluateReturnAvailability(agv);
+            var (isAvailable, reason) = EvaluateReturnAvailability(agv, busyAgvCodes);
 
             pendingItems.Add(new AgvPendingItem
             {
@@ -206,6 +226,16 @@ public class AgvRecommendationService : IAgvRecommendationService
         var agvSpec = new AgvListSpec();
         var allAgvs = await _agvRepository.ListAsync(agvSpec);
 
+        // 2. 批量查询所有运行中的任务（性能优化）
+        var runningTasksSpec = new TaskRunningSpec();
+        var runningTasks = await _taskRepository.ListAsync(runningTasksSpec);
+        var busyAgvCodes = new HashSet<string>(
+            runningTasks
+                .Where(t => !string.IsNullOrEmpty(t.AssignedAgvCode))
+                .Select(t => t.AssignedAgvCode!),
+            StringComparer.OrdinalIgnoreCase
+        );
+
         var pendingItems = new List<AgvPendingItem>();
         foreach (var agv in allAgvs)
         {
@@ -218,7 +248,7 @@ public class AgvRecommendationService : IAgvRecommendationService
             }
 
             // 判断是否可用及原因
-            var (isAvailable, reason) = EvaluateChargeableAvailability(agv);
+            var (isAvailable, reason) = EvaluateChargeableAvailability(agv, busyAgvCodes);
 
             pendingItems.Add(new AgvPendingItem
             {
@@ -507,7 +537,8 @@ public class AgvRecommendationService : IAgvRecommendationService
     /// </summary>
     private (bool isAvailable, string reason) EvaluateUnloadingAvailability(
         Agv agv,
-        Station? currentStation)
+        Station? currentStation,
+        HashSet<string> busyAgvCodes)
     {
         var reasons = new List<string>();
         var isAvailable = true;
@@ -517,6 +548,11 @@ public class AgvRecommendationService : IAgvRecommendationService
         {
             isAvailable = false;
             reasons.Add("小车离线");
+        }
+        else if (busyAgvCodes.Contains(agv.AgvCode))
+        {
+            isAvailable = false;
+            reasons.Add("小车正在执行任务");
         }
         else
         {
@@ -562,7 +598,9 @@ public class AgvRecommendationService : IAgvRecommendationService
     /// 评估返回可用性
     /// 筛选条件：Idle + HasCargo
     /// </summary>
-    private (bool isAvailable, string reason) EvaluateReturnAvailability(Agv agv)
+    private (bool isAvailable, string reason) EvaluateReturnAvailability(
+        Agv agv,
+        HashSet<string> busyAgvCodes)
     {
         var reasons = new List<string>();
         var isAvailable = true;
@@ -572,6 +610,11 @@ public class AgvRecommendationService : IAgvRecommendationService
         {
             isAvailable = false;
             reasons.Add("小车离线");
+        }
+        else if (busyAgvCodes.Contains(agv.AgvCode))
+        {
+            isAvailable = false;
+            reasons.Add("小车正在执行任务");
         }
         else
         {
@@ -585,7 +628,9 @@ public class AgvRecommendationService : IAgvRecommendationService
     /// 评估充电可用性
     /// 筛选条件：Idle
     /// </summary>
-    private (bool isAvailable, string reason) EvaluateChargeableAvailability(Agv agv)
+    private (bool isAvailable, string reason) EvaluateChargeableAvailability(
+        Agv agv,
+        HashSet<string> busyAgvCodes)
     {
         var reasons = new List<string>();
         var isAvailable = true;
@@ -595,6 +640,11 @@ public class AgvRecommendationService : IAgvRecommendationService
         {
             isAvailable = false;
             reasons.Add("小车离线");
+        }
+        else if (busyAgvCodes.Contains(agv.AgvCode))
+        {
+            isAvailable = false;
+            reasons.Add("小车正在执行任务");
         }
         else
         {
