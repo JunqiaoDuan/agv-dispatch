@@ -43,7 +43,8 @@ public interface ITaskJobService
         TaskJobType taskType,
         string targetStationCode,
         string selectedAgvCode,
-        Guid? userId);
+        Guid? userId,
+        bool? hasCargo = null);
 
     /// <summary>
     /// 获取任务详情

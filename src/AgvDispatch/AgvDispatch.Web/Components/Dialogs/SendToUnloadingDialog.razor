@@ -119,6 +119,12 @@
                         </MudSelectItem>
                     }
                 </MudSelect>
+
+                @* 是否有货物勾选框 *@
+                <MudCheckBox @bind-Value="HasCargo"
+                             Label="小车是否有货物"
+                             Color="Color.Primary"
+                             Class="mt-2" />
             </MudStack>
         </DialogContent>
         <DialogActions>
@@ -170,6 +176,7 @@
     private bool Assigning = false;
     private bool _previousVisible = false;
     private bool _showAllItems = false;
+    private bool HasCargo = true;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -242,7 +249,8 @@
             {
                 TaskType = TaskJobType.SendToUnloading,
                 TargetStationCode = TargetStationCode,
-                SelectedAgvCode = SelectedAgvCode
+                SelectedAgvCode = SelectedAgvCode,
+                HasCargo = HasCargo
             };
 
             var response = await TaskClient.CreateTaskAsync(request);

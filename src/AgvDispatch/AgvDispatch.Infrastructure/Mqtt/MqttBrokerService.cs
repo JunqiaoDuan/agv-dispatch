@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+using AgvDispatch.Shared.Enums;
 
 namespace AgvDispatch.Infrastructure.Mqtt;
 
@@ -270,7 +271,7 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
 
             if (agv != null)
             {
-                agv.AgvStatus = Shared.Enums.AgvStatus.Online;
+                agv.AgvStatus = AgvStatus.Online;
                 agv.LastOnlineTime = DateTimeOffset.UtcNow;
                 await agvRepository.UpdateAsync(agv);
             }
@@ -300,7 +301,7 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
 
             if (agv != null)
             {
-                agv.AgvStatus = Shared.Enums.AgvStatus.Offline;
+                agv.AgvStatus = AgvStatus.Offline;
                 agv.LastOnlineTime = DateTimeOffset.UtcNow;
                 await agvRepository.UpdateAsync(agv);
             }

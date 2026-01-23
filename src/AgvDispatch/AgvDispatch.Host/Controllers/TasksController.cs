@@ -114,7 +114,8 @@ public class TasksController : ControllerBase
             request.TaskType,
             request.TargetStationCode,
             request.SelectedAgvCode,
-            userId);
+            userId,
+            request.HasCargo);
 
         var response = new CreateTaskResponseDto
         {

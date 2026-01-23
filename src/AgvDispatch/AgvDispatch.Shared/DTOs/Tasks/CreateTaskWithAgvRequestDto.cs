@@ -21,4 +21,9 @@ public class CreateTaskWithAgvRequestDto
     /// 选中的小车编号
     /// </summary>
     public string SelectedAgvCode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 小车是否有货物（用于下料任务时更新小车货物状态）
+    /// </summary>
+    public bool? HasCargo { get; set; }
 }

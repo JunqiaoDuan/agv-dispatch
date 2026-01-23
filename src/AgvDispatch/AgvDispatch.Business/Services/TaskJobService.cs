@@ -88,7 +88,8 @@ public class TaskJobService : ITaskJobService
         TaskJobType taskType,
         string targetStationCode,
         string selectedAgvCode,
-        Guid? userId)
+        Guid? userId,
+        bool? hasCargo = null)
     {
         // 1. 查询小车
         var agvSpec = new AgvByAgvCodeSpec(selectedAgvCode);
@@ -139,11 +140,19 @@ public class TaskJobService : ITaskJobService
         task.OnCreate(userId);
         await _taskRepository.AddAsync(task);
 
-        // 5. 更新小车修改时间
+        // 5. 如果传入了HasCargo参数，更新小车货物状态
+        if (hasCargo.HasValue && agv.HasCargo != hasCargo.Value)
+        {
+            agv.HasCargo = hasCargo.Value;
+            _logger.LogInformation("[TaskJobService] 更新小车货物状态: AgvCode={AgvCode}, HasCargo={HasCargo}",
+                agv.AgvCode, hasCargo.Value);
+        }
+
+        // 6. 更新小车修改时间
         agv.OnUpdate(userId);
         await _agvRepository.UpdateAsync(agv);
 
-        // 6. 立即发送MQTT消息
+        // 7. 立即发送MQTT消息
         var message = new TaskAssignMessage
         {
             TaskId = task.Id.ToString(),
