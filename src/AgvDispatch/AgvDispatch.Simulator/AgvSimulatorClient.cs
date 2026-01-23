@@ -209,18 +209,6 @@ public class AgvSimulatorClient
     {
         Log($"连接已断开: {args.Reason}");
         UpdateStatus(AgvStatus.Offline);
-
-        // 自动重连 (简单实现,每5秒重试一次)
-        await Task.Delay(5000);
-
-        try
-        {
-            await ConnectAsync();
-        }
-        catch
-        {
-            // 重连失败,继续等待下次重试
-        }
     }
 
     #endregion

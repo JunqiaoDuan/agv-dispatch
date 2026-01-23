@@ -270,9 +270,7 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
 
             if (agv != null)
             {
-                // 连接和断开都不更新状态
-                // 防止信号不好时来回更新状态。比如说正在运行中，信号不好这里不能把他切成空闲状态
-                // agv.AgvStatus = Shared.Enums.AgvStatus.Idle;
+                agv.AgvStatus = Shared.Enums.AgvStatus.Online;
                 agv.LastOnlineTime = DateTimeOffset.UtcNow;
                 await agvRepository.UpdateAsync(agv);
             }
@@ -302,9 +300,7 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
 
             if (agv != null)
             {
-                // 连接和断开都不更新状态
-                // 防止信号不好时来回更新状态。下线信号通过定时任务判断
-                // agv.AgvStatus = Shared.Enums.AgvStatus.Offline;
+                agv.AgvStatus = Shared.Enums.AgvStatus.Offline;
                 agv.LastOnlineTime = DateTimeOffset.UtcNow;
                 await agvRepository.UpdateAsync(agv);
             }
