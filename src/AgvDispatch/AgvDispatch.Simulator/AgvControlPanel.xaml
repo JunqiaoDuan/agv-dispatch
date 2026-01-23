@@ -140,12 +140,8 @@
                     <ComboBoxItem Content="S122 - 大棚B22" Tag="S122"/>
                     <ComboBoxItem Content="S123 - 大棚B23" Tag="S123"/>
                     <ComboBoxItem Content="S201 - 卸料1" Tag="S201"/>
-                    <ComboBoxItem Content="S301 - 充电1" Tag="S301"/>
-                    <ComboBoxItem Content="S302 - 充电2" Tag="S302"/>
-                    <ComboBoxItem Content="S303 - 充电3" Tag="S303"/>
-                    <ComboBoxItem Content="S401 - 待命1" Tag="S401"/>
-                    <ComboBoxItem Content="S402 - 待命2" Tag="S402"/>
-                    <ComboBoxItem Content="S403 - 待命3" Tag="S403"/>
+                    <ComboBoxItem Content="S201 - 卸料2" Tag="S202"/>
+                    <ComboBoxItem Content="S201 - 卸料3" Tag="S203"/>
                 </ComboBox>
 
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="电压(V):" VerticalAlignment="Center" Margin="0,3,5,0"/>

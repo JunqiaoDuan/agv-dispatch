@@ -511,10 +511,10 @@ public class AgvRecommendationService : IAgvRecommendationService
             isAvailable = false;
             reasons.Add("当前站点信息不存在");
         }
-        else if (currentStation.StationType != StationType.Standby)
+        else if (currentStation.StationType != StationType.Dropoff)
         {
             isAvailable = false;
-            reasons.Add($"请先将小车调到【待命站点】");
+            reasons.Add($"请先将小车调到【卸料站点】");
         }
         else
         {
