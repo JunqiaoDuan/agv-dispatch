@@ -111,7 +111,7 @@
                 </MudStack>
 
                 @* 追踪小车控制 *@
-                @if (_tasks.Any(t => t.TaskStatus == TaskJobStatus.Executing))
+                @if (true)
                 {
                     <div class="panel-section mt-3">
                         <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
@@ -121,7 +121,7 @@
 
                         <MudRadioGroup T="string" Value="_trackingMode" ValueChanged="OnTrackingModeChanged">
                             <MudRadio T="string" Value="@("none")" Color="Color.Default" Size="Size.Small">
-                                不跟踪
+                                不追踪
                             </MudRadio>
                             @foreach (var task in _tasks.Where(t => t.TaskStatus == TaskJobStatus.Executing).OrderBy(t => t.Id))
                             {
