@@ -100,19 +100,19 @@ public class TaskJobService : ITaskJobService
         }
 
         // 2. 验证小车状态
-        if (agv.AgvStatus != AgvStatus.Idle)
+        if (agv.AgvStatus != AgvStatus.Online)
         {
-            var statusMessage = agv.AgvStatus switch
-            {
-                AgvStatus.Running => "小车正在执行任务",
-                AgvStatus.Charging => "小车正在充电",
-                AgvStatus.Error => "小车故障",
-                AgvStatus.Offline => "小车离线",
-                _ => "小车状态不可用"
-            };
-            _logger.LogWarning("[TaskJobService] 小车状态不可用: AgvCode={AgvCode}, Status={Status}",
-                selectedAgvCode, agv.AgvStatus);
-            throw new InvalidOperationException($"无法分配任务: {statusMessage}");
+            _logger.LogWarning("[TaskJobService] 小车离线: AgvCode={AgvCode}", selectedAgvCode);
+            throw new InvalidOperationException("无法分配任务: 小车离线");
+        }
+
+        // 检查是否有运行中任务
+        var runningTaskSpec = new TaskRunningByAgvCodeSpec(selectedAgvCode);
+        var hasRunningTask = await _taskRepository.AnyAsync(runningTaskSpec);
+        if (hasRunningTask)
+        {
+            _logger.LogWarning("[TaskJobService] 小车正在执行任务: AgvCode={AgvCode}", selectedAgvCode);
+            throw new InvalidOperationException("无法分配任务: 小车正在执行其他任务");
         }
 
         // 3. 验证小车是否在站点上
@@ -139,9 +139,7 @@ public class TaskJobService : ITaskJobService
         task.OnCreate(userId);
         await _taskRepository.AddAsync(task);
 
-        // 5. 更新小车状态为Running,记录当前任务
-        agv.AgvStatus = AgvStatus.Running;
-        agv.CurrentTaskId = task.Id;
+        // 5. 更新小车修改时间
         agv.OnUpdate(userId);
         await _agvRepository.UpdateAsync(agv);
 
@@ -214,9 +212,7 @@ public class TaskJobService : ITaskJobService
             var agv = await _agvRepository.FirstOrDefaultAsync(agvSpec);
             if (agv != null)
             {
-                // 释放 AGV
-                agv.AgvStatus = AgvStatus.Idle;
-                agv.CurrentTaskId = null;
+                // 无需修改 AGV 状态（任务状态已足够）
                 agv.OnUpdate(userId);
                 await _agvRepository.UpdateAsync(agv);
 

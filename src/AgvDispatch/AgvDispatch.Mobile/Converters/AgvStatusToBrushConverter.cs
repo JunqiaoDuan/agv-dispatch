@@ -17,10 +17,7 @@ public class AgvStatusToBrushConverter : IValueConverter
         {
             return status switch
             {
-                AgvStatus.Idle => new SolidColorBrush(Color.Parse("#4caf50")), // Success
-                AgvStatus.Running => new SolidColorBrush(Color.Parse("#2196f3")), // Info
-                AgvStatus.Charging => new SolidColorBrush(Color.Parse("#ff9800")), // Warning
-                AgvStatus.Error => new SolidColorBrush(Color.Parse("#f44336")), // Error
+                AgvStatus.Online => new SolidColorBrush(Color.Parse("#4caf50")), // Success/Green
                 AgvStatus.Offline => new SolidColorBrush(Color.Parse("#9e9e9e")), // Gray
                 _ => new SolidColorBrush(Color.Parse("#9e9e9e"))
             };

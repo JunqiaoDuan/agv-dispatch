@@ -1,7 +1,7 @@
 namespace AgvDispatch.Shared.Enums;
 
 /// <summary>
-/// 小车运行状态
+/// 小车连接状态
 /// </summary>
 public enum AgvStatus
 {
@@ -11,24 +11,9 @@ public enum AgvStatus
     Offline = 0,
 
     /// <summary>
-    /// 空闲
+    /// 在线
     /// </summary>
-    Idle = 10,
-
-    /// <summary>
-    /// 执行任务中
-    /// </summary>
-    Running = 20,
-
-    /// <summary>
-    /// 充电中
-    /// </summary>
-    Charging = 30,
-
-    /// <summary>
-    /// 故障
-    /// </summary>
-    Error = 90,
+    Online = 10,
 }
 
 /// <summary>
@@ -42,10 +27,7 @@ public static class AgvStatusExtensions
     public static string ToDisplayText(this AgvStatus status) => status switch
     {
         AgvStatus.Offline => "离线",
-        AgvStatus.Idle => "空闲",
-        AgvStatus.Running => "运行中",
-        AgvStatus.Charging => "充电中",
-        AgvStatus.Error => "故障",
+        AgvStatus.Online => "在线",
         _ => "未知"
     };
 }

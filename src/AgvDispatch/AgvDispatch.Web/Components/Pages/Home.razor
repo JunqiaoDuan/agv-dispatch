@@ -136,8 +136,8 @@
             {
                 TotalAgvs = _agvList.Count,
                 OnlineAgvs = _agvList.Count(x => x.AgvStatus != AgvStatus.Offline),
-                RunningAgvs = _agvList.Count(x => x.AgvStatus == AgvStatus.Running),
-                ErrorAgvs = _agvList.Count(x => x.AgvStatus == AgvStatus.Error)
+                RunningAgvs = 0, // 需要通过 TaskJob 表查询运行中的任务数
+                ErrorAgvs = 0    // 需要通过 AgvExceptionLog 表查询故障数
             };
         }
         catch
@@ -152,11 +152,8 @@
 
     private Color GetStatusColor(AgvStatus status) => status switch
     {
+        AgvStatus.Online => Color.Success,
         AgvStatus.Offline => Color.Default,
-        AgvStatus.Idle => Color.Success,
-        AgvStatus.Running => Color.Primary,
-        AgvStatus.Charging => Color.Warning,
-        AgvStatus.Error => Color.Error,
         _ => Color.Default
     };
 

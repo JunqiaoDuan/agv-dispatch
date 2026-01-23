@@ -177,15 +177,12 @@ public partial class TaskMonitorViewModel : ObservableObject
             }
             else
             {
-                // 如果没有任务，根据状态分类
-                if (agv.AgvStatus == AgvStatus.Charging)
-                {
-                    chargingList.Add(agv);
-                }
-                else if (agv.AgvStatus == AgvStatus.Idle)
+                // 如果没有任务，且在线，则视为空闲
+                if (agv.AgvStatus == AgvStatus.Online)
                 {
                     waitingList.Add(agv);
                 }
+                // 充电状态不再从 AgvStatus 判断，暂时不添加到充电列表
             }
         }
 

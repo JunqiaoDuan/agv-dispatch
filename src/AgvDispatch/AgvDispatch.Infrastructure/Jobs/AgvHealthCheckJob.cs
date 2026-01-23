@@ -94,34 +94,6 @@ public class AgvHealthCheckJob : IJob
                 agv.AgvStatus = AgvStatus.Offline;
                 await agvRepository.UpdateAsync(agv);
                 offlineAgvCodes.Add(agv.AgvCode);
-
-                // 检查并停止该 AGV 正在运行的任务
-                var runningTasksSpec = new TaskRunningByAgvCodeSpec(agv.AgvCode);
-                var runningTasks = await taskRepository.ListAsync(runningTasksSpec);
-
-                if (runningTasks.Any())
-                {
-                    foreach (var task in runningTasks)
-                    {
-                        task.TaskStatus = TaskJobStatus.Cancelled;
-                        task.CancelledAt = DateTimeOffset.UtcNow;
-                        task.CancelReason = $"AGV 离线（超过 {_options.AgvOfflineThresholdSeconds} 秒未发送消息）";
-                        await taskRepository.UpdateAsync(task);
-
-                        // 发送 MQTT 取消消息
-                        var cancelMessage = new TaskCancelMessage
-                        {
-                            TaskId = task.Id.ToString(),
-                            Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                            Reason = task.CancelReason
-                        };
-                        await mqttBrokerService.PublishTaskCancelAsync(agv.AgvCode, cancelMessage);
-
-                        _logger.LogWarning(
-                            "[AgvHealthCheckJob] 已取消任务 {TaskId}（AGV {AgvCode} 离线）",
-                            task.Id, agv.AgvCode);
-                    }
-                }
             }
 
             _logger.LogInformation(

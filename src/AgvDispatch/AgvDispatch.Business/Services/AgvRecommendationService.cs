@@ -1,8 +1,10 @@
 using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Business.Entities.StationAggregate;
+using AgvDispatch.Business.Entities.TaskAggregate;
 using AgvDispatch.Business.Messages;
 using AgvDispatch.Business.Specifications.Agvs;
 using AgvDispatch.Business.Specifications.Stations;
+using AgvDispatch.Business.Specifications.TaskJobs;
 using AgvDispatch.Shared.Enums;
 using AgvDispatch.Shared.Repository;
 using Microsoft.Extensions.Logging;
@@ -16,6 +18,7 @@ public class AgvRecommendationService : IAgvRecommendationService
 {
     private readonly IRepository<Agv> _agvRepository;
     private readonly IRepository<Station> _stationRepository;
+    private readonly IRepository<TaskJob> _taskRepository;
     private readonly ILogger<AgvRecommendationService> _logger;
 
     // 评分权重
@@ -26,10 +29,12 @@ public class AgvRecommendationService : IAgvRecommendationService
     public AgvRecommendationService(
         IRepository<Agv> agvRepository,
         IRepository<Station> stationRepository,
+        IRepository<TaskJob> taskRepository,
         ILogger<AgvRecommendationService> logger)
     {
         _agvRepository = agvRepository;
         _stationRepository = stationRepository;
+        _taskRepository = taskRepository;
         _logger = logger;
     }
 
@@ -46,7 +51,17 @@ public class AgvRecommendationService : IAgvRecommendationService
         var agvSpec = new AgvListSpec();
         var allAgvs = await _agvRepository.ListAsync(agvSpec);
 
-        // 2. 为所有小车生成推荐结果
+        // 2. 批量查询所有运行中的任务（性能优化）
+        var runningTasksSpec = new TaskRunningSpec();
+        var runningTasks = await _taskRepository.ListAsync(runningTasksSpec);
+        var busyAgvCodes = new HashSet<string>(
+            runningTasks
+                .Where(t => !string.IsNullOrEmpty(t.AssignedAgvCode))
+                .Select(t => t.AssignedAgvCode!),
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        // 3. 为所有小车生成推荐结果
         var recommendations = new List<AgvRecommendation>();
         foreach (var agv in allAgvs)
         {
@@ -59,11 +74,11 @@ public class AgvRecommendationService : IAgvRecommendationService
             }
 
             // 判断是否可用及原因
-            var (isAvailable, reasons) = EvaluateLoadingAvailability(agv, currentStation, minBattery);
+            var (isAvailable, reasons) = EvaluateLoadingAvailability(agv, currentStation, minBattery, busyAgvCodes);
 
             // 计算评分（只对可用的小车计算评分，不可用的评分为0）
             var recommendation = isAvailable
-                ? await CalculateScoreAsync(agv, minBattery)
+                ? await CalculateScoreAsync(agv, minBattery, busyAgvCodes)
                 : CreateUnavailableRecommendation(agv, currentStation);
 
             recommendation.IsAvailable = isAvailable;
@@ -72,7 +87,7 @@ public class AgvRecommendationService : IAgvRecommendationService
             recommendations.Add(recommendation);
         }
 
-        // 3. 按可用性和总分排序：可用的在前，不可用的在后；可用的按评分降序排列
+        // 4. 按可用性和总分排序：可用的在前，不可用的在后；可用的按评分降序排列
         var sortedRecommendations = recommendations
             .OrderByDescending(x => x.IsAvailable)
             .ThenByDescending(x => x.TotalScore)
@@ -236,12 +251,12 @@ public class AgvRecommendationService : IAgvRecommendationService
 
     #region 计算评分
 
-    private async Task<AgvRecommendation> CalculateScoreAsync(Agv agv, int minBattery)
+    private async Task<AgvRecommendation> CalculateScoreAsync(Agv agv, int minBattery, HashSet<string> busyAgvCodes)
     {
 
         // 计算各项评分 (每项按100分计算,然后乘以权重)
         var batteryBaseScore = CalculateBatteryBaseScore(agv.Battery, minBattery);
-        var statusBaseScore = CalculateStatusBaseScore(agv.AgvStatus);
+        var statusBaseScore = CalculateStatusBaseScore(agv, busyAgvCodes);
 
         // 站点优先级评分（仅针对空闲小车）
         var stationPriorityBaseScore = 0.0;
@@ -249,7 +264,11 @@ public class AgvRecommendationService : IAgvRecommendationService
         int? currentStationPriority = null;
         Station? currentStation = null;
 
-        if (agv.AgvStatus == AgvStatus.Idle && !string.IsNullOrEmpty(agv.CurrentStationCode))
+        // 只有在线且无运行任务的小车才计算站点优先级
+        bool isIdle = agv.AgvStatus == AgvStatus.Online
+                   && !busyAgvCodes.Contains(agv.AgvCode);
+
+        if (isIdle && !string.IsNullOrEmpty(agv.CurrentStationCode))
         {
             var stationSpec = new StationByStationCodeSpec(agv.CurrentStationCode);
             currentStation = await _stationRepository.FirstOrDefaultAsync(stationSpec);
@@ -269,8 +288,8 @@ public class AgvRecommendationService : IAgvRecommendationService
         // 总分
         var totalScore = batteryScore + statusScore + stationPriorityScore;
 
-        // 生成推荐理由 - 直接使用原始数据
-        var reason = GenerateRecommendReason(agv, currentStation, minBattery);
+        // 生成简化的推荐理由
+        var reason = GenerateRecommendReason(agv, currentStation, minBattery, busyAgvCodes);
 
         return new AgvRecommendation
         {
@@ -312,17 +331,18 @@ public class AgvRecommendationService : IAgvRecommendationService
     /// <summary>
     /// 计算状态基础评分(0-100分)
     /// </summary>
-    private double CalculateStatusBaseScore(AgvStatus status)
+    private double CalculateStatusBaseScore(Agv agv, HashSet<string> busyAgvCodes)
     {
-        return status switch
-        {
-            AgvStatus.Idle => 100.0,     // 空闲状态最佳
-            AgvStatus.Charging => 60.0,  // 充电中可用但不优先
-            AgvStatus.Running => 15.0,   // 执行中扣分较多
-            AgvStatus.Error => 0.0,      // 故障状态不可用
-            AgvStatus.Offline => 0.0,    // 离线不可用
-            _ => 0.0
-        };
+        // 离线 -> 0分
+        if (agv.AgvStatus == AgvStatus.Offline)
+            return 0.0;
+
+        // 执行任务中 -> 15分
+        if (busyAgvCodes.Contains(agv.AgvCode))
+            return 15.0;
+
+        // 空闲 -> 100分
+        return 100.0;
     }
 
     /// <summary>
@@ -340,31 +360,27 @@ public class AgvRecommendationService : IAgvRecommendationService
     /// 生成推荐理由
     /// 直接根据原始数据（状态、电量、站点优先级）生成理由，与评分算法解耦
     /// </summary>
-    private string GenerateRecommendReason(Agv agv, Station? currentStation, int minBattery)
+    private string GenerateRecommendReason(Agv agv, Station? currentStation, int minBattery, HashSet<string> busyAgvCodes)
     {
         var reasons = new List<string>();
 
-        // 状态因素 - 直接根据原始状态枚举
-        switch (agv.AgvStatus)
+        // 状态因素
+        if (agv.AgvStatus == AgvStatus.Offline)
         {
-            case AgvStatus.Idle:
-                reasons.Add("空闲可用");
-                break;
-            case AgvStatus.Charging:
-                reasons.Add("充电中");
-                break;
-            case AgvStatus.Running:
-                reasons.Add("正在执行任务");
-                break;
-            case AgvStatus.Error:
-            case AgvStatus.Offline:
-            default:
-                reasons.Add("不可用");
-                break;
+            reasons.Add("离线");
+        }
+        else if (busyAgvCodes.Contains(agv.AgvCode))
+        {
+            reasons.Add("正在执行任务");
+        }
+        else
+        {
+            reasons.Add("空闲可用");
         }
 
-        // 站点优先级因素 - 直接根据 Priority 值
-        if (agv.AgvStatus == AgvStatus.Idle && currentStation != null)
+        // 站点优先级因素 - 直接根据 Priority 值（仅对空闲小车）
+        bool isIdle = agv.AgvStatus == AgvStatus.Online && !busyAgvCodes.Contains(agv.AgvCode);
+        if (isIdle && currentStation != null)
         {
             if (currentStation.Priority >= 80)
                 reasons.Add("停靠站点优先级很高");
@@ -397,28 +413,27 @@ public class AgvRecommendationService : IAgvRecommendationService
 
     /// <summary>
     /// 评估上料可用性
-    /// 筛选条件：Idle + Standby站点 + !HasCargo + Battery≥阈值
+    /// 筛选条件：Online + 无运行任务 + Standby站点 + !HasCargo + Battery≥阈值
     /// </summary>
     private (bool isAvailable, List<string> reasons) EvaluateLoadingAvailability(
         Agv agv,
         Station? currentStation,
-        int minBattery)
+        int minBattery,
+        HashSet<string> busyAgvCodes)
     {
         var reasons = new List<string>();
         var isAvailable = true;
 
-        // 检查状态
-        if (agv.AgvStatus != AgvStatus.Idle)
+        // 检查在线状态
+        if (agv.AgvStatus != AgvStatus.Online)
         {
             isAvailable = false;
-            reasons.Add(agv.AgvStatus switch
-            {
-                AgvStatus.Running => "小车正在执行任务",
-                AgvStatus.Charging => "小车正在充电",
-                AgvStatus.Error => "小车故障",
-                AgvStatus.Offline => "小车离线",
-                _ => "小车状态不可用"
-            });
+            reasons.Add("小车离线");
+        }
+        else if (busyAgvCodes.Contains(agv.AgvCode))
+        {
+            isAvailable = false;
+            reasons.Add("小车正在执行任务");
         }
         else
         {
@@ -498,21 +513,14 @@ public class AgvRecommendationService : IAgvRecommendationService
         var isAvailable = true;
 
         // 检查状态
-        if (agv.AgvStatus != AgvStatus.Idle)
+        if (agv.AgvStatus != AgvStatus.Online)
         {
             isAvailable = false;
-            reasons.Add(agv.AgvStatus switch
-            {
-                AgvStatus.Running => "小车正在执行任务",
-                AgvStatus.Charging => "小车正在充电",
-                AgvStatus.Error => "小车故障",
-                AgvStatus.Offline => "小车离线",
-                _ => "小车状态不可用"
-            });
+            reasons.Add("小车离线");
         }
         else
         {
-            reasons.Add("小车空闲");
+            reasons.Add("小车在线");
         }
 
         // 检查是否有货物
@@ -560,21 +568,14 @@ public class AgvRecommendationService : IAgvRecommendationService
         var isAvailable = true;
 
         // 检查状态
-        if (agv.AgvStatus != AgvStatus.Idle)
+        if (agv.AgvStatus != AgvStatus.Online)
         {
             isAvailable = false;
-            reasons.Add(agv.AgvStatus switch
-            {
-                AgvStatus.Running => "小车正在执行任务",
-                AgvStatus.Charging => "小车正在充电",
-                AgvStatus.Error => "小车故障",
-                AgvStatus.Offline => "小车离线",
-                _ => "小车状态不可用"
-            });
+            reasons.Add("小车离线");
         }
         else
         {
-            reasons.Add("小车空闲");
+            reasons.Add("小车在线");
         }
 
         return (isAvailable, string.Join(", ", reasons));
@@ -590,21 +591,14 @@ public class AgvRecommendationService : IAgvRecommendationService
         var isAvailable = true;
 
         // 检查状态
-        if (agv.AgvStatus != AgvStatus.Idle)
+        if (agv.AgvStatus != AgvStatus.Online)
         {
             isAvailable = false;
-            reasons.Add(agv.AgvStatus switch
-            {
-                AgvStatus.Running => "小车正在执行任务",
-                AgvStatus.Charging => "小车正在充电",
-                AgvStatus.Error => "小车故障",
-                AgvStatus.Offline => "小车离线",
-                _ => "小车状态不可用"
-            });
+            reasons.Add("小车离线");
         }
         else
         {
-            reasons.Add("小车空闲");
+            reasons.Add("小车在线");
         }
 
         // 添加电量信息

@@ -26,7 +26,6 @@ namespace AgvDispatch.Shared.DTOs.Agvs
         public string? ErrorCode { get; set; }
         public DateTimeOffset? LastOnlineTime { get; set; }
         public string? CurrentStationCode { get; set; }
-        public Guid? CurrentTaskId { get; set; }
         public int SortNo { get; set; }
         public string? Description { get; set; }
         public DateTimeOffset? CreationDate { get; set; }

@@ -87,9 +87,10 @@ public class MqttMessageHandler : IMqttMessageHandler
             // 最后在线时间
             agv.LastOnlineTime = DateTimeOffset.UtcNow;
 
+            // 更新在线状态
             if (agv.AgvStatus == AgvStatus.Offline)
             {
-                agv.AgvStatus = AgvStatus.Idle;
+                agv.AgvStatus = AgvStatus.Online;
             }
 
             // 保存更新
@@ -208,45 +209,8 @@ public class MqttMessageHandler : IMqttMessageHandler
             }
 
             // ========== 联动更新小车状态（仅在状态转换时） ==========
-            var agvNeedUpdate = false;
-
-            if (statusChanged)
-            {
-                if (message.Status == TaskJobStatus.Executing && oldStatus != TaskJobStatus.Executing)
-                {
-                    // 开始执行任务
-                    agv.CurrentTaskId = taskId;
-                    agv.AgvStatus = AgvStatus.Running;
-                    agvNeedUpdate = true;
-                }
-                else if (message.Status == TaskJobStatus.Completed && oldStatus != TaskJobStatus.Completed)
-                {
-                    // 任务完成，清空当前任务，恢复空闲
-                    agv.CurrentTaskId = null;
-                    agv.AgvStatus = AgvStatus.Idle;
-                    agvNeedUpdate = true;
-                }
-                else if (message.Status == TaskJobStatus.Failed && oldStatus != TaskJobStatus.Failed)
-                {
-                    // 任务失败，清空当前任务，设置错误状态
-                    agv.CurrentTaskId = null;
-                    agv.AgvStatus = AgvStatus.Error;
-                    agvNeedUpdate = true;
-                }
-                else if (message.Status == TaskJobStatus.Cancelled && oldStatus != TaskJobStatus.Cancelled)
-                {
-                    // 任务取消，清空当前任务，恢复空闲
-                    agv.CurrentTaskId = null;
-                    agv.AgvStatus = AgvStatus.Idle;
-                    agvNeedUpdate = true;
-                }
-
-                if (agvNeedUpdate)
-                {
-                    await agvRepository.UpdateAsync(agv);
-                    _logger.LogInformation("[MqttMessageHandler] 小车 {AgvCode} 状态已更新为 {AgvStatus}", agvCode, agv.AgvStatus);
-                }
-            }
+            // 任务完成或失败时，AGV 状态不再需要修改（通过任务状态就能判断 AGV 是否空闲）
+            // 删除所有对 AGV 状态的修改
 
             // ========== 创建任务进度日志（只在有意义的变化时创建） ==========
             // 状态变化或进度变化时才记录

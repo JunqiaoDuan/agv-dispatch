@@ -23,7 +23,7 @@ public class AgvSimulatorClient
     private System.Timers.Timer? _statusTimer;
 
     // 模拟状态
-    private AgvStatus _currentStatus = AgvStatus.Idle;
+    private AgvStatus _currentStatus = AgvStatus.Online;
     private double _batteryVoltage = (double)AgvConstants.MaxBatteryVoltage; // 默认满电电压
     private double _speed = 0;
     private double _positionX = 0;
@@ -253,7 +253,7 @@ public class AgvSimulatorClient
         {
             _currentTask = null;
             _currentTaskId = null;
-            UpdateStatus(AgvStatus.Idle);
+            UpdateStatus(AgvStatus.Online);
 
             await PublishTaskProgressAsync(TaskJobStatus.Cancelled, $"任务已取消: {message.Reason}");
         }
@@ -269,11 +269,11 @@ public class AgvSimulatorClient
         switch (message.CommandType)
         {
             case CommandType.Pause:
-                UpdateStatus(AgvStatus.Idle);
+                UpdateStatus(AgvStatus.Online);
                 Log("已暂停");
                 break;
             case CommandType.Resume:
-                UpdateStatus(AgvStatus.Running);
+                UpdateStatus(AgvStatus.Online);
                 Log("已继续");
                 break;
             default:
@@ -310,7 +310,6 @@ public class AgvSimulatorClient
                 Angle = _positionAngle,
                 StationCode = _stationCode,
             },
-            CurrentTaskId = _currentTaskId,
             ErrorCode = null
         };
 
@@ -406,7 +405,7 @@ public class AgvSimulatorClient
         if (_currentTask == null)
             return;
 
-        UpdateStatus(AgvStatus.Running);
+        UpdateStatus(AgvStatus.Online);
         await PublishTaskProgressAsync(TaskJobStatus.Executing, "开始执行任务", 0);
 
         // 模拟任务执行过程，分为多个阶段
@@ -442,7 +441,7 @@ public class AgvSimulatorClient
         _speed = 0;
         _currentTask = null;
         _currentTaskId = null;
-        UpdateStatus(AgvStatus.Idle);
+        UpdateStatus(AgvStatus.Online);
 
         Log("任务执行完成");
         await PublishTaskProgressAsync(TaskJobStatus.Completed, "任务已完成", 100);
@@ -499,7 +498,7 @@ public class AgvSimulatorClient
         {
             _currentTask = null;
             _currentTaskId = null;
-            UpdateStatus(AgvStatus.Idle);
+            UpdateStatus(AgvStatus.Online);
         }
 
         Log($"已上报任务进度: {taskId}, 状态: {taskStatus}, 进度: {progress}%");

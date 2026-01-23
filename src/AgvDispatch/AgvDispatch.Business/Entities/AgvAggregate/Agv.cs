@@ -69,11 +69,6 @@ public class Agv : BaseEntity, IHasPassword
     public string? CurrentStationCode { get; set; }
 
     /// <summary>
-    /// 当前执行的任务ID
-    /// </summary>
-    public Guid? CurrentTaskId { get; set; }
-
-    /// <summary>
     /// 是否有料（是否携带物料）
     /// </summary>
     public bool HasCargo { get; set; } = false;

@@ -46,12 +46,6 @@ public class StatusMessage
     public PositionInfo Position { get; set; } = new();
 
     /// <summary>
-    /// 当前任务ID，无任务时为null
-    /// </summary>
-    [JsonPropertyName("currentTaskId")]
-    public string? CurrentTaskId { get; set; }
-
-    /// <summary>
     /// 错误码，正常时为null
     /// </summary>
     [JsonPropertyName("errorCode")]

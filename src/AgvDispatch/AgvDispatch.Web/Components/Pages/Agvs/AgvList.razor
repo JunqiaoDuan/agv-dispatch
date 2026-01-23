@@ -252,11 +252,8 @@
 
     private Color GetStatusColor(AgvStatus status) => status switch
     {
+        AgvStatus.Online => Color.Success,
         AgvStatus.Offline => Color.Default,
-        AgvStatus.Idle => Color.Success,
-        AgvStatus.Running => Color.Primary,
-        AgvStatus.Charging => Color.Warning,
-        AgvStatus.Error => Color.Error,
         _ => Color.Default
     };
 

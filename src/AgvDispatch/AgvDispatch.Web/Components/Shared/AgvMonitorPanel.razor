@@ -185,9 +185,8 @@
 
     private TaskListItemDto? GetCurrentTask(AgvListItemDto agv)
     {
-        if (!agv.CurrentTaskId.HasValue) return null;
         return Tasks.FirstOrDefault(t =>
-            t.Id == agv.CurrentTaskId.Value &&
+            t.AssignedAgvCode == agv.AgvCode &&
             (t.TaskStatus == TaskJobStatus.Executing || t.TaskStatus == TaskJobStatus.Assigned));
     }
 
@@ -216,11 +215,8 @@
 
     private Color GetStatusColor(AgvStatus status) => status switch
     {
+        AgvStatus.Online => Color.Success,
         AgvStatus.Offline => Color.Default,
-        AgvStatus.Idle => Color.Success,
-        AgvStatus.Running => Color.Info,
-        AgvStatus.Charging => Color.Warning,
-        AgvStatus.Error => Color.Error,
         _ => Color.Default
     };
 

@@ -53,9 +53,9 @@ public partial class AgvListViewModel : ObservableObject
 
             // 计算统计数据
             TotalAgvs = agvs.Count;
-            OnlineAgvs = agvs.Count(x => x.AgvStatus != Shared.Enums.AgvStatus.Offline);
-            RunningAgvs = agvs.Count(x => x.AgvStatus == Shared.Enums.AgvStatus.Running);
-            ErrorAgvs = agvs.Count(x => x.AgvStatus == Shared.Enums.AgvStatus.Error);
+            OnlineAgvs = agvs.Count(x => x.AgvStatus == Shared.Enums.AgvStatus.Online);
+            RunningAgvs = 0; // 不再统计运行中的 AGV（需要查询任务表）
+            ErrorAgvs = 0;   // 不再统计故障 AGV（需要查询异常表）
         }
         catch (Exception ex)
         {
