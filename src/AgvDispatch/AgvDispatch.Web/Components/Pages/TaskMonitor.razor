@@ -315,7 +315,7 @@
     private Dictionary<Guid, decimal> _lastTaskProgress = new();
     private System.Timers.Timer? _simulationTimer;
     private bool _enableAutoSimulation = true;
-    private int _simulationSpeedRatio = 60;
+    private int _simulationSpeedRatio = 80;
 
     // 视图控制
     private float _viewWidth = 1200f;
@@ -733,7 +733,9 @@
             var agv = string.IsNullOrEmpty(task.AssignedAgvCode)
                 ? null
                 : _agvs.FirstOrDefault(a => a.AgvCode == task.AssignedAgvCode);
-            var speed = agv?.Speed ?? 100m; // 默认速度 100 cm/s
+            // 数据库存储单位是 m/s，需要转换为 cm/s（乘以100）
+            var speedInMs = agv?.Speed ?? 0.5m; // 默认速度 0.5 m/s
+            var speed = speedInMs * 100m; // 转换为 cm/s
 
             var config = new AgvSimulationConfig
             {

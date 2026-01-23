@@ -92,7 +92,7 @@
                                              Min="1"
                                              Max="200"
                                              Step="10"
-                                             HelperText="相对于实际速度的百分比，默认 60%"
+                                             HelperText="相对于实际速度的百分比"
                                              Disabled="@(!LocalEnableAutoSimulation)" />
                         </MudStack>
                     </MudPaper>
@@ -184,7 +184,7 @@
     [Parameter] public bool AutoRefresh { get; set; }
     [Parameter] public int RefreshInterval { get; set; } = 2;
     [Parameter] public bool EnableAutoSimulation { get; set; } = true;
-    [Parameter] public int SimulationSpeedRatio { get; set; } = 60;
+    [Parameter] public int SimulationSpeedRatio { get; set; } = 80;
     [Parameter] public List<AgvListItemDto> Agvs { get; set; } = [];
     [Parameter] public EventCallback<MapRenderOptions> OnRenderOptionsChanged { get; set; }
     [Parameter] public EventCallback<bool> OnAutoRefreshChanged { get; set; }
@@ -197,7 +197,7 @@
     private bool LocalAutoRefresh { get; set; }
     private int LocalRefreshInterval { get; set; } = 2;
     private bool LocalEnableAutoSimulation { get; set; } = true;
-    private int LocalSimulationSpeedRatio { get; set; } = 60;
+    private int LocalSimulationSpeedRatio { get; set; } = 80;
     private bool _wasVisible = false;
 
     // 手动控制相关状态
