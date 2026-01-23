@@ -343,4 +343,45 @@ public class AgvsController : ControllerBase
 
         return Ok(ApiResponse<bool>.Ok(true, $"成功处理 {toUpdate.Count} 条异常"));
     }
+
+    /// <summary>
+    /// 手动控制 AGV 货物状态
+    /// </summary>
+    [HttpPost("{id:guid}/manual-control")]
+    public async Task<ActionResult<ApiResponse<bool>>> ManualControl(Guid id, [FromBody] ManualControlAgvRequest request)
+    {
+        // 验证操作原因
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return BadRequest(ApiResponse<bool>.Fail("操作原因不能为空"));
+        }
+
+        var spec = new AgvByIdSpec(id);
+        var agv = await _agvRepository.FirstOrDefaultAsync(spec);
+
+        if (agv == null)
+        {
+            return NotFound(ApiResponse<bool>.Fail("小车不存在"));
+        }
+
+        // 检查货物状态是否有变化
+        if (request.HasCargo == agv.HasCargo)
+        {
+            return Ok(ApiResponse<bool>.Ok(true, "货物状态未变化，无需更新"));
+        }
+
+        // 更新货物状态
+        var oldHasCargo = agv.HasCargo;
+        agv.HasCargo = request.HasCargo;
+        var changeText = $"货物状态: {(oldHasCargo ? "有货" : "无货")} → {(agv.HasCargo ? "有货" : "无货")}";
+
+        agv.OnUpdate();
+        await _agvRepository.UpdateAsync(agv);
+        await _agvRepository.SaveChangesAsync();
+
+        _logger.LogInformation("手动控制小车 {AgvCode} 成功: {Changes}. 原因: {Reason}",
+            agv.AgvCode, changeText, request.Reason);
+
+        return Ok(ApiResponse<bool>.Ok(true, $"操作成功: {changeText}"));
+    }
 }

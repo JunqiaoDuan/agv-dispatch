@@ -1,138 +1,197 @@
 @using AgvDispatch.Shared.Rendering
+@using AgvDispatch.Shared.DTOs.Agvs
+@using AgvDispatch.Web.Services
+@inject IAgvClient AgvClient
+@inject ISnackbar Snackbar
 
 <MudDialog Visible="Visible" VisibleChanged="OnDialogVisibleChanged" Options="DialogOptions">
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" />
-            <MudText Typo="Typo.h6">页面设置</MudText>
+            <MudText Typo="Typo.h6">页面设置与控制</MudText>
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudStack Spacing="3">
-            @* 显示控制 *@
-            <MudPaper Outlined="true" Class="pa-3">
-                <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Style="vertical-align: middle;" />
-                    显示控制
-                </MudText>
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+            @* Tab 1: 页面设置 *@
+            <MudTabPanel Text="页面设置" Icon="@Icons.Material.Filled.Tune">
+                <MudStack Spacing="3">
+                    @* 显示控制 *@
+                    <MudPaper Outlined="true" Class="pa-3">
+                        <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-3">
+                            <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Style="vertical-align: middle;" />
+                            显示控制
+                        </MudText>
 
-                <MudStack Spacing="2">
-                    <MudSwitch T="bool"
-                               @bind-Value="@LocalRenderOptions.ShowNodeLabels"
-                               Color="Color.Primary"
-                               Label="节点文字" />
-                    <MudSwitch T="bool"
-                               @bind-Value="@LocalRenderOptions.ShowStationLabels"
-                               Color="Color.Primary"
-                               Label="站点文字" />
-                    <MudSwitch T="bool"
-                               @bind-Value="@LocalRenderOptions.ShowEdgeLabels"
-                               Color="Color.Primary"
-                               Label="边文字" />
-                    <MudSwitch T="bool"
-                               @bind-Value="@LocalRenderOptions.ShowArrows"
-                               Color="Color.Primary"
-                               Label="箭头" />
+                        <MudStack Spacing="2">
+                            <MudSwitch T="bool"
+                                       @bind-Value="@LocalRenderOptions.ShowNodeLabels"
+                                       Color="Color.Primary"
+                                       Label="节点文字" />
+                            <MudSwitch T="bool"
+                                       @bind-Value="@LocalRenderOptions.ShowStationLabels"
+                                       Color="Color.Primary"
+                                       Label="站点文字" />
+                            <MudSwitch T="bool"
+                                       @bind-Value="@LocalRenderOptions.ShowEdgeLabels"
+                                       Color="Color.Primary"
+                                       Label="边文字" />
+                            <MudSwitch T="bool"
+                                       @bind-Value="@LocalRenderOptions.ShowArrows"
+                                       Color="Color.Primary"
+                                       Label="箭头" />
+                        </MudStack>
+                    </MudPaper>
+
+                    @* 自动刷新设置 *@
+                    <MudPaper Outlined="true" Class="pa-3">
+                        <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-3">
+                            <MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" Style="vertical-align: middle;" />
+                            自动刷新
+                        </MudText>
+
+                        <MudStack Spacing="2">
+                            <MudSwitch T="bool"
+                                       @bind-Value="@LocalAutoRefresh"
+                                       Color="Color.Primary"
+                                       Label="启用自动刷新" />
+
+                            <MudNumericField T="int"
+                                             @bind-Value="@LocalRefreshInterval"
+                                             Label="刷新间隔（秒）"
+                                             Variant="Variant.Outlined"
+                                             Min="1"
+                                             Max="60"
+                                             Step="1"
+                                             HelperText="建议设置为 1-10 秒"
+                                             Disabled="@(!LocalAutoRefresh)" />
+                        </MudStack>
+                    </MudPaper>
+
+                    @* 自动模拟设置 *@
+                    <MudPaper Outlined="true" Class="pa-3">
+                        <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-3">
+                            <MudIcon Icon="@Icons.Material.Filled.DirectionsRun" Size="Size.Small" Style="vertical-align: middle;" />
+                            自动模拟运动
+                        </MudText>
+
+                        <MudStack Spacing="2">
+                            <MudSwitch T="bool"
+                                       @bind-Value="@LocalEnableAutoSimulation"
+                                       Color="Color.Primary"
+                                       Label="启用自动模拟运动" />
+
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                开启后，收到最新进度时会按照配置的速度比例自动模拟运动轨迹，直到下一次更新最新位置
+                            </MudText>
+
+                            <MudNumericField T="int"
+                                             @bind-Value="@LocalSimulationSpeedRatio"
+                                             Label="模拟速度比例（%）"
+                                             Variant="Variant.Outlined"
+                                             Min="1"
+                                             Max="200"
+                                             Step="10"
+                                             HelperText="相对于实际速度的百分比，默认 60%"
+                                             Disabled="@(!LocalEnableAutoSimulation)" />
+                        </MudStack>
+                    </MudPaper>
                 </MudStack>
-            </MudPaper>
+            </MudTabPanel>
 
-            @* 自动刷新设置 *@
-            <MudPaper Outlined="true" Class="pa-3">
-                <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" Style="vertical-align: middle;" />
-                    自动刷新
-                </MudText>
+            @* Tab 2: 手动控制 *@
+            <MudTabPanel Text="手动控制" Icon="@Icons.Material.Filled.Build">
+                <MudStack Spacing="3">
+                    @* AGV 选择 *@
+                    <MudSelect T="Guid?"
+                               Label="选择小车"
+                               Value="SelectedAgvId"
+                               ValueChanged="OnAgvChanged"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               HelperText="请选择要控制的小车">
+                        @foreach (var agv in Agvs)
+                        {
+                            <MudSelectItem T="Guid?" Value="@agv.Id">
+                                @agv.AgvCode - @agv.DisplayName
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
 
-                <MudStack Spacing="2">
-                    <MudSwitch T="bool"
-                               @bind-Value="@LocalAutoRefresh"
-                               Color="Color.Primary"
-                               Label="启用自动刷新" />
+                    @if (SelectedAgv != null)
+                    {
+                        @* 当前状态显示 *@
+                        <MudPaper Outlined="true" Class="pa-3">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">当前状态</MudText>
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText Typo="Typo.body2">是否有货：</MudText>
+                                    <MudChip T="string" Color="@(SelectedAgv.HasCargo ? Color.Info : Color.Default)" Size="Size.Small">
+                                        @(SelectedAgv.HasCargo ? "有货" : "无货")
+                                    </MudChip>
+                                </MudStack>
+                            </MudStack>
+                        </MudPaper>
 
-                    <MudNumericField T="int"
-                                     @bind-Value="@LocalRefreshInterval"
-                                     Label="刷新间隔（秒）"
-                                     Variant="Variant.Outlined"
-                                     Min="1"
-                                     Max="60"
-                                     Step="1"
-                                     HelperText="建议设置为 1-10 秒"
-                                     Disabled="@(!LocalAutoRefresh)" />
+                        <MudDivider />
+
+                        @* 修改货物状态 *@
+                        <MudText Typo="Typo.subtitle2">修改货物状态</MudText>
+                        <MudSwitch @bind-Value="NewHasCargo" Color="Color.Info" Label="@(NewHasCargo ? "有货" : "无货")" />
+
+                        <MudDivider />
+
+                        @* 操作原因 *@
+                        <MudTextField @bind-Value="Reason"
+                                      Label="操作原因"
+                                      Variant="Variant.Outlined"
+                                      Lines="3"
+                                      Required="true"
+                                      HelperText="请填写手动控制的原因（必填）" />
+
+                        @* 操作按钮 *@
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.Check"
+                                   OnClick="ConfirmControl"
+                                   FullWidth="true"
+                                   Disabled="@(Submitting || string.IsNullOrWhiteSpace(Reason) || NewHasCargo == SelectedAgv.HasCargo)">
+                            @if (Submitting)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                <span>提交中...</span>
+                            }
+                            else
+                            {
+                                <span>确认操作</span>
+                            }
+                        </MudButton>
+                    }
                 </MudStack>
-            </MudPaper>
-
-            @* 自动模拟设置 *@
-            <MudPaper Outlined="true" Class="pa-3">
-                <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.DirectionsRun" Size="Size.Small" Style="vertical-align: middle;" />
-                    自动模拟运动
-                </MudText>
-
-                <MudStack Spacing="2">
-                    <MudSwitch T="bool"
-                               @bind-Value="@LocalEnableAutoSimulation"
-                               Color="Color.Primary"
-                               Label="启用自动模拟运动" />
-
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        开启后，收到最新进度时会按照配置的速度比例自动模拟运动轨迹，直到下一次更新最新位置
-                    </MudText>
-
-                    <MudNumericField T="int"
-                                     @bind-Value="@LocalSimulationSpeedRatio"
-                                     Label="模拟速度比例（%）"
-                                     Variant="Variant.Outlined"
-                                     Min="1"
-                                     Max="200"
-                                     Step="10"
-                                     HelperText="相对于实际速度的百分比，默认 60%"
-                                     Disabled="@(!LocalEnableAutoSimulation)" />
-                </MudStack>
-            </MudPaper>
-        </MudStack>
+            </MudTabPanel>
+        </MudTabs>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">取消</MudButton>
-        <MudButton OnClick="Apply" Variant="Variant.Filled" Color="Color.Primary">应用</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">关闭</MudButton>
+        <MudButton OnClick="Apply" Variant="Variant.Filled" Color="Color.Primary">应用设置</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
-    [Parameter]
-    public bool Visible { get; set; }
-
-    [Parameter]
-    public EventCallback<bool> VisibleChanged { get; set; }
-
-    [Parameter]
-    public MapRenderOptions? RenderOptions { get; set; }
-
-    [Parameter]
-    public bool AutoRefresh { get; set; }
-
-    [Parameter]
-    public int RefreshInterval { get; set; } = 2;
-
-    [Parameter]
-    public bool EnableAutoSimulation { get; set; } = true;
-
-    [Parameter]
-    public int SimulationSpeedRatio { get; set; } = 60;
-
-    [Parameter]
-    public EventCallback<MapRenderOptions> OnRenderOptionsChanged { get; set; }
-
-    [Parameter]
-    public EventCallback<bool> OnAutoRefreshChanged { get; set; }
-
-    [Parameter]
-    public EventCallback<int> OnRefreshIntervalChanged { get; set; }
-
-    [Parameter]
-    public EventCallback<bool> OnAutoSimulationChanged { get; set; }
-
-    [Parameter]
-    public EventCallback<int> OnSimulationSpeedRatioChanged { get; set; }
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter] public MapRenderOptions? RenderOptions { get; set; }
+    [Parameter] public bool AutoRefresh { get; set; }
+    [Parameter] public int RefreshInterval { get; set; } = 2;
+    [Parameter] public bool EnableAutoSimulation { get; set; } = true;
+    [Parameter] public int SimulationSpeedRatio { get; set; } = 60;
+    [Parameter] public List<AgvListItemDto> Agvs { get; set; } = [];
+    [Parameter] public EventCallback<MapRenderOptions> OnRenderOptionsChanged { get; set; }
+    [Parameter] public EventCallback<bool> OnAutoRefreshChanged { get; set; }
+    [Parameter] public EventCallback<int> OnRefreshIntervalChanged { get; set; }
+    [Parameter] public EventCallback<bool> OnAutoSimulationChanged { get; set; }
+    [Parameter] public EventCallback<int> OnSimulationSpeedRatioChanged { get; set; }
+    [Parameter] public EventCallback OnControlSuccess { get; set; }
 
     private MapRenderOptions LocalRenderOptions { get; set; } = new();
     private bool LocalAutoRefresh { get; set; }
@@ -141,9 +200,16 @@
     private int LocalSimulationSpeedRatio { get; set; } = 60;
     private bool _wasVisible = false;
 
+    // 手动控制相关状态
+    private Guid? SelectedAgvId;
+    private AgvListItemDto? SelectedAgv;
+    private bool NewHasCargo;
+    private string Reason = string.Empty;
+    private bool Submitting;
+
     private DialogOptions DialogOptions = new()
     {
-        MaxWidth = MaxWidth.Small,
+        MaxWidth = MaxWidth.Medium,
         FullWidth = true,
         CloseButton = true,
         CloseOnEscapeKey = true
@@ -152,7 +218,6 @@
     protected override void OnParametersSet()
     {
         // 只在对话框首次打开时初始化本地设置，避免在编辑过程中被重置
-        // Only initialize local settings when dialog first opens, prevent reset during editing
         if (Visible && !_wasVisible)
         {
             // 对话框刚打开，初始化本地设置
@@ -172,6 +237,9 @@
             LocalRefreshInterval = RefreshInterval;
             LocalEnableAutoSimulation = EnableAutoSimulation;
             LocalSimulationSpeedRatio = SimulationSpeedRatio;
+
+            // 重置手动控制状态
+            ResetManualControlState();
         }
 
         _wasVisible = Visible;
@@ -179,14 +247,14 @@
 
     private async Task Apply()
     {
-        // 应用设置
+        // 应用页面设置
         await OnRenderOptionsChanged.InvokeAsync(LocalRenderOptions);
         await OnAutoRefreshChanged.InvokeAsync(LocalAutoRefresh);
         await OnRefreshIntervalChanged.InvokeAsync(LocalRefreshInterval);
         await OnAutoSimulationChanged.InvokeAsync(LocalEnableAutoSimulation);
         await OnSimulationSpeedRatioChanged.InvokeAsync(LocalSimulationSpeedRatio);
 
-        await OnDialogVisibleChanged(false);
+        Snackbar.Add("设置已应用", Severity.Success);
     }
 
     private async Task Cancel()
@@ -198,5 +266,74 @@
     {
         Visible = visible;
         await VisibleChanged.InvokeAsync(visible);
+    }
+
+    // 手动控制相关方法
+    private void OnAgvChanged(Guid? agvId)
+    {
+        SelectedAgvId = agvId;
+        SelectedAgv = Agvs.FirstOrDefault(a => a.Id == agvId);
+
+        if (SelectedAgv != null)
+        {
+            NewHasCargo = SelectedAgv.HasCargo;
+        }
+    }
+
+    private async Task ConfirmControl()
+    {
+        if (SelectedAgv == null) return;
+
+        if (string.IsNullOrWhiteSpace(Reason))
+        {
+            Snackbar.Add("请填写操作原因", Severity.Warning);
+            return;
+        }
+
+        if (NewHasCargo == SelectedAgv.HasCargo)
+        {
+            Snackbar.Add("货物状态未变化，无需更新", Severity.Warning);
+            return;
+        }
+
+        Submitting = true;
+
+        try
+        {
+            var request = new ManualControlAgvRequest
+            {
+                HasCargo = NewHasCargo,
+                Reason = Reason
+            };
+
+            var errorMessage = await AgvClient.ManualControlAsync(SelectedAgv.Id, request);
+
+            if (errorMessage == null)
+            {
+                Snackbar.Add("手动控制成功！", Severity.Success);
+                ResetManualControlState();
+                await OnControlSuccess.InvokeAsync();
+            }
+            else
+            {
+                Snackbar.Add($"操作失败: {errorMessage}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"操作失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Submitting = false;
+        }
+    }
+
+    private void ResetManualControlState()
+    {
+        SelectedAgvId = null;
+        SelectedAgv = null;
+        NewHasCargo = false;
+        Reason = string.Empty;
     }
 }
