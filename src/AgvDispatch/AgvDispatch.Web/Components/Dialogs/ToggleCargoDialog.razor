@@ -1,0 +1,121 @@
+@using AgvDispatch.Shared.DTOs.Agvs
+@using AgvDispatch.Web.Services
+@inject IAgvClient AgvClient
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Inventory" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">手动切换货物状态</MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        <MudStack Spacing="3">
+            @* 小车信息展示 *@
+            <MudAlert Severity="Severity.Info" Dense="true">
+                小车编号: <strong>@AgvCode</strong>
+            </MudAlert>
+
+            @* 状态切换提示 *@
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Justify="Justify.Center">
+                <MudChip T="string" Color="@CurrentStatusColor" Size="Size.Medium">
+                    当前: @CurrentStatusText
+                </MudChip>
+                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" />
+                <MudChip T="string" Color="@TargetStatusColor" Size="Size.Medium">
+                    切换为: @TargetStatusText
+                </MudChip>
+            </MudStack>
+
+            @* 原因输入框 *@
+            <MudTextField @bind-Value="Reason"
+                          Label="操作原因"
+                          Placeholder="请输入手动切换货物状态的原因（选填）"
+                          Required="false"
+                          Lines="3"
+                          Variant="Variant.Outlined"
+                          Immediate="true" />
+        </MudStack>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">取消</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(_isSubmitting)">
+            @if (_isSubmitting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>切换中...</span>
+            }
+            else
+            {
+                <span>确认切换</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public Guid AgvId { get; set; }
+
+    [Parameter]
+    public string AgvCode { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool CurrentHasCargo { get; set; }
+
+    private string Reason { get; set; } = string.Empty;
+    private bool _isSubmitting = false;
+
+    // 当前状态显示
+    private string CurrentStatusText => CurrentHasCargo ? "有货物" : "无货物";
+    private Color CurrentStatusColor => CurrentHasCargo ? Color.Info : Color.Default;
+
+    // 目标状态显示（切换后）
+    private string TargetStatusText => !CurrentHasCargo ? "有货物" : "无货物";
+    private Color TargetStatusColor => !CurrentHasCargo ? Color.Info : Color.Default;
+
+    private void Cancel() => MudDialog?.Cancel();
+
+    private async Task Submit()
+    {
+
+        _isSubmitting = true;
+        try
+        {
+            var request = new ManualControlAgvRequest
+            {
+                HasCargo = !CurrentHasCargo, // 切换到相反状态
+                Reason = Reason.Trim()
+            };
+
+            var errorMessage = await AgvClient.ManualControlAsync(AgvId, request);
+
+            if (string.IsNullOrEmpty(errorMessage))
+            {
+                Snackbar.Add("货物状态已成功切换", Severity.Success);
+                MudDialog?.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add($"操作失败: {errorMessage}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"操作失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

@@ -350,12 +350,6 @@ public class AgvsController : ControllerBase
     [HttpPost("{id:guid}/manual-control")]
     public async Task<ActionResult<ApiResponse<bool>>> ManualControl(Guid id, [FromBody] ManualControlAgvRequest request)
     {
-        // 验证操作原因
-        if (string.IsNullOrWhiteSpace(request.Reason))
-        {
-            return BadRequest(ApiResponse<bool>.Fail("操作原因不能为空"));
-        }
-
         var spec = new AgvByIdSpec(id);
         var agv = await _agvRepository.FirstOrDefaultAsync(spec);
 

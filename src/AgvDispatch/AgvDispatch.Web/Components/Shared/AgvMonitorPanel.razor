@@ -100,7 +100,9 @@
                                     </MudChip>
 
                                     @* 货物状态 *@
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@(agv.HasCargo ? Color.Info : Color.Default)" Icon="@Icons.Material.Filled.Inventory">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@(agv.HasCargo ? Color.Info : Color.Default)" Icon="@Icons.Material.Filled.Inventory"
+                                             OnClick="@(() => HandleToggleCargoStatus(agv))"
+                                             Style="cursor: pointer;">
                                         @(agv.HasCargo ? "有货物" : "无货物")
                                     </MudChip>
                                 </MudStack>
@@ -284,6 +286,40 @@
         };
 
         await DialogService.ShowAsync<TaskDetailDialog>("任务详情", parameters, options);
+    }
+
+    /// <summary>
+    /// 处理货物状态切换点击事件
+    /// </summary>
+    private async Task HandleToggleCargoStatus(AgvMonitorItemDto agv)
+    {
+        var parameters = new DialogParameters
+        {
+            ["AgvId"] = agv.Id,
+            ["AgvCode"] = agv.AgvCode,
+            ["CurrentHasCargo"] = agv.HasCargo
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ToggleCargoDialog>(
+            "切换货物状态",
+            parameters,
+            options
+        );
+
+        var result = await dialog.Result;
+
+        // 用户确认并成功切换后刷新数据
+        if (result is { Canceled: false })
+        {
+            await OnRefreshData.InvokeAsync();
+        }
     }
 }
 
