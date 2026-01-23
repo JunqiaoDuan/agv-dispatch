@@ -60,4 +60,10 @@ public interface IAgvClient
     /// 批量解决异常
     /// </summary>
     Task<bool> ResolveExceptionsAsync(List<Guid> exceptionIds);
+
+    /// <summary>
+    /// 手动控制 AGV 状态
+    /// </summary>
+    /// <returns>成功返回 null，失败返回错误消息</returns>
+    Task<string?> ManualControlAsync(Guid id, ManualControlAgvRequest request);
 }

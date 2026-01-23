@@ -87,6 +87,11 @@ public class MqttMessageHandler : IMqttMessageHandler
             // 最后在线时间
             agv.LastOnlineTime = DateTimeOffset.UtcNow;
 
+            if (agv.AgvStatus == AgvStatus.Offline)
+            {
+                agv.AgvStatus = AgvStatus.Idle;
+            }
+
             // 保存更新
             await agvRepository.UpdateAsync(agv);
 

@@ -265,11 +265,13 @@
                            RefreshInterval="_refreshIntervalSeconds"
                            EnableAutoSimulation="_enableAutoSimulation"
                            SimulationSpeedRatio="_simulationSpeedRatio"
+                           Agvs="_agvs"
                            OnRenderOptionsChanged="OnRenderOptionsChanged"
                            OnAutoRefreshChanged="OnAutoRefreshChanged"
                            OnRefreshIntervalChanged="OnRefreshIntervalChanged"
                            OnAutoSimulationChanged="OnAutoSimulationChanged"
-                           OnSimulationSpeedRatioChanged="OnSimulationSpeedRatioChanged" />
+                           OnSimulationSpeedRatioChanged="OnSimulationSpeedRatioChanged"
+                           OnControlSuccess="RefreshData" />
 
 @code {
     // 地图数据

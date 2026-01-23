@@ -1,8 +1,12 @@
 using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Business.Entities.BackgroundJobLogAggregate;
+using AgvDispatch.Business.Entities.TaskAggregate;
+using AgvDispatch.Business.Services;
+using AgvDispatch.Business.Specifications.TaskJobs;
 using AgvDispatch.Infrastructure.Options;
 using AgvDispatch.Shared.DTOs.BackgroundJobLogs;
 using AgvDispatch.Shared.Enums;
+using AgvDispatch.Shared.Messages;
 using AgvDispatch.Shared.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -48,6 +52,8 @@ public class AgvHealthCheckJob : IJob
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var agvRepository = scope.ServiceProvider.GetRequiredService<IRepository<Agv>>();
+            var taskRepository = scope.ServiceProvider.GetRequiredService<IRepository<TaskJob>>();
+            var mqttBrokerService = scope.ServiceProvider.GetRequiredService<IMqttBrokerService>();
             var jobLogRepository = scope.ServiceProvider.GetRequiredService<IRepository<BackgroundJobLog>>();
 
             // 获取所有非离线状态的小车
@@ -86,9 +92,36 @@ public class AgvHealthCheckJob : IJob
                     agv.AgvCode, _options.AgvOfflineThresholdSeconds, lastOnlineTimeText);
 
                 agv.AgvStatus = AgvStatus.Offline;
-
                 await agvRepository.UpdateAsync(agv);
                 offlineAgvCodes.Add(agv.AgvCode);
+
+                // 检查并停止该 AGV 正在运行的任务
+                var runningTasksSpec = new TaskRunningByAgvCodeSpec(agv.AgvCode);
+                var runningTasks = await taskRepository.ListAsync(runningTasksSpec);
+
+                if (runningTasks.Any())
+                {
+                    foreach (var task in runningTasks)
+                    {
+                        task.TaskStatus = TaskJobStatus.Cancelled;
+                        task.CancelledAt = DateTimeOffset.UtcNow;
+                        task.CancelReason = $"AGV 离线（超过 {_options.AgvOfflineThresholdSeconds} 秒未发送消息）";
+                        await taskRepository.UpdateAsync(task);
+
+                        // 发送 MQTT 取消消息
+                        var cancelMessage = new TaskCancelMessage
+                        {
+                            TaskId = task.Id.ToString(),
+                            Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            Reason = task.CancelReason
+                        };
+                        await mqttBrokerService.PublishTaskCancelAsync(agv.AgvCode, cancelMessage);
+
+                        _logger.LogWarning(
+                            "[AgvHealthCheckJob] 已取消任务 {TaskId}（AGV {AgvCode} 离线）",
+                            task.Id, agv.AgvCode);
+                    }
+                }
             }
 
             _logger.LogInformation(

@@ -104,4 +104,16 @@ public class AgvClient : IAgvClient
         var response = await _http.PostAsJsonAsync("api/agvs/exceptions/resolve", exceptionIds);
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<string?> ManualControlAsync(Guid id, ManualControlAgvRequest request)
+    {
+        var response = await _http.PostAsJsonAsync($"api/agvs/{id}/manual-control", request);
+        if (response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var error = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+        return error?.Message ?? "手动控制失败";
+    }
 }
