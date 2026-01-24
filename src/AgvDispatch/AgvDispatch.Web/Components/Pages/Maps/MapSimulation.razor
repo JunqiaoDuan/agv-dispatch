@@ -600,7 +600,7 @@
 
         // 启动定时器
         _updateTimer?.Dispose();
-        _updateTimer = new System.Timers.Timer(_refreshRate);
+        _updateTimer = new Timer(_refreshRate);
         _updateTimer.Elapsed += OnTimerElapsed;
         _updateTimer.Start();
     }
