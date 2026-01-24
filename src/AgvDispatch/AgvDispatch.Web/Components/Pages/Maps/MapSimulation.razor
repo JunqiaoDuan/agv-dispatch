@@ -379,7 +379,7 @@
                             视图追踪
                         </MudText>
 
-                        <MudRadioGroup T="string" Value="_trackingMode" ValueChanged="OnTrackingModeChanged">
+                        <MudRadioGroup T="string" Value="@_trackingMode" ValueChanged="OnTrackingModeChanged">
                             <MudRadio T="string" Value="@("none")" Color="Color.Default" Size="Size.Small">
                                 不追踪
                             </MudRadio>
@@ -428,6 +428,8 @@
     private string _simulationSvg = string.Empty;
     private string _minimapMapSvg = string.Empty;
     private string _minimapOverlaySvg = string.Empty;
+
+    private int _refreshRate = 100;
 
     // 视图控制
     private float _viewWidth = 1200f;
@@ -598,7 +600,7 @@
 
         // 启动定时器
         _updateTimer?.Dispose();
-        _updateTimer = new System.Timers.Timer(50);
+        _updateTimer = new System.Timers.Timer(_refreshRate);
         _updateTimer.Elapsed += OnTimerElapsed;
         _updateTimer.Start();
     }

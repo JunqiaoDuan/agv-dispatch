@@ -119,7 +119,7 @@
                             追踪小车
                         </MudText>
 
-                        <MudRadioGroup T="string" Value="_trackingMode" ValueChanged="OnTrackingModeChanged">
+                        <MudRadioGroup T="string" Value="@_trackingMode" ValueChanged="OnTrackingModeChanged">
                             <MudRadio T="string" Value="@("none")" Color="Color.Default" Size="Size.Small">
                                 不追踪
                             </MudRadio>
@@ -161,7 +161,7 @@
                                   RenderOptions="_renderOptions"
                                   EnableAutoSimulation="_enableAutoSimulation"
                                   SimulationSpeedRatio="_simulationSpeedRatio"
-                                  TrackingMode="_trackingMode"
+                                  TrackingMode="@_trackingMode"
                                   TrackingModeChanged="OnTrackingModeChanged" />
             }
         </div>
@@ -428,7 +428,11 @@
     /// </summary>
     private void OnTrackingModeChanged(string mode)
     {
+        Console.WriteLine($"[TaskMonitor] 追踪模式变更: {_trackingMode} -> {mode}");
         _trackingMode = mode;
+
+        // 关键：触发 UI 更新，确保参数变化传递到子组件
+        StateHasChanged();
     }
 
     #endregion

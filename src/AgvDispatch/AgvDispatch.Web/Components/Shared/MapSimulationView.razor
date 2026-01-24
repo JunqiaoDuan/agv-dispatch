@@ -202,16 +202,35 @@
 
     protected override void OnParametersSet()
     {
+        Console.WriteLine($"[MapSimulationView] OnParametersSet - Initialized: {_initialized}, TrackingMode: {TrackingMode}, Tasks: {Tasks.Count}");
+
         if (!_initialized && Map != null && Nodes.Count > 0)
         {
             _initialized = true;
             InitializeRenderData();
             RenderAll();
+            Console.WriteLine("[MapSimulationView] 首次初始化完成");
         }
         else if (_initialized)
         {
-            // 参数更新时重新渲染
+            Console.WriteLine("[MapSimulationView] 参数更新，开始重新渲染");
+
+            // 1. 处理执行中的任务（更新模拟器状态，渲染任务路径和小地图）
             ProcessExecutingTasks();
+
+            // 2. 检查是否需要应用追踪
+            if (TrackingMode != "none" && Guid.TryParse(TrackingMode, out var trackedTaskId))
+            {
+                // 追踪模式：ApplyTracking 会调用 RenderMap()，进而渲染所有内容
+                Console.WriteLine($"[MapSimulationView] 应用追踪模式: {trackedTaskId}");
+                ApplyTracking(trackedTaskId);
+            }
+            else
+            {
+                // 非追踪模式：只需要更新 AGV 层（包括空闲 AGV）和小地图
+                Console.WriteLine("[MapSimulationView] 非追踪模式，更新 AGV 和小地图");
+                RenderAgvs();  // 会自动调用 RenderMinimapAgvs()（第 657 行）
+            }
         }
     }
 
@@ -653,8 +672,8 @@
         svg.AppendLine("</svg>");
         _agvSvg = svg.ToString();
 
-        // 同时更新缩略图上的AGV，确保实时同步
-        RenderMinimapAgvs();
+        // 注释：小地图的 AGV 渲染由调用方控制，避免重复渲染
+        // RenderMinimapAgvs();
     }
 
     private void RenderMinimap()
