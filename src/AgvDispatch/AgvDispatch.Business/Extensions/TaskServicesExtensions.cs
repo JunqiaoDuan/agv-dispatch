@@ -19,6 +19,9 @@ public static class TaskServicesExtensions
         // 小车推荐服务
         services.AddScoped<IAgvRecommendationService, AgvRecommendationService>();
 
+        // 路径锁定服务
+        services.AddScoped<IPathLockService, PathLockService>();
+
         return services;
     }
 }

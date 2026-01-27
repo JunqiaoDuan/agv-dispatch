@@ -242,6 +242,14 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
                     }
                     break;
 
+                case MqttTopics.MessageTypePathLockRequest:
+                    var lockRequest = JsonSerializer.Deserialize<PathLockRequestMessage>(payload);
+                    if (lockRequest != null)
+                    {
+                        await _messageHandler.HandlePathLockRequestAsync(agvCode, lockRequest);
+                    }
+                    break;
+
                 default:
                     _logger.LogDebug("[MQTT Broker] 未知的消息类型: {MessageType}", messageType);
                     break;
@@ -342,6 +350,16 @@ public class MqttBrokerService : IHostedService, IMqttBrokerService, IDisposable
     public async Task PublishCommandAsync(string agvCode, CommandMessage message)
     {
         var topic = MqttTopics.Command(agvCode);
+        var payload = JsonSerializer.Serialize(message);
+        await PublishAsync(topic, payload, MqttQualityOfServiceLevel.AtLeastOnce);
+    }
+
+    /// <summary>
+    /// 发布路径锁定响应消息
+    /// </summary>
+    public async Task PublishPathLockResponseAsync(string agvCode, PathLockResponseMessage message)
+    {
+        var topic = MqttTopics.PathLockResponse(agvCode);
         var payload = JsonSerializer.Serialize(message);
         await PublishAsync(topic, payload, MqttQualityOfServiceLevel.AtLeastOnce);
     }

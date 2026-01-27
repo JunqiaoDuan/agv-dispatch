@@ -22,4 +22,9 @@ public interface IMqttMessageHandler
     /// </summary>
     Task HandleExceptionAsync(string agvCode, ExceptionMessage message);
 
+    /// <summary>
+    /// 处理路径锁定请求消息
+    /// </summary>
+    Task HandlePathLockRequestAsync(string agvCode, PathLockRequestMessage message);
+
 }

@@ -179,11 +179,6 @@ public static class MqttTopics
     /// </summary>
     public const string MessageTypePathLockResponse = "path/lock-response";
 
-    /// <summary>
-    /// 消息类型: 路段解锁
-    /// </summary>
-    public const string MessageTypePathUnlock = "path/unlock";
-
     #endregion
 
     #region Topic 解析

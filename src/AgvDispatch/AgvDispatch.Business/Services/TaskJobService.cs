@@ -21,6 +21,7 @@ public class TaskJobService : ITaskJobService
     private readonly IRepository<Agv> _agvRepository;
     private readonly IAgvRecommendationService _recommendationService;
     private readonly IMqttBrokerService _mqttBrokerService;
+    private readonly IPathLockService _pathLockService;
     private readonly ILogger<TaskJobService> _logger;
 
     public TaskJobService(
@@ -28,12 +29,14 @@ public class TaskJobService : ITaskJobService
         IRepository<Agv> agvRepository,
         IAgvRecommendationService recommendationService,
         IMqttBrokerService mqttBrokerService,
+        IPathLockService pathLockService,
         ILogger<TaskJobService> logger)
     {
         _taskRepository = taskRepository;
         _agvRepository = agvRepository;
         _recommendationService = recommendationService;
         _mqttBrokerService = mqttBrokerService;
+        _pathLockService = pathLockService;
         _logger = logger;
     }
 
@@ -224,6 +227,9 @@ public class TaskJobService : ITaskJobService
                 // 无需修改 AGV 状态（任务状态已足够）
                 agv.OnUpdate(userId);
                 await _agvRepository.UpdateAsync(agv);
+
+                // 清理路径锁定
+                await _pathLockService.ClearAgvLocksAsync(task.AssignedAgvCode);
 
                 // 发送 MQTT 取消消息
                 var cancelMessage = new TaskCancelMessage

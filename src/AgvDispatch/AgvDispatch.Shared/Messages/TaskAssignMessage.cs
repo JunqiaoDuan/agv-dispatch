@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using AgvDispatch.Shared.DTOs.Routes;
 using AgvDispatch.Shared.Enums;
 
 namespace AgvDispatch.Shared.Messages;
@@ -51,4 +52,10 @@ public class TaskAssignMessage
     /// </summary>
     [JsonPropertyName("description")]
     public string? Description { get; set; }
+
+    /// <summary>
+    /// 路线检查点列表
+    /// </summary>
+    [JsonPropertyName("checkpoints")]
+    public List<CheckpointDto>? Checkpoints { get; set; }
 }

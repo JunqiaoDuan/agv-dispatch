@@ -22,4 +22,9 @@ public interface IMqttBrokerService
     /// </summary>
     Task PublishCommandAsync(string agvCode, CommandMessage message);
 
+    /// <summary>
+    /// 发布路径锁定响应消息
+    /// </summary>
+    Task PublishPathLockResponseAsync(string agvCode, PathLockResponseMessage message);
+
 }

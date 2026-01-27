@@ -33,5 +33,5 @@ public class TaskRouteCheckpoint : BaseEntity
     /// 是否需要锁定(申请通行权)
     /// 根据地图EdgeLock配置在生成TaskRoute时计算并存储
     /// </summary>
-    public bool IsLockRequired { get; set; }
+    //public bool IsLockRequired { get; set; }
 }

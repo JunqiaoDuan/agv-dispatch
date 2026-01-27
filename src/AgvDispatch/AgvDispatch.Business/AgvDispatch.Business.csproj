@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <Folder Include="BackgroundServices\" />
-    <Folder Include="Entities\" />
     <Folder Include="Models\" />
   </ItemGroup>
 

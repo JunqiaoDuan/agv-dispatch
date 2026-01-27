@@ -316,4 +316,76 @@ public class MqttMessageHandler : IMqttMessageHandler
         }
     }
 
+    /// <summary>
+    /// 处理路径锁定请求消息
+    /// 职责：调用路径锁定服务进行冲突检测，并发送响应消息
+    /// </summary>
+    public async Task HandlePathLockRequestAsync(string agvCode, PathLockRequestMessage message)
+    {
+        _logger.LogInformation("[MqttMessageHandler] 收到小车 {AgvCode} 的路径锁定请求: {From}→{To}, TaskId={TaskId}",
+            agvCode, message.FromStationCode, message.ToStationCode, message.TaskId);
+
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var pathLockService = scope.ServiceProvider.GetRequiredService<IPathLockService>();
+            var mqttService = scope.ServiceProvider.GetRequiredService<IMqttBrokerService>();
+
+            // 解析任务ID
+            if (!Guid.TryParse(message.TaskId, out var taskId))
+            {
+                _logger.LogError("[MqttMessageHandler] 无效的任务ID: {TaskId}", message.TaskId);
+
+                // 发送拒绝响应
+                var errorResponse = new PathLockResponseMessage
+                {
+                    TaskId = message.TaskId,
+                    FromStationCode = message.FromStationCode,
+                    ToStationCode = message.ToStationCode,
+                    Approved = false,
+                    Reason = "无效的任务ID",
+                    Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                };
+                await mqttService.PublishPathLockResponseAsync(agvCode, errorResponse);
+                return;
+            }
+
+            // 申请锁定
+            var (approved, reason) = await pathLockService.RequestLockAsync(
+                message.FromStationCode,
+                message.ToStationCode,
+                agvCode,
+                taskId);
+
+            // 发送响应
+            var response = new PathLockResponseMessage
+            {
+                TaskId = message.TaskId,
+                FromStationCode = message.FromStationCode,
+                ToStationCode = message.ToStationCode,
+                Approved = approved,
+                Reason = reason,
+                Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            };
+
+            await mqttService.PublishPathLockResponseAsync(agvCode, response);
+
+            if (approved)
+            {
+                _logger.LogInformation("[MqttMessageHandler] 批准路径锁定: {From}→{To}, AgvCode={AgvCode}, TaskId={TaskId}",
+                    message.FromStationCode, message.ToStationCode, agvCode, message.TaskId);
+            }
+            else
+            {
+                _logger.LogInformation("[MqttMessageHandler] 拒绝路径锁定: {From}→{To}, AgvCode={AgvCode}, Reason={Reason}",
+                    message.FromStationCode, message.ToStationCode, agvCode, reason);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[MqttMessageHandler] 处理路径锁定请求失败: AgvCode={AgvCode}, {From}→{To}",
+                agvCode, message.FromStationCode, message.ToStationCode);
+        }
+    }
+
 }
