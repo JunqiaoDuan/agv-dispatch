@@ -1,7 +1,7 @@
 using AgvDispatch.Business.Entities.Common;
 using AgvDispatch.Shared.Enums;
 
-namespace AgvDispatch.Business.Entities.PathLockAggregate;
+namespace AgvDispatch.Business.Entities.TaskPathLockAggregate;
 
 /// <summary>
 /// 路径锁定实体

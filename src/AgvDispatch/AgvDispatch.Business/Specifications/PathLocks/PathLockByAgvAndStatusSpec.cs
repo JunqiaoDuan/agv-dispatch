@@ -1,4 +1,4 @@
-using AgvDispatch.Business.Entities.PathLockAggregate;
+using AgvDispatch.Business.Entities.TaskPathLockAggregate;
 using AgvDispatch.Shared.Enums;
 using Ardalis.Specification;
 

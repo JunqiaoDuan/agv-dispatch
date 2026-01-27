@@ -1,6 +1,6 @@
 using AgvDispatch.Business.Entities.Common;
 
-namespace AgvDispatch.Business.Entities.RouteAggregate;
+namespace AgvDispatch.Business.Entities.TaskRouteAggregate;
 
 /// <summary>
 /// 任务路线定义

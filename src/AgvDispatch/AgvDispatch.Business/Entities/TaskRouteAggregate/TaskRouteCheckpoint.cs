@@ -1,7 +1,7 @@
 using AgvDispatch.Business.Entities.Common;
 using AgvDispatch.Shared.Enums;
 
-namespace AgvDispatch.Business.Entities.RouteAggregate;
+namespace AgvDispatch.Business.Entities.TaskRouteAggregate;
 
 /// <summary>
 /// 任务路线检查点实体(AGV对接路径)

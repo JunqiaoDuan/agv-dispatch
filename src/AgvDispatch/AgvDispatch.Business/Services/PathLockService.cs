@@ -1,5 +1,5 @@
 using AgvDispatch.Business.Entities.AgvAggregate;
-using AgvDispatch.Business.Entities.PathLockAggregate;
+using AgvDispatch.Business.Entities.TaskPathLockAggregate;
 using AgvDispatch.Business.Specifications.Agvs;
 using AgvDispatch.Business.Specifications.PathLocks;
 using AgvDispatch.Shared.Enums;
