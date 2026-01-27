@@ -16,6 +16,9 @@ public static class TaskServicesExtensions
         // 任务管理服务
         services.AddScoped<ITaskJobService, TaskJobService>();
 
+        // 任务路径规划服务
+        services.AddScoped<ITaskRouteService, TaskRouteService>();
+
         // 小车推荐服务
         services.AddScoped<IAgvRecommendationService, AgvRecommendationService>();
 

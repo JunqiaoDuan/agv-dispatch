@@ -1,10 +1,14 @@
 using AgvDispatch.Business.Entities.AgvAggregate;
 using AgvDispatch.Business.Entities.TaskAggregate;
+using AgvDispatch.Business.Entities.TaskRouteAggregate;
 using AgvDispatch.Business.Messages;
 using AgvDispatch.Business.Specifications.Agvs;
 using AgvDispatch.Business.Specifications.TaskJobs;
+using AgvDispatch.Business.Specifications.TaskRoutes;
 using AgvDispatch.Shared.Constants;
+using AgvDispatch.Shared.DTOs.Routes;
 using AgvDispatch.Shared.Enums;
+using AgvDispatch.Shared.Extensions;
 using AgvDispatch.Shared.Messages;
 using AgvDispatch.Shared.Repository;
 using MassTransit;
@@ -19,24 +23,30 @@ public class TaskJobService : ITaskJobService
 {
     private readonly IRepository<TaskJob> _taskRepository;
     private readonly IRepository<Agv> _agvRepository;
+    private readonly IRepository<TaskRouteCheckpoint> _taskRouteCheckpointRepository;
     private readonly IAgvRecommendationService _recommendationService;
     private readonly IMqttBrokerService _mqttBrokerService;
     private readonly IPathLockService _pathLockService;
+    private readonly ITaskRouteService _taskRouteService;
     private readonly ILogger<TaskJobService> _logger;
 
     public TaskJobService(
         IRepository<TaskJob> taskRepository,
         IRepository<Agv> agvRepository,
+        IRepository<TaskRouteCheckpoint> taskRouteCheckpointRepository,
         IAgvRecommendationService recommendationService,
         IMqttBrokerService mqttBrokerService,
         IPathLockService pathLockService,
+        ITaskRouteService taskRouteService,
         ILogger<TaskJobService> logger)
     {
         _taskRepository = taskRepository;
         _agvRepository = agvRepository;
+        _taskRouteCheckpointRepository = taskRouteCheckpointRepository;
         _recommendationService = recommendationService;
         _mqttBrokerService = mqttBrokerService;
         _pathLockService = pathLockService;
+        _taskRouteService = taskRouteService;
         _logger = logger;
     }
 
@@ -126,14 +136,30 @@ public class TaskJobService : ITaskJobService
             throw new InvalidOperationException("无法分配任务: 小车未在任何站点");
         }
 
-        // 4. 创建任务(状态=Assigned)
+        var taskId = NewId.NextSequentialGuid();
+        var startStationCode = agv.CurrentStationCode; // 起点为小车当前位置
+
+        // 4. 创建任务路径（TaskRoute、TaskRouteSegment、TaskRouteCheckpoint）
+        var taskRoute = await _taskRouteService.CreateTaskRouteAsync(
+            taskId,
+            startStationCode,
+            targetStationCode,
+            userId);
+
+        if (taskRoute == null)
+        {
+            _logger.LogWarning("[TaskJobService] 任务路径创建失败: TaskId={TaskId}", taskId);
+            throw new Exception($"创建任务路径失败 {taskId}");
+        }
+
+        // 5. 创建任务(状态=Assigned)
         var task = new TaskJob
         {
-            Id = NewId.NextSequentialGuid(),
+            Id = taskId,
             TaskType = taskType,
             TaskStatus = TaskJobStatus.Assigned,
             Priority = 30, // 默认优先级
-            StartStationCode = agv.CurrentStationCode, // 起点为小车当前位置
+            StartStationCode = startStationCode,
             EndStationCode = targetStationCode,
             Description = $"{taskType.ToDisplayText()} - {targetStationCode}",
             AssignedAgvCode = selectedAgvCode,
@@ -143,7 +169,7 @@ public class TaskJobService : ITaskJobService
         task.OnCreate(userId);
         await _taskRepository.AddAsync(task);
 
-        // 5. 如果传入了HasCargo参数，更新小车货物状态
+        // 6. 如果传入了HasCargo参数，更新小车货物状态
         if (hasCargo.HasValue && agv.HasCargo != hasCargo.Value)
         {
             agv.HasCargo = hasCargo.Value;
@@ -151,11 +177,21 @@ public class TaskJobService : ITaskJobService
                 agv.AgvCode, hasCargo.Value);
         }
 
-        // 6. 更新小车修改时间
+        // 7. 更新小车修改时间
         agv.OnUpdate(userId);
         await _agvRepository.UpdateAsync(agv);
 
-        // 7. 立即发送MQTT消息
+        // 8. 查询任务路径检查点
+        var checkpointSpec = new TaskRouteCheckpointByRouteIdSpec(taskRoute.Id);
+        var checkpoints = await _taskRouteCheckpointRepository.ListAsync(checkpointSpec);
+        var checkpointDtos = checkpoints.Select(cp => new CheckpointDto
+        {
+            Seq = cp.Seq,
+            StationCode = cp.StationCode,
+            CheckpointType = cp.CheckpointType
+        }).ToList();
+
+        // 9. 立即发送MQTT消息
         var message = new TaskAssignMessage
         {
             TaskId = task.Id.ToString(),
@@ -164,12 +200,13 @@ public class TaskJobService : ITaskJobService
             Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
             StartStationCode = task.StartStationCode,
             EndStationCode = task.EndStationCode,
-            Description = task.Description
+            Description = task.Description,
+            Checkpoints = checkpointDtos
         };
         await _mqttBrokerService.PublishTaskAssignAsync(agv.AgvCode, message);
 
-        _logger.LogInformation("[TaskJobService] 任务已创建并分配: TaskId={Id}, AgvCode={AgvCode}, Type={Type}",
-            task.Id, agv.AgvCode, taskType);
+        _logger.LogInformation("[TaskJobService] 任务已创建并分配: TaskId={Id}, AgvCode={AgvCode}, Type={Type}, Checkpoints={CheckpointCount}",
+            task.Id, agv.AgvCode, taskType, checkpointDtos.Count);
 
         return task;
     }

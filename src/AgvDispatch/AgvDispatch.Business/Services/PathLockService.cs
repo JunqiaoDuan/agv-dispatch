@@ -47,6 +47,6 @@ public class PathLockService : IPathLockService
 
     public async Task ClearAgvLocksAsync(string agvCode)
     {
-        throw new NotImplementedException();
+        //throw new NotImplementedException();
     }
 }

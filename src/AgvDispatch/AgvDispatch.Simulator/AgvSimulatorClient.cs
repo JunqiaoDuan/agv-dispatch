@@ -221,6 +221,21 @@ public class AgvSimulatorClient
     private async Task HandleTaskAssignAsync(TaskAssignMessage message)
     {
         Log($"收到任务: {message.TaskId}, 类型: {message.TaskType}, 开始站点：{message.StartStationCode}, 目标站点: {message.EndStationCode}");
+
+        // 输出检查点信息
+        if (message.Checkpoints != null && message.Checkpoints.Count > 0)
+        {
+            Log($"任务检查点数量: {message.Checkpoints.Count}");
+            foreach (var checkpoint in message.Checkpoints)
+            {
+                Log($"  检查点 [{checkpoint.Seq}] 站点: {checkpoint.StationCode}, 类型: {checkpoint.CheckpointType}");
+            }
+        }
+        else
+        {
+            Log("任务未包含检查点信息");
+        }
+
         OnTaskReceived?.Invoke(this, message);
 
         _currentTask = message;
