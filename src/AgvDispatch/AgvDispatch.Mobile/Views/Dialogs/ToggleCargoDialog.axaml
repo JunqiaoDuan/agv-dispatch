@@ -1,0 +1,139 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
+        x:Class="AgvDispatch.Mobile.Views.Dialogs.ToggleCargoDialog"
+        x:DataType="vm:ToggleCargoDialogViewModel"
+        Title="切换货物状态"
+        Width="320"
+        Height="350"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,*,Auto" Background="White">
+        <!-- 顶部标题栏 -->
+        <Border Grid.Row="0"
+                Background="{StaticResource PrimaryBrush}"
+                Padding="16,12">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="切换货物状态"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1"
+                        Content="✕"
+                        FontSize="18"
+                        Foreground="White"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32"
+                        Height="32"
+                        Padding="0"
+                        Click="OnCancelClick"/>
+            </Grid>
+        </Border>
+
+        <!-- 内容区域 -->
+        <Border Grid.Row="1" Padding="20">
+        <StackPanel Spacing="16">
+            <!-- 小车编号 -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="小车编号" FontSize="12" Foreground="#757575"/>
+                <TextBlock Text="{Binding AgvCode}"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="#212121"/>
+            </StackPanel>
+
+            <!-- 状态对比 -->
+            <Border Background="#F5F5F5"
+                    CornerRadius="8"
+                    Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="状态切换" FontSize="13" FontWeight="SemiBold" Foreground="#212121"/>
+
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <!-- 当前状态 -->
+                        <Border Grid.Column="0"
+                                Background="{StaticResource InfoBrush}"
+                                CornerRadius="6"
+                                Padding="8,4">
+                            <TextBlock Text="{Binding CurrentHasCargo, Converter={StaticResource BoolToCargoTextConverter}}"
+                                       FontSize="12"
+                                       Foreground="White"
+                                       FontWeight="SemiBold"/>
+                        </Border>
+
+                        <!-- 箭头 -->
+                        <PathIcon Grid.Column="1"
+                                  Data="M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z"
+                                  Width="20" Height="20"
+                                  Foreground="#9E9E9E"
+                                  HorizontalAlignment="Center"/>
+
+                        <!-- 目标状态 -->
+                        <Border Grid.Column="2"
+                                Background="{StaticResource SuccessBrush}"
+                                CornerRadius="6"
+                                Padding="8,4">
+                            <TextBlock Text="{Binding TargetHasCargo, Converter={StaticResource BoolToCargoTextConverter}}"
+                                       FontSize="12"
+                                       Foreground="White"
+                                       FontWeight="SemiBold"/>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 操作原因 -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="操作原因（可选）" FontSize="12" Foreground="#757575"/>
+                <TextBox Text="{Binding Reason}"
+                         Watermark="请输入操作原因"
+                         Height="60"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"/>
+            </StackPanel>
+
+            <!-- 错误信息 -->
+            <Border Background="#FFEBEE"
+                    CornerRadius="8"
+                    Padding="12"
+                    IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <TextBlock Text="{Binding ErrorMessage}"
+                           FontSize="12"
+                           Foreground="{StaticResource ErrorBrush}"
+                           TextWrapping="Wrap"/>
+            </Border>
+        </StackPanel>
+        </Border>
+
+        <!-- 底部按钮 -->
+        <Border Grid.Row="2"
+                Background="#F5F5F5"
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,1,0,0"
+                Padding="16">
+            <Grid ColumnDefinitions="*,*">
+                <Button Grid.Column="0"
+                        Content="取消"
+                        Height="40"
+                        CornerRadius="8"
+                        Background="#E0E0E0"
+                        Foreground="#616161"
+                        Margin="0,0,8,0"
+                        Click="OnCancelClick"/>
+
+                <Button Grid.Column="1"
+                        Content="确认切换"
+                        Height="40"
+                        CornerRadius="8"
+                        Background="{StaticResource PrimaryBrush}"
+                        Foreground="White"
+                        IsEnabled="{Binding !IsProcessing}"
+                        Click="OnConfirmClick"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

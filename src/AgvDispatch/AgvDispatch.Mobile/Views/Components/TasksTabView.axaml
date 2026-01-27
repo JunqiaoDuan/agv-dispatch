@@ -1,39 +1,40 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
-             xmlns:dto="using:AgvDispatch.Shared.DTOs.Agvs"
              xmlns:components="using:AgvDispatch.Mobile.Views.Components"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="600"
-             x:Class="AgvDispatch.Mobile.Views.Components.AllAgvTabView"
+             xmlns:dto="using:AgvDispatch.Shared.DTOs.Tasks"
+             x:Class="AgvDispatch.Mobile.Views.Components.TasksTabView"
              x:DataType="vm:TaskMonitorViewModel">
 
     <ScrollViewer Padding="12">
         <StackPanel>
-            <!-- AGV列表 -->
-            <ItemsControl ItemsSource="{Binding AllAgvList}">
+            <!-- 任务列表 -->
+            <ItemsControl ItemsSource="{Binding ExecutingTaskList}">
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate DataType="dto:AgvMonitorItemDto">
-                        <components:AgvDetailCard/>
+                    <DataTemplate DataType="dto:TaskListItemDto">
+                        <components:TaskCard/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
             <!-- 空状态提示 -->
-            <Border IsVisible="{Binding !AllAgvList.Count}"
+            <Border IsVisible="{Binding !ExecutingTaskList.Count}"
                     Background="#F5F5F5"
                     CornerRadius="12"
                     Padding="32"
                     Margin="0,20,0,0">
                 <StackPanel Spacing="12" HorizontalAlignment="Center">
-                    <PathIcon Data="M19,2H5C3.89,2 3,2.89 3,4V7C3,8.11 3.89,9 5,9H19C20.11,9 21,8.11 21,7V4C21,2.89 20.11,2 19,2M19,16H5C3.89,16 3,16.89 3,18V21C3,22.11 3.89,23 5,23H19C20.11,23 21,22.11 21,21V18C21,16.89 20.11,16 19,16M11,11V13H13V11H11M3,11V13H9V11H3M15,11V13H21V11H15Z"
+                    <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"
                               Width="64" Height="64"
                               Foreground="#BDBDBD"
                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="暂无小车数据"
+                    <TextBlock Text="暂无执行中的任务"
                                FontSize="16"
                                Foreground="#9E9E9E"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="所有任务都已完成"
+                               FontSize="12"
+                               Foreground="#BDBDBD"
                                HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>

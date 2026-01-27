@@ -1,10 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:dto="using:AgvDispatch.Shared.DTOs.Agvs"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:DesignWidth="340" d:DesignHeight="200"
-             x:Class="AgvDispatch.Mobile.Views.Components.AgvCardView"
+             xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
+             x:Class="AgvDispatch.Mobile.Views.Components.AgvDetailCard"
              x:DataType="dto:AgvMonitorItemDto">
 
     <Border Background="White"
@@ -12,7 +10,7 @@
             BoxShadow="0 2 8 0 #10000000"
             Padding="16"
             Margin="0,0,0,12">
-        <Grid RowDefinitions="Auto,Auto,Auto">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto">
             <!-- 第一行：名称 + 异常 + 状态 -->
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
                 <TextBlock Grid.Column="0" FontSize="16" FontWeight="SemiBold" Foreground="#212121"
@@ -27,7 +25,9 @@
                         Background="{Binding UnresolvedExceptionCount, Converter={StaticResource ExceptionCountToBrushConverter}}"
                         CornerRadius="12"
                         Padding="8,4"
-                        Margin="0,0,8,0">
+                        Margin="0,0,8,0"
+                        Tapped="OnExceptionTapped"
+                        Cursor="Hand">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
                                   Width="14" Height="14"
@@ -51,23 +51,29 @@
                 </Border>
             </Grid>
 
-            <!-- 第二行：详细信息 -->
+            <!-- 第二行：任务 + 站点 -->
             <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                <!-- 任务信息（从 Tasks 中查找） -->
+                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,12,4">
+                    <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"
+                              Width="14" Height="14"
+                              Foreground="{StaticResource InfoBrush}"/>
+                    <TextBlock Text="任务:" FontSize="12" Foreground="#757575"/>
+                    <TextBlock Text="--" FontSize="12" Foreground="#424242"/>
+                </StackPanel>
+
                 <!-- 站点信息 -->
                 <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,12,4">
                     <PathIcon Data="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"
                               Width="14" Height="14"
                               Foreground="{StaticResource PrimaryBrush}"/>
                     <TextBlock Text="位置:" FontSize="12" Foreground="#757575"/>
-                    <TextBlock FontSize="12" Foreground="#424242">
-                        <Run Text="("/>
-                        <Run Text="{Binding PositionX, StringFormat='{}{0:F0}'}"/>
-                        <Run Text=", "/>
-                        <Run Text="{Binding PositionY, StringFormat='{}{0:F0}'}"/>
-                        <Run Text=")"/>
-                    </TextBlock>
+                    <TextBlock Text="{Binding CurrentStationCode}" FontSize="12" Foreground="#424242"/>
                 </StackPanel>
+            </WrapPanel>
 
+            <!-- 第三行：电量 + 速度 + 货物 -->
+            <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
                 <!-- 电量 -->
                 <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,12,4">
                     <PathIcon Data="M16.67,4H15V2H9V4H7.33A1.33,1.33 0 0,0 6,5.33V20.67C6,21.4 6.6,22 7.33,22H16.67A1.33,1.33 0 0,0 18,20.67V5.33C18,4.6 17.4,4 16.67,4Z"
@@ -91,32 +97,38 @@
                 </StackPanel>
 
                 <!-- 货物状态 -->
-                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,12,4">
-                    <PathIcon Data="M2,10.96C1.5,10.68 1.35,10.07 1.63,9.59L3.13,7C3.24,6.8 3.41,6.66 3.6,6.58L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.66,6.72 20.82,6.88 20.91,7.08L22.36,9.6C22.64,10.08 22.47,10.69 22,10.96L21,11.54V16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V10.96C2.7,11.13 2.32,11.14 2,10.96M12,4.15V4.15L12,10.85V10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V12.69L14,15.59C13.67,15.77 13.3,15.76 13,15.6C12.64,15.4 12.5,14.9 12.5,14.5C12.5,14.37 12.5,14.24 12.54,14.12C12.57,14 12.61,13.89 12.67,13.79C12.73,13.68 12.79,13.59 12.87,13.5C12.95,13.42 13.03,13.34 13.12,13.28L19,10.06V9.21L13,12.58V19.29L19,15.91Z"
-                              Width="14" Height="14"
-                              Foreground="{Binding HasCargo, Converter={StaticResource BoolToBrushConverter}}"/>
-                    <TextBlock Text="{Binding HasCargo, Converter={StaticResource BoolToCargoTextConverter}}"
-                               FontSize="12"
-                               Foreground="#424242"/>
-                </StackPanel>
+                <Border Padding="8,4"
+                        CornerRadius="6"
+                        Background="{Binding HasCargo, Converter={StaticResource BoolToBrushConverter}}"
+                        Tapped="OnCargoTapped"
+                        Cursor="Hand">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <PathIcon Data="M2,10.96C1.5,10.68 1.35,10.07 1.63,9.59L3.13,7C3.24,6.8 3.41,6.66 3.6,6.58L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.66,6.72 20.82,6.88 20.91,7.08L22.36,9.6C22.64,10.08 22.47,10.69 22,10.96L21,11.54V16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V10.96C2.7,11.13 2.32,11.14 2,10.96M12,4.15V4.15L12,10.85V10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V12.69L14,15.59C13.67,15.77 13.3,15.76 13,15.6C12.64,15.4 12.5,14.9 12.5,14.5C12.5,14.37 12.5,14.24 12.54,14.12C12.57,14 12.61,13.89 12.67,13.79C12.73,13.68 12.79,13.59 12.87,13.5C12.95,13.42 13.03,13.34 13.12,13.28L19,10.06V9.21L13,12.58V19.29L19,15.91Z"
+                                  Width="12" Height="12"
+                                  Foreground="White"/>
+                        <TextBlock Text="{Binding HasCargo, Converter={StaticResource BoolToCargoTextConverter}}"
+                                   FontSize="11"
+                                   Foreground="White"
+                                   FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Border>
             </WrapPanel>
 
-            <!-- 第三行：操作按钮 -->
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8"
-                        IsVisible="{Binding UnresolvedExceptionCount, Converter={StaticResource GreaterThanZeroConverter}}">
-                <Button Content="查看异常"
-                        FontSize="12"
-                        Padding="12,6"
-                        CornerRadius="6"
-                        Background="{StaticResource ErrorBrush}"
-                        Foreground="White"
-                        Click="OnShowExceptionsClick">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Opacity" Value="0.8"/>
-                        </Style>
-                    </Button.Styles>
-                </Button>
+            <!-- 第四行：坐标 -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="4">
+                <PathIcon Data="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"
+                          Width="14" Height="14"
+                          Foreground="#757575"/>
+                <TextBlock Text="位置:" FontSize="11" Foreground="#757575"/>
+                <TextBlock FontSize="11" Foreground="#616161">
+                    <Run Text="("/>
+                    <Run Text="{Binding PositionX, StringFormat='{}{0:F0}'}"/>
+                    <Run Text=", "/>
+                    <Run Text="{Binding PositionY, StringFormat='{}{0:F0}'}"/>
+                    <Run Text=") ∠"/>
+                    <Run Text="{Binding PositionAngle, StringFormat='{}{0:F0}'}"/>
+                    <Run Text="°"/>
+                </TextBlock>
             </StackPanel>
         </Grid>
     </Border>

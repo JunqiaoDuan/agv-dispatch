@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
+             x:Class="AgvDispatch.Mobile.Views.Components.OperationsTabView"
+             x:DataType="vm:TaskMonitorViewModel">
+
+    <Border Padding="16">
+        <Grid RowDefinitions="*,Auto,Auto,*">
+        <!-- 空白区域用于垂直居中 -->
+        <Border Grid.Row="0"/>
+
+        <!-- 去上料按钮 -->
+        <Button Grid.Row="1"
+                Command="{Binding OpenCallForLoadingDialogCommand}"
+                HorizontalAlignment="Stretch"
+                Height="80"
+                CornerRadius="12"
+                Background="{StaticResource SuccessBrush}"
+                Foreground="White"
+                Margin="0,0,0,16">
+            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                          Width="32" Height="32"
+                          Foreground="White"/>
+                <TextBlock Text="去上料"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="召唤小车到上料点"
+                           FontSize="12"
+                           Opacity="0.9"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+
+        <!-- 去下料按钮 -->
+        <Button Grid.Row="2"
+                Command="{Binding OpenSendToUnloadingDialogCommand}"
+                HorizontalAlignment="Stretch"
+                Height="80"
+                CornerRadius="12"
+                Background="{StaticResource InfoBrush}"
+                Foreground="White">
+            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                <PathIcon Data="M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z"
+                          Width="32" Height="32"
+                          Foreground="White"/>
+                <TextBlock Text="去下料"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="指派小车到下料点"
+                           FontSize="12"
+                           Opacity="0.9"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+
+        <!-- 空白区域用于垂直居中 -->
+        <Border Grid.Row="3"/>
+    </Grid>
+    </Border>
+</UserControl>

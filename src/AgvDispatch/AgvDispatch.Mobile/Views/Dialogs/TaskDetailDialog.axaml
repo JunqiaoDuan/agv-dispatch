@@ -1,0 +1,239 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
+        x:Class="AgvDispatch.Mobile.Views.Dialogs.TaskDetailDialog"
+        x:DataType="vm:TaskDetailDialogViewModel"
+        Title="任务详情"
+        Width="360"
+        Height="600"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,*,Auto" Background="White">
+        <!-- 顶部标题栏 -->
+        <Border Grid.Row="0"
+                Background="{StaticResource PrimaryBrush}"
+                Padding="16,12">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="任务详情"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1"
+                        Content="✕"
+                        FontSize="20"
+                        Foreground="White"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32"
+                        Height="32"
+                        Padding="0"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+
+        <!-- 内容区域 -->
+        <ScrollViewer Grid.Row="1" Padding="16">
+            <Grid>
+            <StackPanel Spacing="12" IsVisible="{Binding !IsLoading}">
+                <!-- 任务ID -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="任务ID" FontSize="12" Foreground="#757575"/>
+                    <TextBlock Text="{Binding Task.Id}" FontSize="13" Foreground="#212121"/>
+                </StackPanel>
+
+                <!-- 任务类型 -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="任务类型" FontSize="12" Foreground="#757575"/>
+                    <Border Background="{StaticResource InfoBrush}"
+                            CornerRadius="6"
+                            Padding="8,4"
+                            HorizontalAlignment="Left">
+                        <TextBlock Text="{Binding Task.TaskType, Converter={StaticResource TaskJobTypeToTextConverter}}"
+                                   FontSize="13"
+                                   Foreground="White"
+                                   FontWeight="SemiBold"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- 任务状态 -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="任务状态" FontSize="12" Foreground="#757575"/>
+                    <Border Background="{Binding Task.TaskStatus, Converter={StaticResource TaskJobStatusToBrushConverter}}"
+                            CornerRadius="6"
+                            Padding="8,4"
+                            HorizontalAlignment="Left">
+                        <TextBlock Text="{Binding Task.TaskStatus}"
+                                   FontSize="13"
+                                   Foreground="White"
+                                   FontWeight="SemiBold"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- 优先级 -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="优先级" FontSize="12" Foreground="#757575"/>
+                    <TextBlock Text="{Binding Task.Priority}" FontSize="13" Foreground="#212121"/>
+                </StackPanel>
+
+                <!-- 起点站点 -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="起点站点" FontSize="12" Foreground="#757575"/>
+                    <TextBlock Text="{Binding Task.StartStationCode}" FontSize="13" Foreground="#212121"/>
+                </StackPanel>
+
+                <!-- 终点站点 -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="终点站点" FontSize="12" Foreground="#757575"/>
+                    <TextBlock Text="{Binding Task.EndStationCode}" FontSize="13" Foreground="#212121"/>
+                </StackPanel>
+
+                <!-- 分配车辆 -->
+                <StackPanel Spacing="4" IsVisible="{Binding Task.AssignedAgvCode, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="分配车辆" FontSize="12" Foreground="#757575"/>
+                    <TextBlock Text="{Binding Task.AssignedAgvCode}" FontSize="13" Foreground="#212121" FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <!-- 进度 -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="进度" FontSize="12" Foreground="#757575"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <ProgressBar Grid.Column="0"
+                                     Value="{Binding Task.ProgressPercentage}"
+                                     Maximum="100"
+                                     Height="8"
+                                     CornerRadius="4"
+                                     Foreground="{StaticResource SuccessBrush}"
+                                     Background="#E0E0E0"
+                                     VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1"
+                                   FontSize="13"
+                                   Foreground="#616161"
+                                   FontWeight="SemiBold"
+                                   Margin="8,0,0,0"
+                                   VerticalAlignment="Center">
+                            <Run Text="{Binding Task.ProgressPercentage, StringFormat='{}{0:F0}'}"/>
+                            <Run Text="%"/>
+                        </TextBlock>
+                    </Grid>
+                </StackPanel>
+
+                <!-- 时间链 -->
+                <Border Background="#F5F5F5"
+                        CornerRadius="8"
+                        Padding="12">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="时间链" FontSize="13" FontWeight="SemiBold" Foreground="#212121"/>
+
+                        <!-- 创建时间 -->
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="创建时间" FontSize="11" Foreground="#757575"/>
+                            <TextBlock Text="{Binding Task.CreationDate, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                       FontSize="12" Foreground="#212121"/>
+                        </StackPanel>
+
+                        <!-- 分配时间 -->
+                        <StackPanel Spacing="2" IsVisible="{Binding Task.AssignedAt, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="分配时间" FontSize="11" Foreground="#757575"/>
+                            <TextBlock Text="{Binding Task.AssignedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                       FontSize="12" Foreground="#212121"/>
+                        </StackPanel>
+
+                        <!-- 开始时间 -->
+                        <StackPanel Spacing="2" IsVisible="{Binding Task.StartedAt, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="开始时间" FontSize="11" Foreground="#757575"/>
+                            <TextBlock Text="{Binding Task.StartedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                       FontSize="12" Foreground="#212121"/>
+                        </StackPanel>
+
+                        <!-- 完成时间 -->
+                        <StackPanel Spacing="2" IsVisible="{Binding Task.CompletedAt, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="完成时间" FontSize="11" Foreground="#757575"/>
+                            <TextBlock Text="{Binding Task.CompletedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                       FontSize="12" Foreground="#212121"/>
+                        </StackPanel>
+
+                        <!-- 等待时间 -->
+                        <StackPanel Spacing="2" IsVisible="{Binding Task.AssignedAt, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="等待时间" FontSize="11" Foreground="#757575"/>
+                            <TextBlock Text="{Binding WaitingTime}"
+                                       FontSize="12" Foreground="#212121"/>
+                        </StackPanel>
+
+                        <!-- 已耗时 -->
+                        <StackPanel Spacing="2" IsVisible="{Binding Task.StartedAt, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="已耗时" FontSize="11" Foreground="#757575"/>
+                            <TextBlock Text="{Binding ElapsedTime}"
+                                       FontSize="12" Foreground="#212121"/>
+                        </StackPanel>
+
+                        <!-- 总耗时 -->
+                        <StackPanel Spacing="2" IsVisible="{Binding Task.CompletedAt, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="总耗时" FontSize="11" Foreground="#757575"/>
+                            <TextBlock Text="{Binding TotalTime}"
+                                       FontSize="12" Foreground="#212121"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- 错误信息 -->
+                <Border Background="#FFEBEE"
+                        CornerRadius="8"
+                        Padding="12"
+                        IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               FontSize="12"
+                               Foreground="{StaticResource ErrorBrush}"
+                               TextWrapping="Wrap"/>
+                </Border>
+            </StackPanel>
+
+            <!-- 加载指示器 -->
+            <Grid IsVisible="{Binding IsLoading}"
+                  VerticalAlignment="Center"
+                  HorizontalAlignment="Center">
+                <StackPanel Spacing="12" HorizontalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True"
+                                 Width="200"
+                                 Foreground="{StaticResource PrimaryBrush}"/>
+                    <TextBlock Text="加载中..."
+                               FontSize="14"
+                               Foreground="#757575"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- 底部按钮 -->
+        <Border Grid.Row="2"
+                Background="#F5F5F5"
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,1,0,0"
+                Padding="16">
+            <Grid ColumnDefinitions="*,Auto">
+                <Button Grid.Column="0"
+                        Command="{Binding CancelTaskCommand}"
+                        IsVisible="{Binding CanCancel}"
+                        IsEnabled="{Binding !IsCanceling}"
+                        Background="{StaticResource ErrorBrush}"
+                        Foreground="White"
+                        Content="取消任务"
+                        Height="40"
+                        CornerRadius="8"
+                        Margin="0,0,8,0"/>
+
+                <Button Grid.Column="1"
+                        Content="关闭"
+                        Height="40"
+                        Width="100"
+                        CornerRadius="8"
+                        Background="{StaticResource PrimaryBrush}"
+                        Foreground="White"
+                        Click="OnCloseClick"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

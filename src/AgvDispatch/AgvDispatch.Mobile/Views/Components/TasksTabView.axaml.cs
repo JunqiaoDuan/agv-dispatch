@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace AgvDispatch.Mobile.Views.Components;
 
-public partial class ChargingAgvTabView : UserControl
+public partial class TasksTabView : UserControl
 {
-    public ChargingAgvTabView()
+    public TasksTabView()
     {
         InitializeComponent();
     }

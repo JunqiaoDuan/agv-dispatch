@@ -129,6 +129,25 @@ public class AgvApiService : IAgvApiService
         }
     }
 
+    public async Task<string?> ManualControlAsync(Guid id, ManualControlAgvRequest request)
+    {
+        try
+        {
+            var client = GetHttpClient();
+            var response = await client.PostAsJsonAsync($"api/agvs/{id}/manual-control", request);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
+                return result?.Success == true ? result.Message : result?.Message;
+            }
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     // 站点相关
     public async Task<List<StationListItemDto>> GetAllStationsAsync(Guid mapId)
     {
@@ -173,6 +192,20 @@ public class AgvApiService : IAgvApiService
         }
     }
 
+    public async Task<TaskDetailDto?> GetTaskDetailAsync(Guid taskId)
+    {
+        try
+        {
+            var client = GetHttpClient();
+            var response = await client.GetFromJsonAsync<ApiResponse<TaskDetailDto>>($"api/tasks/{taskId}");
+            return response?.Success == true ? response.Data : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<List<AgvRecommendationDto>> GetRecommendationsAsync(GetRecommendationsRequestDto request)
     {
         try
@@ -202,6 +235,25 @@ public class AgvApiService : IAgvApiService
             {
                 var result = await response.Content.ReadFromJsonAsync<ApiResponse<CreateTaskResponseDto>>();
                 return result?.Success == true ? result.Data : null;
+            }
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<string?> CancelTaskAsync(CancelTaskRequestDto request)
+    {
+        try
+        {
+            var client = GetHttpClient();
+            var response = await client.PostAsJsonAsync("api/tasks/cancel", request);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
+                return result?.Success == true ? result.Message : result?.Message;
             }
             return null;
         }

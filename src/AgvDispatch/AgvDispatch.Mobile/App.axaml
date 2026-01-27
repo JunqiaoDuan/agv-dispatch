@@ -39,5 +39,8 @@
         <converters:BoolToCargoTextConverter x:Key="BoolToCargoTextConverter"/>
         <converters:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter"/>
         <converters:BoolToSelectTextConverter x:Key="BoolToSelectTextConverter"/>
+        <converters:TaskJobTypeToTextConverter x:Key="TaskJobTypeToTextConverter"/>
+        <converters:TaskJobStatusToBrushConverter x:Key="TaskJobStatusToBrushConverter"/>
+        <converters:TimeSpanToStringConverter x:Key="TimeSpanToStringConverter"/>
     </Application.Resources>
 </Application>
