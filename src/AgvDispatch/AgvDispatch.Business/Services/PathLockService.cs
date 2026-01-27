@@ -1,31 +1,24 @@
-using AgvDispatch.Business.Entities.AgvAggregate;
-using AgvDispatch.Business.Entities.TaskPathLockAggregate;
-using AgvDispatch.Business.Specifications.Agvs;
-using AgvDispatch.Business.Specifications.PathLocks;
-using AgvDispatch.Shared.Enums;
-using AgvDispatch.Shared.Repository;
-using MassTransit;
+using AgvDispatch.Business.Services.PathLockStrategies;
 using Microsoft.Extensions.Logging;
 
 namespace AgvDispatch.Business.Services;
 
 /// <summary>
-/// 路径锁定服务实现
+/// 路径锁定服务实现（使用策略模式支持不同项目的专用逻辑）
 /// </summary>
 public class PathLockService : IPathLockService
 {
-    private readonly IRepository<TaskPathLock> _lockRepository;
-    private readonly IRepository<Agv> _agvRepository;
+    private readonly PathLockStrategyFactory _strategyFactory;
     private readonly ILogger<PathLockService> _logger;
+    private readonly IPathLockStrategy _strategy;
 
     public PathLockService(
-        IRepository<TaskPathLock> lockRepository,
-        IRepository<Agv> agvRepository,
+        PathLockStrategyFactory strategyFactory,
         ILogger<PathLockService> logger)
     {
-        _lockRepository = lockRepository;
-        _agvRepository = agvRepository;
+        _strategyFactory = strategyFactory;
         _logger = logger;
+        _strategy = _strategyFactory.CreateStrategy();
     }
 
     public async Task<(bool Approved, string? Reason)> RequestLockAsync(
@@ -34,7 +27,15 @@ public class PathLockService : IPathLockService
         string agvCode,
         Guid taskId)
     {
-        throw new NotImplementedException();
+        _logger.LogDebug(
+            "委托给策略 {StrategyType} 处理锁定申请",
+            _strategy.GetType().Name);
+
+        return await _strategy.RequestLockAsync(
+            fromStationCode,
+            toStationCode,
+            agvCode,
+            taskId);
     }
 
     public async Task ReleaseLockAsync(
@@ -42,11 +43,22 @@ public class PathLockService : IPathLockService
         string toStationCode,
         string agvCode)
     {
-        throw new NotImplementedException();
+        _logger.LogDebug(
+            "委托给策略 {StrategyType} 处理锁定释放",
+            _strategy.GetType().Name);
+
+        await _strategy.ReleaseLockAsync(
+            fromStationCode,
+            toStationCode,
+            agvCode);
     }
 
     public async Task ClearAgvLocksAsync(string agvCode)
     {
-        //throw new NotImplementedException();
+        _logger.LogDebug(
+            "委托给策略 {StrategyType} 处理锁定清理",
+            _strategy.GetType().Name);
+
+        await _strategy.ClearAgvLocksAsync(agvCode);
     }
 }

@@ -1,4 +1,5 @@
 using AgvDispatch.Business.Services;
+using AgvDispatch.Business.Services.PathLockStrategies;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AgvDispatch.Business.Extensions;
@@ -22,8 +23,11 @@ public static class TaskServicesExtensions
         // 小车推荐服务
         services.AddScoped<IAgvRecommendationService, AgvRecommendationService>();
 
-        // 路径锁定服务
+        // 路径锁定服务及策略
         services.AddScoped<IPathLockService, PathLockService>();
+        services.AddScoped<PathLockStrategyFactory>();
+        services.AddScoped<DefaultPathLockStrategy>();
+        services.AddScoped<HainingPathLockStrategy>();
 
         return services;
     }

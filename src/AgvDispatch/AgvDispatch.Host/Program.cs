@@ -7,6 +7,7 @@ using AgvDispatch.Infrastructure;
 using AgvDispatch.Infrastructure.Jobs;
 using AgvDispatch.Infrastructure.Mqtt;
 using AgvDispatch.Infrastructure.Options;
+using AgvDispatch.Shared.Options;
 using AgvDispatch.Web;
 using AgvDispatch.Web.Components;
 using Quartz;
@@ -37,6 +38,9 @@ try
 
     // 注册 Infrastructure 服务 (EF Core + PostgreSQL)
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    // 注册系统配置
+    builder.Services.Configure<SystemOptions>(builder.Configuration.GetSection("System"));
 
     // 注册健康检测配置
     builder.Services.Configure<HealthCheckOptions>(builder.Configuration.GetSection("HealthCheck"));
