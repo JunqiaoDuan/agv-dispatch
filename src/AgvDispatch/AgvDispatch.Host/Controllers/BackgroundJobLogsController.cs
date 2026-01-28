@@ -12,7 +12,6 @@ namespace AgvDispatch.Host.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
 public class BackgroundJobLogsController : ControllerBase
 {
     private readonly IRepository<BackgroundJobLog> _repository;

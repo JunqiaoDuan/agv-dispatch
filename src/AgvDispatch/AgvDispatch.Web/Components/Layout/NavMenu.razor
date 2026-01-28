@@ -30,17 +30,15 @@
         任务调度与监控
     </MudNavLink>
 
-    @if (_currentUser?.Role != "User")
-    {
-        <MudNavGroup Title="系统工具" Icon="@Icons.Material.Filled.Settings" Expanded="false">
-            <MudNavLink Href="/mqtt-monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Message">
-                MQTT消息监控
-            </MudNavLink>
-            <MudNavLink Href="/job-monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Schedule">
-                后台任务监控
-            </MudNavLink>
-        </MudNavGroup>
-    }
+    <MudNavGroup Title="系统工具" Icon="@Icons.Material.Filled.Settings" Expanded="false">
+        <MudNavLink Href="/mqtt-monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Message">
+            MQTT消息监控
+        </MudNavLink>
+        <MudNavLink Href="/job-monitor" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Schedule">
+            后台任务监控
+        </MudNavLink>
+    </MudNavGroup>
+
 </MudNavMenu>
 
 @code {
