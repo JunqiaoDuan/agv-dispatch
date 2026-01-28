@@ -235,6 +235,28 @@
     private void SelectAgv(string agvCode)
     {
         SelectedAgvCode = agvCode;
+
+        // haining 项目特殊处理：根据小车编号自动设置默认目标站点
+        var defaultStation = GetDefaultStationCodeForAgv(agvCode);
+        if (!string.IsNullOrEmpty(defaultStation))
+        {
+            TargetStationCode = defaultStation;
+        }
+    }
+
+    /// <summary>
+    /// 获取小车的默认目标站点
+    /// 备注：haining 项目特殊处理
+    /// </summary>
+    private string? GetDefaultStationCodeForAgv(string agvCode)
+    {
+        return agvCode switch
+        {
+            "V001" => "S201",
+            "V002" => "S202",
+            "V003" => "S203",
+            _ => null
+        };
     }
 
     private async Task ConfirmAssignment()
