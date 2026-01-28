@@ -1,0 +1,235 @@
+@using AgvDispatch.Shared.DTOs.PathLocks
+@using AgvDispatch.Shared.Enums
+@using AgvDispatch.Web.Services
+@inject IPathLockClient PathLockClient
+@inject ISnackbar Snackbar
+
+<MudDialog Visible="Visible" VisibleChanged="OnDialogVisibleChanged" Options="DialogOptions">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+            <MudText Typo="Typo.h6">通道详情 - @ChannelName</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (_loading)
+        {
+            <div style="text-align: center; padding: 40px 0;">
+                <MudProgressCircular Size="Size.Large" Indeterminate="true" />
+                <MudText Typo="Typo.body2" Class="mt-2">加载中...</MudText>
+            </div>
+        }
+        else if (_channelDetail == null)
+        {
+            <MudAlert Severity="Severity.Warning">通道不存在或无活跃锁定</MudAlert>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="mb-3">
+                <strong>通道名称:</strong> @_channelDetail.ChannelName<br />
+                <strong>占用车辆数:</strong> @_channelDetail.AgvCount 辆<br />
+                <strong>锁定记录数:</strong> @_channelDetail.PathLocks.Count 条
+            </MudText>
+
+            <MudDivider Class="my-3" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.List" Size="Size.Small" Style="vertical-align: middle;" />
+                锁定记录列表
+            </MudText>
+
+            <div style="max-height: 400px; overflow-y: auto;">
+                <MudTable Items="_channelDetail.PathLocks" Dense="true" Hover="true" Bordered="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>小车编号</MudTh>
+                        <MudTh>路段</MudTh>
+                        <MudTh>任务状态</MudTh>
+                        <MudTh>锁定状态</MudTh>
+                        <MudTh>请求时间</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="小车编号">
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Size="Size.Small" Color="Color.Info" Style="vertical-align: middle;" />
+                                @context.AgvCode
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="路段">
+                            <MudText Typo="Typo.body2">
+                                @context.FromStationCode → @context.ToStationCode
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="任务状态">
+                            <MudChip T="string"
+                                     Size="Size.Small"
+                                     Color="@GetTaskStatusColor(context.TaskStatus)">
+                                @context.TaskStatus.ToDisplayText()
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="锁定状态">
+                            <MudChip T="string"
+                                     Size="Size.Small"
+                                     Color="@GetLockStatusColor(context.Status)">
+                                @context.Status.ToDisplayText()
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="请求时间">
+                            <MudText Typo="Typo.caption">
+                                @context.RequestTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            </MudText>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </div>
+
+            @* 如果有已取消任务的锁定记录,显示释放提示 *@
+            @if (_channelDetail.PathLocks.Any(p => p.TaskStatus == TaskJobStatus.Cancelled || p.TaskStatus == TaskJobStatus.Failed))
+            {
+                var cancelledTaskCount = _channelDetail.PathLocks.Count(p => p.TaskStatus == TaskJobStatus.Cancelled || p.TaskStatus == TaskJobStatus.Failed);
+                <MudAlert Severity="Severity.Info" Class="mt-3">
+                    检测到 @cancelledTaskCount 条已取消/失败任务的锁定记录,可以手动释放
+                </MudAlert>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_channelDetail != null && _channelDetail.PathLocks.Any(p => p.TaskStatus == TaskJobStatus.Cancelled || p.TaskStatus == TaskJobStatus.Failed))
+        {
+            <MudButton OnClick="ReleaseChannel"
+                       Color="Color.Warning"
+                       Variant="Variant.Filled"
+                       Disabled="_releasing">
+                @if (_releasing)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    <span class="ml-2">释放中...</span>
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.LockOpen" />
+                    <span class="ml-2">手动释放区域</span>
+                }
+            </MudButton>
+        }
+        <MudButton OnClick="Close" Color="Color.Default">关闭</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter] public string ChannelName { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnChannelReleased { get; set; }
+
+    private DialogOptions DialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true,
+        CloseButton = true,
+        Position = DialogPosition.Center
+    };
+
+    private ChannelDetailDto? _channelDetail;
+    private bool _loading = false;
+    private bool _releasing = false;
+    private bool _previousVisible = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // 只在从 false 变为 true 时才加载数据
+        if (Visible && !_previousVisible && !string.IsNullOrEmpty(ChannelName))
+        {
+            await LoadChannelDetail();
+        }
+
+        _previousVisible = Visible;
+    }
+
+    private async Task OnDialogVisibleChanged(bool visible)
+    {
+        if (!visible)
+        {
+            await Close();
+        }
+    }
+
+    private async Task LoadChannelDetail()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            _channelDetail = await PathLockClient.GetChannelDetailAsync(ChannelName);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载通道详情失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ReleaseChannel()
+    {
+        if (_channelDetail == null) return;
+
+        _releasing = true;
+        StateHasChanged();
+
+        try
+        {
+            var releasedCount = await PathLockClient.ReleaseChannelAsync(ChannelName);
+
+            if (releasedCount > 0)
+            {
+                Snackbar.Add($"成功释放 {releasedCount} 条锁定记录", Severity.Success);
+                await OnChannelReleased.InvokeAsync();
+                await Close();
+            }
+            else
+            {
+                Snackbar.Add("没有可释放的锁定记录", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"释放通道失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _releasing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Close()
+    {
+        Visible = false;
+        await VisibleChanged.InvokeAsync(Visible);
+        _channelDetail = null;
+    }
+
+    private Color GetTaskStatusColor(TaskJobStatus status) => status switch
+    {
+        TaskJobStatus.Pending => Color.Default,
+        TaskJobStatus.Assigned => Color.Info,
+        TaskJobStatus.Executing => Color.Primary,
+        TaskJobStatus.Completed => Color.Success,
+        TaskJobStatus.Cancelled => Color.Warning,
+        TaskJobStatus.Failed => Color.Error,
+        _ => Color.Default
+    };
+
+    private Color GetLockStatusColor(PathLockStatus status) => status switch
+    {
+        PathLockStatus.Pending => Color.Default,
+        PathLockStatus.Approved => Color.Success,
+        PathLockStatus.Rejected => Color.Error,
+        PathLockStatus.Released => Color.Secondary,
+        _ => Color.Default
+    };
+}

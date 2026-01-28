@@ -38,6 +38,7 @@ public class AgvSimulatorClient
     public event EventHandler<string>? OnLogMessage;
     public event EventHandler<string>? OnStatusChanged;
     public event EventHandler<TaskAssignMessage>? OnTaskReceived;
+    public event EventHandler<PathLockResponseMessage>? OnPathLockResponse;
 
     #region 公开属性
 
@@ -128,7 +129,8 @@ public class AgvSimulatorClient
         {
             MqttTopics.TaskAssign(_agvCode),
             MqttTopics.TaskCancel(_agvCode),
-            MqttTopics.Command(_agvCode)
+            MqttTopics.Command(_agvCode),
+            MqttTopics.PathLockResponse(_agvCode)
         };
 
         foreach (var topic in topics)
@@ -188,6 +190,14 @@ public class AgvSimulatorClient
                     if (commandMessage != null)
                     {
                         await HandleCommandAsync(commandMessage);
+                    }
+                    break;
+
+                case MqttTopics.MessageTypePathLockResponse:
+                    var pathLockResponse = JsonSerializer.Deserialize<PathLockResponseMessage>(payload);
+                    if (pathLockResponse != null)
+                    {
+                        await HandlePathLockResponseAsync(pathLockResponse);
                     }
                     break;
 
@@ -287,6 +297,24 @@ public class AgvSimulatorClient
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 处理路径锁定响应
+    /// </summary>
+    private async Task HandlePathLockResponseAsync(PathLockResponseMessage message)
+    {
+        if (message.Approved)
+        {
+            Log($"锁定批准: {message.FromStationCode} → {message.ToStationCode}。{message.Reason}");
+        }
+        else
+        {
+            Log($"锁定拒绝: {message.Reason}");
+        }
+
+        OnPathLockResponse?.Invoke(this, message);
+        await Task.CompletedTask;
+    }
+
     #endregion
 
     #region 信息发布
@@ -375,6 +403,29 @@ public class AgvSimulatorClient
         await PublishAsync(topic, payload, MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce);
 
         Log($"已上报异常: {type} - {message}");
+    }
+
+    /// <summary>
+    /// 请求路径锁定
+    /// </summary>
+    public async Task PublishPathLockRequestAsync(string fromStationCode, string toStationCode, string taskId)
+    {
+        if (_mqttClient == null || !_mqttClient.IsConnected)
+            return;
+
+        var request = new PathLockRequestMessage
+        {
+            TaskId = taskId,
+            FromStationCode = fromStationCode,
+            ToStationCode = toStationCode,
+            Timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        };
+
+        var topic = MqttTopics.PathLockRequest(_agvCode);
+        var payload = JsonSerializer.Serialize(request);
+        await PublishAsync(topic, payload, MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce);
+
+        Log($"已发送锁定请求: {fromStationCode} → {toStationCode}, 任务ID: {taskId}");
     }
 
     /// <summary>

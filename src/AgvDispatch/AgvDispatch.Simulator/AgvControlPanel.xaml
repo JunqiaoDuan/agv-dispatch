@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -232,8 +233,82 @@
             </Grid>
         </GroupBox>
 
+        <!-- 路径锁定请求 -->
+        <GroupBox Header="路径锁定请求" Grid.Row="5" Padding="5" Margin="0,0,0,5">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="起点:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="CmbLockFromStation" IsEditable="True" Margin="0,0,5,2" SelectedIndex="0">
+                    <ComboBoxItem Content="S101 - 大棚B1" Tag="S101"/>
+                    <ComboBoxItem Content="S102 - 大棚B2" Tag="S102"/>
+                    <ComboBoxItem Content="S103 - 大棚B3" Tag="S103"/>
+                    <ComboBoxItem Content="S105 - 大棚B5" Tag="S105"/>
+                    <ComboBoxItem Content="S106 - 大棚B6" Tag="S106"/>
+                    <ComboBoxItem Content="S107 - 大棚B7" Tag="S107"/>
+                    <ComboBoxItem Content="S109 - 大棚B9" Tag="S109"/>
+                    <ComboBoxItem Content="S110 - 大棚B10" Tag="S110"/>
+                    <ComboBoxItem Content="S111 - 大棚B11" Tag="S111"/>
+                    <ComboBoxItem Content="S113 - 大棚B13" Tag="S113"/>
+                    <ComboBoxItem Content="S114 - 大棚B14" Tag="S114"/>
+                    <ComboBoxItem Content="S115 - 大棚B15" Tag="S115"/>
+                    <ComboBoxItem Content="S117 - 大棚B17" Tag="S117"/>
+                    <ComboBoxItem Content="S118 - 大棚B18" Tag="S118"/>
+                    <ComboBoxItem Content="S119 - 大棚B19" Tag="S119"/>
+                    <ComboBoxItem Content="S121 - 大棚B21" Tag="S121"/>
+                    <ComboBoxItem Content="S122 - 大棚B22" Tag="S122"/>
+                    <ComboBoxItem Content="S123 - 大棚B23" Tag="S123"/>
+                    <ComboBoxItem Content="S201 - 卸料1" Tag="S201"/>
+                    <ComboBoxItem Content="S202 - 卸料2" Tag="S202"/>
+                    <ComboBoxItem Content="S203 - 卸料3" Tag="S203"/>
+                </ComboBox>
+
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="终点:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox Grid.Row="0" Grid.Column="3" x:Name="CmbLockToStation" IsEditable="True" Margin="0,0,5,2" SelectedIndex="1">
+                    <ComboBoxItem Content="S101 - 大棚B1" Tag="S101"/>
+                    <ComboBoxItem Content="S102 - 大棚B2" Tag="S102"/>
+                    <ComboBoxItem Content="S103 - 大棚B3" Tag="S103"/>
+                    <ComboBoxItem Content="S105 - 大棚B5" Tag="S105"/>
+                    <ComboBoxItem Content="S106 - 大棚B6" Tag="S106"/>
+                    <ComboBoxItem Content="S107 - 大棚B7" Tag="S107"/>
+                    <ComboBoxItem Content="S109 - 大棚B9" Tag="S109"/>
+                    <ComboBoxItem Content="S110 - 大棚B10" Tag="S110"/>
+                    <ComboBoxItem Content="S111 - 大棚B11" Tag="S111"/>
+                    <ComboBoxItem Content="S113 - 大棚B13" Tag="S113"/>
+                    <ComboBoxItem Content="S114 - 大棚B14" Tag="S114"/>
+                    <ComboBoxItem Content="S115 - 大棚B15" Tag="S115"/>
+                    <ComboBoxItem Content="S117 - 大棚B17" Tag="S117"/>
+                    <ComboBoxItem Content="S118 - 大棚B18" Tag="S118"/>
+                    <ComboBoxItem Content="S119 - 大棚B19" Tag="S119"/>
+                    <ComboBoxItem Content="S121 - 大棚B21" Tag="S121"/>
+                    <ComboBoxItem Content="S122 - 大棚B22" Tag="S122"/>
+                    <ComboBoxItem Content="S123 - 大棚B23" Tag="S123"/>
+                    <ComboBoxItem Content="S201 - 卸料1" Tag="S201"/>
+                    <ComboBoxItem Content="S202 - 卸料2" Tag="S202"/>
+                    <ComboBoxItem Content="S203 - 卸料3" Tag="S203"/>
+                </ComboBox>
+
+                <Button Grid.Row="0" Grid.Column="4" x:Name="BtnRequestLock" Content="申请锁定"
+                        Click="BtnRequestLock_Click" Width="80" Padding="3"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="任务ID:" VerticalAlignment="Center" Margin="0,3,5,0"/>
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtLockTaskId" Margin="0,3,5,0"/>
+
+            </Grid>
+        </GroupBox>
+
         <!-- 日志输出 -->
-        <GroupBox Header="日志输出" Grid.Row="5" Padding="5">
+        <GroupBox Header="日志输出" Grid.Row="6" Padding="5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>

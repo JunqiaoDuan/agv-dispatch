@@ -101,7 +101,9 @@ public class AgvSimulator
     public void Pause()
     {
         if (_state != SimulationState.Running)
-            throw new InvalidOperationException($"无法暂停：当前状态为 {_state}");
+        {
+            return;
+        }
 
         _state = SimulationState.Paused;
     }

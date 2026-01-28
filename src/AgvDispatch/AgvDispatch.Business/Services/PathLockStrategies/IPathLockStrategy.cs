@@ -20,17 +20,6 @@ public interface IPathLockStrategy
         Guid taskId);
 
     /// <summary>
-    /// 释放路径锁定
-    /// </summary>
-    /// <param name="fromStationCode">起始站点编号</param>
-    /// <param name="toStationCode">目标站点编号</param>
-    /// <param name="agvCode">小车编号</param>
-    Task ReleaseLockAsync(
-        string fromStationCode,
-        string toStationCode,
-        string agvCode);
-
-    /// <summary>
     /// 清理AGV的所有锁定
     /// </summary>
     /// <param name="agvCode">小车编号</param>

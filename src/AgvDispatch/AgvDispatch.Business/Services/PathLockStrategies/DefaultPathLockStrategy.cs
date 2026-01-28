@@ -35,16 +35,6 @@ public class DefaultPathLockStrategy : IPathLockStrategy
         return Task.FromResult((true, (string?)null));
     }
 
-    public Task ReleaseLockAsync(
-        string fromStationCode,
-        string toStationCode,
-        string agvCode)
-    {
-        // TODO: 实现通用的路径释放算法
-        _logger.LogWarning("使用默认路径释放策略，暂未实现通用算法");
-        return Task.CompletedTask;
-    }
-
     public Task ClearAgvLocksAsync(string agvCode)
     {
         // TODO: 实现通用的清理逻辑

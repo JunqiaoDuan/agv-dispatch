@@ -16,7 +16,9 @@
       "Bash(findstr:*)",
       "Bash(ren:*)",
       "Bash(dotnet sln:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(Select-String \"error\")",
+      "Bash(dotnet list:*)"
     ]
   }
 }

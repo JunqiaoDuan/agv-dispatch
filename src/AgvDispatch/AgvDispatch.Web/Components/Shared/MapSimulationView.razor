@@ -356,7 +356,7 @@
 
         var pathResult = _taskPathCache[task.Id];
 
-        // 获取或创建模拟器
+        // 创建新实例
         if (!_taskSimulators.ContainsKey(task.Id))
         {
             var simulator = CreateTaskSimulator(pathResult, task);
@@ -364,18 +364,57 @@
                 return;
 
             _taskSimulators[task.Id] = simulator;
+
+            // 🆕 优先检查站点位置
+            var agv = Agvs.FirstOrDefault(a => a.AgvCode == task.AssignedAgvCode);
+            if (agv != null && !string.IsNullOrEmpty(agv.CurrentStationCode))
+            {
+                if (TryJumpToStationInPath(task.Id, simulator, agv.CurrentStationCode, out bool stationInPath) && stationInPath)
+                {
+                    // 站点在路径上，直接定位到站点并暂停
+                    simulator.Pause();
+                    return; // 不启动自动模拟
+                }
+            }
+
+            // 站点不在路径上或为空，使用进度百分比
+            simulator.JumpToProgress(progress);
+
+            // 启动模拟
+            if (EnableAutoSimulation &&
+                simulator.State != SimulationState.Running &&
+                simulator.State != SimulationState.Completed)
+            {
+                simulator.Start();
+            }
         }
-
-        // 跳转到新进度并启动模拟
-        var taskSimulator = _taskSimulators[task.Id];
-        taskSimulator.JumpToProgress(progress);
-
-        // 如果任务已完成，不再启动模拟器
-        if (EnableAutoSimulation &&
-            taskSimulator.State != SimulationState.Running &&
-            taskSimulator.State != SimulationState.Completed)
+        // 复用已有实例
+        else
         {
-            taskSimulator.Start();
+            // 更新现有模拟器的进度
+            var taskSimulator = _taskSimulators[task.Id];
+            var agv = Agvs.FirstOrDefault(a => a.AgvCode == task.AssignedAgvCode);
+
+            if (agv != null && !string.IsNullOrEmpty(agv.CurrentStationCode))
+            {
+                // 有站点：跳转到站点位置
+                if (TryJumpToStationInPath(task.Id, taskSimulator, agv.CurrentStationCode, out bool stationInPath) && stationInPath)
+                {
+                    taskSimulator.Pause();
+                    return;
+                }
+            }
+
+            // 无站点或站点不在路径上：使用进度百分比
+            taskSimulator.JumpToProgress(progress);
+
+            // 如果任务已完成，不再启动模拟器
+            if (EnableAutoSimulation &&
+                taskSimulator.State != SimulationState.Running &&
+                taskSimulator.State != SimulationState.Completed)
+            {
+                taskSimulator.Start();
+            }
         }
     }
 
@@ -449,11 +488,39 @@
 
         foreach (var (taskId, simulator) in _taskSimulators.ToList())
         {
+            // 获取关联的任务和 AGV
+            var task = Tasks.FirstOrDefault(t => t.Id == taskId);
+            if (task == null) continue;
+
+            var agv = Agvs.FirstOrDefault(a => a.AgvCode == task.AssignedAgvCode);
+            if (agv == null) continue;
+
+            // 🆕 新增逻辑：如果 AGV 在站点且站点在路径上，暂停模拟
+            if (!string.IsNullOrEmpty(agv.CurrentStationCode))
+            {
+                if (TryJumpToStationInPath(taskId, simulator, agv.CurrentStationCode, out bool stationInPath))
+                {
+                    if (stationInPath && simulator.State == SimulationState.Running)
+                    {
+                        simulator.Pause();  // 暂停自动模拟
+                        needsRender = true;
+                    }
+                    continue;  // 跳过自动更新
+                }
+            }
+
+            // 原有逻辑：正常模拟运动
             if (simulator.State == SimulationState.Running)
             {
                 // 使用配置的速度比例进行模拟
                 var speedRatio = SimulationSpeedRatio / 100m;
                 simulator.UpdateWithSpeedRatio(speedRatio);
+                needsRender = true;
+            }
+            else if (simulator.State == SimulationState.Paused && string.IsNullOrEmpty(agv.CurrentStationCode))
+            {
+                // 如果之前暂停但现在站点为空，恢复模拟
+                simulator.Resume();
                 needsRender = true;
             }
         }
@@ -940,5 +1007,81 @@
         }
 
         RenderMap();
+    }
+
+    // ===== 站点位置辅助方法 =====
+
+    /// <summary>
+    /// 尝试将模拟器跳转到指定站点位置（如果站点在路径上）
+    /// </summary>
+    /// <param name="taskId">任务ID</param>
+    /// <param name="simulator">AGV 模拟器</param>
+    /// <param name="stationCode">站点编号</param>
+    /// <param name="stationInPath">输出：站点是否在路径上</param>
+    /// <returns>是否成功处理</returns>
+    private bool TryJumpToStationInPath(
+        Guid taskId, 
+        AgvSimulator simulator, 
+        string stationCode, 
+        out bool stationInPath)
+    {
+        stationInPath = false;
+
+        // 1. 找到站点对应的节点ID
+        var station = Stations.FirstOrDefault(s => s.StationCode == stationCode);
+        if (station == null)
+            return false;
+
+        // 2. 获取任务路径
+        if (!_taskPathCache.TryGetValue(taskId, out var path))
+            return false;
+
+        // 3. 检查站点的节点是否在路径上
+        var nodeIndex = path.NodePath.FindIndex(nodeId => nodeId == station.NodeId);
+        if (nodeIndex < 0)
+        {
+            stationInPath = false;
+            return true;  // 站点不在路径上，但处理成功
+        }
+
+        stationInPath = true;
+
+        // 4. 计算到该节点的进度百分比
+        var progressToNode = CalculateProgressToNode(path, nodeIndex);
+
+        // 5. 跳转到该位置
+        simulator.JumpToProgress(progressToNode);
+
+        return true;
+    }
+
+    /// <summary>
+    /// 计算到指定节点的进度百分比
+    /// </summary>
+    private decimal CalculateProgressToNode(PathfindingResult path, int nodeIndex)
+    {
+        if (nodeIndex <= 0)
+            return 0;
+
+        if (nodeIndex >= path.NodePath.Count - 1)
+            return 100;
+
+        // 构建边字典
+        var edgeDict = Edges.ToDictionary(e => e.Id);
+
+        // 计算到该节点的累积距离
+        decimal distanceToNode = 0;
+        for (int i = 0; i < nodeIndex; i++)
+        {
+            var edgeId = path.EdgePath[i];
+            if (edgeDict.TryGetValue(edgeId, out var edge))
+            {
+                distanceToNode += edge.Distance;
+            }
+        }
+
+        // 转换为百分比
+        var progress = (distanceToNode / path.TotalDistance) * 100m;
+        return Math.Min(100, Math.Max(0, progress));
     }
 }

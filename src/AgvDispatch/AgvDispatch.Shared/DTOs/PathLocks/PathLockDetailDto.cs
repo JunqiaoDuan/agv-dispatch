@@ -1,14 +1,17 @@
-using AgvDispatch.Business.Entities.Common;
 using AgvDispatch.Shared.Enums;
 
-namespace AgvDispatch.Business.Entities.TaskPathLockAggregate;
+namespace AgvDispatch.Shared.DTOs.PathLocks;
 
 /// <summary>
-/// 路径锁定实体
-/// 记录路段占用情况，防止路径冲突
+/// 路径锁定详情DTO
 /// </summary>
-public class TaskPathLock : BaseEntity
+public class PathLockDetailDto
 {
+    /// <summary>
+    /// 锁定记录ID
+    /// </summary>
+    public Guid Id { get; set; }
+
     /// <summary>
     /// 起始站点编号
     /// </summary>
@@ -25,17 +28,27 @@ public class TaskPathLock : BaseEntity
     public Guid LockedByAgvId { get; set; }
 
     /// <summary>
+    /// 占用的小车编号
+    /// </summary>
+    public string AgvCode { get; set; } = string.Empty;
+
+    /// <summary>
     /// 关联任务ID
     /// </summary>
     public Guid TaskId { get; set; }
 
     /// <summary>
-    /// 锁定状态
+    /// 任务状态
     /// </summary>
-    public PathLockStatus Status { get; set; } = PathLockStatus.Pending;
+    public TaskJobStatus TaskStatus { get; set; }
 
     /// <summary>
-    /// 通道名称（用于显示，如：进厂通道、出厂通道、西边窄路上料等）
+    /// 锁定状态
+    /// </summary>
+    public PathLockStatus Status { get; set; }
+
+    /// <summary>
+    /// 通道名称
     /// </summary>
     public string? ChannelName { get; set; }
 
@@ -48,19 +61,4 @@ public class TaskPathLock : BaseEntity
     /// 批准时间
     /// </summary>
     public DateTimeOffset? ApprovedTime { get; set; }
-
-    /// <summary>
-    /// 拒绝原因
-    /// </summary>
-    public string? RejectedReason { get; set; }
-
-    /// <summary>
-    /// 释放时间
-    /// </summary>
-    public DateTimeOffset? ReleasedTime { get; set; }
-
-    /// <summary>
-    /// 过期时间（预留字段，当前不使用）
-    /// </summary>
-    public DateTimeOffset? ExpireAt { get; set; }
 }
