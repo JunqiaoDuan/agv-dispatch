@@ -100,6 +100,32 @@ public partial class SendToUnloadingDialogViewModel : ObservableObject
     public void SelectItem(AgvPendingItemDto item)
     {
         SelectedItem = item;
+
+        // haining 项目特殊处理：根据小车编号自动设置默认目标站点
+        var defaultStationCode = GetDefaultStationCodeForAgv(item.AgvCode);
+        if (!string.IsNullOrEmpty(defaultStationCode))
+        {
+            var defaultStation = Stations.FirstOrDefault(s => s.StationCode == defaultStationCode);
+            if (defaultStation != null)
+            {
+                SelectedStation = defaultStation;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 获取小车的默认目标站点编号
+    /// 备注：haining 项目特殊处理
+    /// </summary>
+    private string? GetDefaultStationCodeForAgv(string agvCode)
+    {
+        return agvCode switch
+        {
+            "V001" => "S201",
+            "V002" => "S202",
+            "V003" => "S203",
+            _ => null
+        };
     }
 
     /// <summary>

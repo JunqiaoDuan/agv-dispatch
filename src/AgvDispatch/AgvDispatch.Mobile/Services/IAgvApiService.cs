@@ -1,5 +1,6 @@
 using AgvDispatch.Shared.DTOs;
 using AgvDispatch.Shared.DTOs.Agvs;
+using AgvDispatch.Shared.DTOs.PathLocks;
 using AgvDispatch.Shared.DTOs.Stations;
 using AgvDispatch.Shared.DTOs.Tasks;
 using System.Collections.Generic;
@@ -34,4 +35,7 @@ public interface IAgvApiService
     Task<List<AgvPendingItemDto>> GetPendingUnloadingAgvsAsync();
     Task<List<AgvPendingItemDto>> GetPendingReturnAgvsAsync();
     Task<List<AgvPendingItemDto>> GetChargeableAgvsAsync();
+
+    // 路径锁定相关
+    Task<List<ActiveChannelDto>> GetActiveChannelsAsync();
 }

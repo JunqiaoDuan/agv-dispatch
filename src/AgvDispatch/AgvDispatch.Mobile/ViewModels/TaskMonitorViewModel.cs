@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using AgvDispatch.Mobile.Services;
 using AgvDispatch.Shared.DTOs.Agvs;
+using AgvDispatch.Shared.DTOs.PathLocks;
 using AgvDispatch.Shared.DTOs.Stations;
 using AgvDispatch.Shared.DTOs.Tasks;
 using AgvDispatch.Shared.Enums;
@@ -32,6 +33,9 @@ public partial class TaskMonitorViewModel : ObservableObject
     private ObservableCollection<StationListItemDto> _stations = new();
 
     [ObservableProperty]
+    private ObservableCollection<ActiveChannelDto> _activeChannels = new();
+
+    [ObservableProperty]
     private int _selectedTabIndex = 0;
 
     [ObservableProperty]
@@ -41,7 +45,7 @@ public partial class TaskMonitorViewModel : ObservableObject
     private bool _autoRefresh = true;
 
     [ObservableProperty]
-    private int _refreshIntervalSeconds = 2;
+    private int _refreshIntervalSeconds = 10;
 
     [ObservableProperty]
     private string? _errorMessage;
@@ -85,11 +89,13 @@ public partial class TaskMonitorViewModel : ObservableObject
             // 并行加载数据
             var agvTask = _agvApiService.GetAgvMonitorListAsync();
             var taskTask = _agvApiService.GetAllTasksAsync();
+            var channelsTask = _agvApiService.GetActiveChannelsAsync();
 
-            await Task.WhenAll(agvTask, taskTask);
+            await Task.WhenAll(agvTask, taskTask, channelsTask);
 
             var agvs = await agvTask;
             var tasks = await taskTask;
+            var channels = await channelsTask;
 
             // 更新任务列表
             Tasks = new ObservableCollection<TaskListItemDto>(tasks);
@@ -102,6 +108,9 @@ public partial class TaskMonitorViewModel : ObservableObject
                 .Where(t => t.TaskStatus == TaskJobStatus.Executing)
                 .OrderByDescending(t => t.CreationDate);
             ExecutingTaskList = new ObservableCollection<TaskListItemDto>(executingTasks);
+
+            // 更新已放行通道列表
+            ActiveChannels = new ObservableCollection<ActiveChannelDto>(channels);
 
             // 更新统计数据
             TotalAgvCount = agvs.Count;

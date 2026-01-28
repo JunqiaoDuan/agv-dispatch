@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AgvDispatch.Shared.DTOs.PathLocks;
 
 namespace AgvDispatch.Mobile.Services;
 
@@ -302,6 +303,20 @@ public class AgvApiService : IAgvApiService
         catch
         {
             return new List<AgvPendingItemDto>();
+        }
+    }
+
+    public async Task<List<ActiveChannelDto>> GetActiveChannelsAsync()
+    {
+        try
+        {
+            var client = GetHttpClient();
+            var response = await client.GetFromJsonAsync<ApiResponse<List<ActiveChannelDto>>>("api/pathlocks/active-channels");
+            return response?.Success == true && response.Data != null ? response.Data : new List<ActiveChannelDto>();
+        }
+        catch
+        {
+            return new List<ActiveChannelDto>();
         }
     }
 }
