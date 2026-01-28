@@ -31,6 +31,119 @@ public class HainingPathLockStrategy : IPathLockStrategy
         _logger = logger;
     }
 
+    #region 双向互斥通道配置
+
+    /// <summary>
+    /// 双向互斥通道配置
+    /// </summary>
+    private class BidirectionalChannelConfig
+    {
+        /// <summary>
+        /// 通道名称
+        /// </summary>
+        public required string ChannelName { get; init; }
+
+        /// <summary>
+        /// 方向A的路径段列表
+        /// 需要请求锁定的路段
+        /// </summary>
+        public required List<(string From, string To)> DirectionASegments { get; init; }
+
+        /// <summary>
+        /// 方向B的路径段列表
+        /// 需要请求锁定的路段
+        /// </summary>
+        public required List<(string From, string To)> DirectionBSegments { get; init; }
+
+        /// <summary>
+        /// 方向A的释放点
+        /// </summary>
+        public required HashSet<string> DirectionAReleasePoints { get; init; }
+
+        /// <summary>
+        /// 方向B的释放点
+        /// </summary>
+        public required HashSet<string> DirectionBReleasePoints { get; init; }
+
+        /// <summary>
+        /// 方向A的名称（用于日志）
+        /// </summary>
+        public required string DirectionAName { get; init; }
+
+        /// <summary>
+        /// 方向B的名称（用于日志）
+        /// </summary>
+        public required string DirectionBName { get; init; }
+
+        /// <summary>
+        /// 并发锁，防止同一通道的两个方向同时获得批准
+        /// </summary>
+        public SemaphoreSlim Lock { get; } = new(1, 1);
+    }
+
+    /// <summary>
+    /// 进出车间通道配置
+    /// </summary>
+    private static readonly BidirectionalChannelConfig WorkshopChannelConfig = new()
+    {
+        ChannelName = "进出车间通道",
+        DirectionASegments =
+        [
+            ("S411", "S410"),
+            ("S410", "S401"),
+            ("S401", "S402"),
+            ("S402", "S403"),
+        ],
+        DirectionBSegments =
+        [
+            ("S203", "S403"),
+            ("S202", "S402"),
+            ("S201", "S401"),
+
+            ("S403", "S402"),
+            ("S402", "S401"),
+            ("S401", "S410"),
+            ("S410", "S412")
+        ],
+        DirectionAReleasePoints = ["S201", "S202", "S203"],
+        DirectionBReleasePoints = ["S412"],
+        DirectionAName = "进厂",
+        DirectionBName = "出厂"
+    };
+
+    /// <summary>
+    /// 西侧窄路配置
+    /// </summary>
+    private static readonly BidirectionalChannelConfig WestNarrowChannelConfig = new()
+    {
+        ChannelName = "西侧窄路",
+        DirectionASegments =
+        [
+            ("S420", "S421"),
+            ("S420", "S422"),
+        ],
+        DirectionBSegments =
+        [
+            ("S425", "S427"),
+            ("S426", "S427"),
+        ],
+        DirectionAReleasePoints = ["S421", "S422"],
+        DirectionBReleasePoints = ["S427"],
+        DirectionAName = "去上料",
+        DirectionBName = "去下料"
+    };
+
+    /// <summary>
+    /// 所有双向互斥通道配置列表
+    /// </summary>
+    private static readonly List<BidirectionalChannelConfig> AllChannelConfigs =
+    [
+        WorkshopChannelConfig,
+        WestNarrowChannelConfig
+    ];
+
+    #endregion
+
     #region 公共接口实现
 
     public async Task<(bool Approved, string? Reason)> RequestLockAsync(
@@ -60,23 +173,27 @@ public class HainingPathLockStrategy : IPathLockStrategy
             return (true, "之前已批准过");
         }
 
-        #region 请求锁定 - 进出车间通道管控
+        #region 请求锁定 - 双向互斥通道管控
 
-        var workshopResult = await HandleWorkshopChannelLockAsync(fromStationCode, toStationCode, agv.Id, taskId);
-        if (workshopResult.HasValue)
+        // 遍历所有双向互斥通道配置，检查是否需要管控
+        foreach (var channelConfig in AllChannelConfigs)
         {
-            return workshopResult.Value;
+            var result = await HandleBidirectionalChannelLockAsync(fromStationCode, toStationCode, agv.Id, taskId, channelConfig);
+            if (result.HasValue)
+            {
+                return result.Value;
+            }
         }
 
         #endregion
 
-        #region 判断是否有需要释放的地方（不影响输出）
+        #region 判断是否有需要释放的地方（不影响函数输出）
 
-        #region 进出车间通道释放
-
-        await HandleWorkshopChannelReleaseAsync(fromStationCode, agv.Id, agvCode);
-
-        #endregion
+        // 遍历所有双向互斥通道配置，检查是否需要释放
+        foreach (var channelConfig in AllChannelConfigs)
+        {
+            await HandleBidirectionalChannelReleaseAsync(fromStationCode, agv.Id, agvCode, channelConfig);
+        }
 
         #endregion
 
@@ -112,141 +229,125 @@ public class HainingPathLockStrategy : IPathLockStrategy
 
     #endregion
 
-    #region 进出车间通道管控
+    #region 双向互斥通道通用逻辑
 
     /// <summary>
-    /// 进厂方向的关键路段：S411 → S410 → S401 → S402 → S403
+    /// 处理双向互斥通道的锁定请求（通用方法）
     /// </summary>
-    private static readonly List<(string From, string To)> WorkshopEnteringSegments =
-    [
-        ("S411", "S410"),
-        ("S410", "S401"),
-        ("S401", "S402"),
-        ("S402", "S403"),
-    ];
-
-    /// <summary>
-    /// 出厂方向的关键路段：S403 → S402 → S401 → S410
-    /// </summary>
-    private static readonly List<(string From, string To)> WorkshopExitingSegments =
-    [
-        ("S203", "S403"),
-        ("S202", "S402"),
-        ("S201", "S401"),
-
-        ("S403", "S402"),
-        ("S402", "S401"),
-        ("S401", "S410"),
-        ("S410", "S412")
-    ];
-
-    /// <summary>
-    /// 进厂释放点：S201/S202/S203
-    /// </summary>
-    private static readonly HashSet<string> WorkshopEnteringReleasePoints = ["S201", "S202", "S203"];
-
-    /// <summary>
-    /// 出厂释放点：S412
-    /// </summary>
-    private static readonly HashSet<string> WorkshopExitingReleasePoints = ["S412"];
-
-    /// <summary>
-    /// 处理进出车间通道锁定请求
-    /// </summary>
-    /// <returns>如果是车间通道路段，返回处理结果；否则返回 null</returns>
-    private async Task<(bool Approved, string? Reason)?> HandleWorkshopChannelLockAsync(
+    /// <param name="fromStationCode">起始站点</param>
+    /// <param name="toStationCode">目标站点</param>
+    /// <param name="agvId">AGV ID</param>
+    /// <param name="taskId">任务 ID</param>
+    /// <param name="config">通道配置</param>
+    /// <returns>如果是该通道路段，返回处理结果；否则返回 null</returns>
+    private async Task<(bool Approved, string? Reason)?> HandleBidirectionalChannelLockAsync(
         string fromStationCode,
         string toStationCode,
         Guid agvId,
-        Guid taskId)
+        Guid taskId,
+        BidirectionalChannelConfig config)
     {
         // 判断请求路段的方向类型
-        var isEntering = WorkshopEnteringSegments.Contains((fromStationCode, toStationCode));
-        var isExiting = WorkshopExitingSegments.Contains((fromStationCode, toStationCode));
+        var isDirectionA = config.DirectionASegments.Contains((fromStationCode, toStationCode));
+        var isDirectionB = config.DirectionBSegments.Contains((fromStationCode, toStationCode));
 
-        if (!isEntering && !isExiting)
+        if (!isDirectionA && !isDirectionB)
         {
-            return null; // 不是车间通道路段
+            return null; // 不是该通道路段
         }
 
         // 确定当前方向和冲突方向
         List<(string From, string To)> currentSegments;
         List<(string From, string To)> conflictSegments;
         string direction;
-        if (isEntering)
+        string channelDisplayName;
+
+        if (isDirectionA)
         {
-            currentSegments = WorkshopEnteringSegments;
-            conflictSegments = WorkshopExitingSegments;
-            direction = "进厂";
+            currentSegments = config.DirectionASegments;
+            conflictSegments = config.DirectionBSegments;
+            direction = config.DirectionAName;
+            channelDisplayName = $"{config.ChannelName}-{config.DirectionAName}";
         }
         else
         {
-            currentSegments = WorkshopExitingSegments;
-            conflictSegments = WorkshopEnteringSegments;
-            direction = "出厂";
+            currentSegments = config.DirectionBSegments;
+            conflictSegments = config.DirectionASegments;
+            direction = config.DirectionBName;
+            channelDisplayName = $"{config.ChannelName}-{config.DirectionBName}";
         }
 
-        // 检查反方向是否有活跃的锁定
-        // 查询所有已批准的路径锁
-        var approvedLocks = await _lockRepository.ListAsync(
-            new PathLockByStatusSpec(PathLockStatus.Approved));
-
-        // 在内存中检查是否有冲突路段
-        var hasConflict = approvedLocks.Any(x =>
-            conflictSegments.Any(seg => seg.From == x.FromStationCode && seg.To == x.ToStationCode));
-
-        if (hasConflict)
+        // 使用异步锁保护临界区，防止并发竞态条件
+        await config.Lock.WaitAsync();
+        try
         {
-            var reason = $"车间通道被反方向占用，当前请求：{direction}";
-            _logger.LogWarning("拒绝锁定 {From} → {To}：{Reason}", fromStationCode, toStationCode, reason);
+            // 检查反方向是否有活跃的锁定
+            var approvedLocks = await _lockRepository.ListAsync(
+                new PathLockByStatusSpec(PathLockStatus.Approved));
 
-            return (false, reason);
+            // 在内存中检查是否有冲突路段
+            var hasConflict = approvedLocks.Any(x =>
+                conflictSegments.Any(seg => seg.From == x.FromStationCode && seg.To == x.ToStationCode));
+
+            if (hasConflict)
+            {
+                var reason = $"{config.ChannelName}被反方向占用，当前请求：{direction}";
+                _logger.LogWarning("拒绝锁定 {From} → {To}：{Reason}", fromStationCode, toStationCode, reason);
+
+                return (false, reason);
+            }
+
+            // 无冲突，批准并锁定整条通道的所有路段
+            await CreateBatchLockRecordsAsync(agvId, currentSegments, taskId, PathLockStatus.Approved, channelDisplayName);
+            _logger.LogInformation("批准锁定整条{ChannelName}{Direction}通道（共{Count}段），触发路段 {From} → {To}",
+                config.ChannelName, direction, currentSegments.Count, fromStationCode, toStationCode);
+            return (true, null);
         }
-
-        // 无冲突，批准并锁定整条通道的所有路段
-        var channelName = isEntering ? "进厂通道" : "出厂通道";
-        await CreateBatchLockRecordsAsync(agvId, currentSegments, taskId, PathLockStatus.Approved, channelName);
-        _logger.LogInformation("批准锁定整条{Direction}通道（共{Count}段），触发路段 {From} → {To}",
-            direction, currentSegments.Count, fromStationCode, toStationCode);
-        return (true, null);
+        finally
+        {
+            config.Lock.Release();
+        }
     }
 
     /// <summary>
-    /// 处理进出车间通道锁定释放
+    /// 处理双向互斥通道的锁定释放（通用方法）
     /// </summary>
-    private async Task HandleWorkshopChannelReleaseAsync(
-        string fromStationCode, 
-        // string toStationCode, 
-        Guid agvId, 
-        string agvCode)
+    /// <param name="fromStationCode">当前站点</param>
+    /// <param name="agvId">AGV ID</param>
+    /// <param name="agvCode">AGV 编码</param>
+    /// <param name="config">通道配置</param>
+    private async Task HandleBidirectionalChannelReleaseAsync(
+        string fromStationCode,
+        Guid agvId,
+        string agvCode,
+        BidirectionalChannelConfig config)
     {
         // 判断是否是释放点
-        bool shouldReleaseEntering = WorkshopEnteringReleasePoints.Contains(fromStationCode);
-        bool shouldReleaseExiting = WorkshopExitingReleasePoints.Contains(fromStationCode);
+        bool shouldReleaseDirectionA = config.DirectionAReleasePoints.Contains(fromStationCode);
+        bool shouldReleaseDirectionB = config.DirectionBReleasePoints.Contains(fromStationCode);
 
-        if (!shouldReleaseEntering && !shouldReleaseExiting)
+        if (!shouldReleaseDirectionA && !shouldReleaseDirectionB)
         {
-            _logger.LogDebug("站点 {To} 不是车间通道释放点", fromStationCode);
-            return;
+            return; // 不是该通道的释放点
         }
 
         // 确定需要释放的路段
         List<(string From, string To)> segmentsToRelease;
         string direction;
-        if (shouldReleaseEntering)
+        if (shouldReleaseDirectionA)
         {
-            segmentsToRelease = WorkshopEnteringSegments;
-            direction = "进厂";
+            segmentsToRelease = config.DirectionASegments;
+            direction = config.DirectionAName;
         }
         else
         {
-            segmentsToRelease = WorkshopExitingSegments;
-            direction = "出厂";
+            segmentsToRelease = config.DirectionBSegments;
+            direction = config.DirectionBName;
         }
 
-        _logger.LogInformation("AGV {AgvCode} 到达{Direction}释放点 {To}，释放通道锁定", agvCode, direction, fromStationCode);
+        _logger.LogInformation("AGV {AgvCode} 到达{ChannelName}{Direction}释放点 {From}，释放通道锁定",
+            agvCode, config.ChannelName, direction, fromStationCode);
 
-        // 查询该AGV在这些路段的所有Approved锁定
         // 查询该AGV所有已批准的路径锁
         var agvApprovedLocks = await _lockRepository.ListAsync(
             new PathLockByAgvAndStatusSpec(agvId, PathLockStatus.Approved));
@@ -258,7 +359,7 @@ public class HainingPathLockStrategy : IPathLockStrategy
 
         if (locksToRelease.Count == 0)
         {
-            _logger.LogDebug("AGV {AgvCode} 没有需要释放的车间通道锁定", agvCode);
+            _logger.LogDebug("AGV {AgvCode} 没有需要释放的{ChannelName}锁定", agvCode, config.ChannelName);
             return;
         }
 
@@ -275,7 +376,7 @@ public class HainingPathLockStrategy : IPathLockStrategy
         }
 
         await _lockRepository.SaveChangesAsync();
-        _logger.LogInformation("AGV {AgvCode} 共释放 {Count} 条车间通道锁定", agvCode, locksToRelease.Count);
+        _logger.LogInformation("AGV {AgvCode} 共释放 {Count} 条{ChannelName}锁定", agvCode, locksToRelease.Count, config.ChannelName);
     }
 
     #endregion
