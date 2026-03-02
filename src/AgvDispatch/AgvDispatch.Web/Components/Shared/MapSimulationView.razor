@@ -498,6 +498,17 @@
             var agv = Agvs.FirstOrDefault(a => a.AgvCode == task.AssignedAgvCode);
             if (agv == null) continue;
 
+            // 🆕 如果 AGV 离线，暂停模拟器
+            if (agv.AgvStatus == AgvStatus.Offline)
+            {
+                if (simulator.State == SimulationState.Running)
+                {
+                    simulator.Pause();
+                    needsRender = true;
+                }
+                continue;
+            }
+
             // 🆕 新增逻辑：如果 AGV 在站点且站点在路径上，暂停模拟
             if (!string.IsNullOrEmpty(agv.CurrentStationCode))
             {
