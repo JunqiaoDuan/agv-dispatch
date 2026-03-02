@@ -13,6 +13,9 @@
             </MudStack>
         </TitleContent>
         <DialogContent>
+            @* 原有内容已隐藏，后续可能使用，可将 false 改为 true 来显示 *@
+        @if (false)
+        {
             <MudStack Spacing="3">
                 @if (LoadingPendingItems)
                 {
@@ -120,6 +123,15 @@
                     }
                 </MudSelect>
             </MudStack>
+        }
+
+            <MudStack Spacing="3" Class="pa-4">
+                <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info">
+                    <MudText Typo="Typo.body1" Align="Align.Center">
+                        卸货点就是充电点，每次停在卸货点即可以自动或者手动充电
+                    </MudText>
+                </MudAlert>
+            </MudStack>
         </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">取消</MudButton>
@@ -162,6 +174,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        return;
         await LoadPendingAgvs();
     }
 
