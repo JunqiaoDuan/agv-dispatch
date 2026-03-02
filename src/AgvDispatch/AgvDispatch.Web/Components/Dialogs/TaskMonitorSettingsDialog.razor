@@ -4,7 +4,7 @@
 @inject IAgvClient AgvClient
 @inject ISnackbar Snackbar
 
-<MudDialog Visible="Visible" VisibleChanged="OnDialogVisibleChanged" Options="DialogOptions">
+<MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" />
@@ -178,8 +178,7 @@
 </MudDialog>
 
 @code {
-    [Parameter] public bool Visible { get; set; }
-    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public MapRenderOptions? RenderOptions { get; set; }
     [Parameter] public bool AutoRefresh { get; set; }
     [Parameter] public int RefreshInterval { get; set; } = 2;
@@ -198,7 +197,6 @@
     private int LocalRefreshInterval { get; set; } = 2;
     private bool LocalEnableAutoSimulation { get; set; } = true;
     private int LocalSimulationSpeedRatio { get; set; } = 80;
-    private bool _wasVisible = false;
 
     // 手动控制相关状态
     private Guid? SelectedAgvId;
@@ -207,42 +205,28 @@
     private string Reason = string.Empty;
     private bool Submitting;
 
-    private DialogOptions DialogOptions = new()
+    protected override void OnInitialized()
     {
-        MaxWidth = MaxWidth.Medium,
-        FullWidth = true,
-        CloseButton = true,
-        CloseOnEscapeKey = true
-    };
-
-    protected override void OnParametersSet()
-    {
-        // 只在对话框首次打开时初始化本地设置，避免在编辑过程中被重置
-        if (Visible && !_wasVisible)
+        // 初始化本地设置
+        if (RenderOptions != null)
         {
-            // 对话框刚打开，初始化本地设置
-            if (RenderOptions != null)
+            LocalRenderOptions = new MapRenderOptions
             {
-                LocalRenderOptions = new MapRenderOptions
-                {
-                    ShowNodeLabels = RenderOptions.ShowNodeLabels,
-                    ShowStationLabels = RenderOptions.ShowStationLabels,
-                    ShowEdgeLabels = RenderOptions.ShowEdgeLabels,
-                    ShowArrows = RenderOptions.ShowArrows,
-                    ShowGrid = RenderOptions.ShowGrid
-                };
-            }
-
-            LocalAutoRefresh = AutoRefresh;
-            LocalRefreshInterval = RefreshInterval;
-            LocalEnableAutoSimulation = EnableAutoSimulation;
-            LocalSimulationSpeedRatio = SimulationSpeedRatio;
-
-            // 重置手动控制状态
-            ResetManualControlState();
+                ShowNodeLabels = RenderOptions.ShowNodeLabels,
+                ShowStationLabels = RenderOptions.ShowStationLabels,
+                ShowEdgeLabels = RenderOptions.ShowEdgeLabels,
+                ShowArrows = RenderOptions.ShowArrows,
+                ShowGrid = RenderOptions.ShowGrid
+            };
         }
 
-        _wasVisible = Visible;
+        LocalAutoRefresh = AutoRefresh;
+        LocalRefreshInterval = RefreshInterval;
+        LocalEnableAutoSimulation = EnableAutoSimulation;
+        LocalSimulationSpeedRatio = SimulationSpeedRatio;
+
+        // 重置手动控制状态
+        ResetManualControlState();
     }
 
     private async Task Apply()
@@ -257,16 +241,7 @@
         Snackbar.Add("设置已应用", Severity.Success);
     }
 
-    private async Task Cancel()
-    {
-        await OnDialogVisibleChanged(false);
-    }
-
-    private async Task OnDialogVisibleChanged(bool visible)
-    {
-        Visible = visible;
-        await VisibleChanged.InvokeAsync(visible);
-    }
+    private void Cancel() => MudDialog.Cancel();
 
     // 手动控制相关方法
     private void OnAgvChanged(Guid? agvId)

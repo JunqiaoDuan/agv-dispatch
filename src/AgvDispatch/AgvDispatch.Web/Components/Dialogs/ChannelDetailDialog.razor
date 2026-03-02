@@ -4,7 +4,7 @@
 @inject IPathLockClient PathLockClient
 @inject ISnackbar Snackbar
 
-<MudDialog Visible="Visible" VisibleChanged="OnDialogVisibleChanged" Options="DialogOptions">
+<MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" />
@@ -111,45 +111,23 @@
                 }
             </MudButton>
         }
-        <MudButton OnClick="Close" Color="Color.Default">关闭</MudButton>
+        <MudButton OnClick="Cancel" Color="Color.Default">关闭</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
-    [Parameter] public bool Visible { get; set; }
-    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public string ChannelName { get; set; } = string.Empty;
-    [Parameter] public EventCallback OnChannelReleased { get; set; }
-
-    private DialogOptions DialogOptions = new()
-    {
-        MaxWidth = MaxWidth.Medium,
-        FullWidth = true,
-        CloseButton = true,
-        Position = DialogPosition.Center
-    };
 
     private ChannelDetailDto? _channelDetail;
     private bool _loading = false;
     private bool _releasing = false;
-    private bool _previousVisible = false;
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
-        // 只在从 false 变为 true 时才加载数据
-        if (Visible && !_previousVisible && !string.IsNullOrEmpty(ChannelName))
+        if (!string.IsNullOrEmpty(ChannelName))
         {
             await LoadChannelDetail();
-        }
-
-        _previousVisible = Visible;
-    }
-
-    private async Task OnDialogVisibleChanged(bool visible)
-    {
-        if (!visible)
-        {
-            await Close();
         }
     }
 
@@ -187,8 +165,7 @@
             if (releasedCount > 0)
             {
                 Snackbar.Add($"成功释放 {releasedCount} 条锁定记录", Severity.Success);
-                await OnChannelReleased.InvokeAsync();
-                await Close();
+                MudDialog.Close(DialogResult.Ok(true));
             }
             else
             {
@@ -206,12 +183,7 @@
         }
     }
 
-    private async Task Close()
-    {
-        Visible = false;
-        await VisibleChanged.InvokeAsync(Visible);
-        _channelDetail = null;
-    }
+    private void Cancel() => MudDialog.Cancel();
 
     private Color GetTaskStatusColor(TaskJobStatus status) => status switch
     {

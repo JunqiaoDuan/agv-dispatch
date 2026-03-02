@@ -5,8 +5,8 @@
 @inject ITaskClient TaskClient
 @inject ISnackbar Snackbar
 
-<MudDialog Visible="Visible" VisibleChanged="OnDialogVisibleChanged" Options="DialogOptions">
-        <TitleContent>
+<MudDialog>
+    <TitleContent>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                 <MudIcon Icon="@Icons.Material.Filled.Home" Color="Color.Warning" />
                 <MudText Typo="Typo.h6">确认下料去等待区</MudText>
@@ -121,8 +121,8 @@
                 </MudSelect>
             </MudStack>
         </DialogContent>
-        <DialogActions>
-            <MudButton OnClick="CloseDialog" Variant="Variant.Text">取消</MudButton>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">取消</MudButton>
             <MudButton Variant="Variant.Filled"
                        Color="Color.Success"
                        StartIcon="@Icons.Material.Filled.Check"
@@ -150,53 +150,26 @@
 </style>
 
 @code {
-    [Parameter] public bool Visible { get; set; }
-    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public List<StationListItemDto> Stations { get; set; } = [];
-    [Parameter] public EventCallback OnTaskCreated { get; set; }
-
-    private DialogOptions DialogOptions = new()
-    {
-        MaxWidth = MaxWidth.Small,
-        FullWidth = true,
-        CloseButton = true,
-        Position = DialogPosition.Center
-    };
 
     private string TargetStationCode = string.Empty;
     private List<AgvPendingItemDto> PendingItems = [];
     private string? SelectedAgvCode;
     private bool LoadingPendingItems = false;
     private bool Assigning = false;
-    private bool _previousVisible = false;
     private bool _showAllItems = false;
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
-        // 只在从 false 变为 true 时才加载数据
-        if (Visible && !_previousVisible)
-        {
-            // 打开弹窗时重置状态并加载数据
-            TargetStationCode = string.Empty;
-            PendingItems.Clear();
-            SelectedAgvCode = null;
-            await LoadPendingAgvs();
-        }
-
-        _previousVisible = Visible;
-    }
-
-    private async Task OnDialogVisibleChanged(bool visible)
-    {
-        if (!visible)
-        {
-            // 对话框被关闭
-            await CloseDialog();
-        }
+        await LoadPendingAgvs();
     }
 
     private async Task LoadPendingAgvs()
     {
+        // 防止重复调用
+        if (LoadingPendingItems) return;
+
         LoadingPendingItems = true;
         PendingItems.Clear();
         SelectedAgvCode = null;
@@ -250,8 +223,7 @@
             if (response != null)
             {
                 Snackbar.Add("任务已成功创建并下发！", Severity.Success);
-                await CloseDialog();
-                await OnTaskCreated.InvokeAsync();
+                MudDialog.Close(DialogResult.Ok(true));
             }
             else
             {
@@ -268,14 +240,7 @@
         }
     }
 
-    private async Task CloseDialog()
-    {
-        Visible = false;
-        await VisibleChanged.InvokeAsync(Visible);
-        PendingItems.Clear();
-        SelectedAgvCode = null;
-        TargetStationCode = string.Empty;
-    }
+    private void Cancel() => MudDialog.Cancel();
 
     private Color GetStatusColor(AgvStatus status) => status switch
     {

@@ -185,6 +185,9 @@
     private float _minimapOffsetX = 0f;
     private float _minimapOffsetY = 0f;
 
+    // 模拟定时器配置
+    private const int SimulationTimerIntervalMs = 100; // 模拟定时器间隔（毫秒）
+
     private bool _initialized = false;
 
     // ===== 生命周期方法 =====
@@ -192,7 +195,7 @@
     protected override void OnInitialized()
     {
         // 启动模拟定时器
-        _simulationTimer = new System.Timers.Timer(50);
+        _simulationTimer = new System.Timers.Timer(SimulationTimerIntervalMs);
         _simulationTimer.Elapsed += OnSimulationTimerElapsed;
         if (EnableAutoSimulation)
         {
@@ -529,35 +532,10 @@
         {
             InvokeAsync(() =>
             {
-                // 应用追踪逻辑
-                if (TrackingMode != "none" && Guid.TryParse(TrackingMode, out var trackedTaskId))
-                {
-                    if (_taskSimulators.TryGetValue(trackedTaskId, out var trackedSimulator))
-                    {
-                        var agvX = (float)trackedSimulator.CurrentPosition.X;
-                        var agvY = (float)trackedSimulator.CurrentPosition.Y;
-
-                        // 使小车位置居中
-                        _offsetX = -agvX * _scale + _viewWidth / 2f;
-                        _offsetY = -agvY * _scale + _viewHeight / 2f;
-
-                        // 重新渲染整个地图（包括地图层、任务路径层和缩略图）
-                        RenderMap();
-                    }
-                    else
-                    {
-                        // 如果追踪的任务已完成或不存在，更新任务路径和小地图
-                        RenderTaskPaths();
-                        RenderMinimapAgvs();
-                    }
-                }
-                else
-                {
-                    // 不追踪时更新任务路径和小地图
-                    RenderTaskPaths();
-                    RenderMinimapAgvs();
-                }
-
+                // 定时器只负责更新小车位置，不调整视图偏移
+                // 视图偏移由 ApplyTracking（每2s父组件刷新时）负责调整
+                RenderTaskPaths();
+                RenderMinimapAgvs();
                 StateHasChanged();
             });
         }

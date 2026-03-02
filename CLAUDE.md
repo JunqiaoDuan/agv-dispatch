@@ -59,7 +59,7 @@ Web 端已配置全局异常处理，仅在以下场景使用 try-catch：
 - 需要从异常中恢复并继续执行
 
 ## 6. 服务方法返回值设计
-对于可能失败的操作，服务方法应返回详细的错误信息，便于调用方处理：
+对于可能失败的操作，服务方法应返回详细的错误信息，便于调用方处理：                      
 
 ## 7. 数据库表结构设计
 每次对表结构进行调整时，记得在AgvDispatch.DbUpper中添加脚本文件
@@ -70,6 +70,55 @@ Web 端已配置全局异常处理，仅在以下场景使用 try-catch：
 ## 9. OnAfterRenderAsync 生命周期
 Razor 组件中的数据加载应优先使用 `OnAfterRenderAsync` 而非 `OnInitializedAsync`，以确保在首次渲染后再执行 API 请求。
 这样可以避免因本地存储中的 JWT Token 尚未加载完成而导致的 401 未授权错误和意外的登录页跳转。
+
+## 10. MudBlazor 弹窗使用规范
+**必须使用 DialogService 方式调用弹窗**，禁止使用状态绑定方式（`Visible` 参数绑定）。
+
+状态绑定方式在 InteractiveServer 渲染模式下会导致弹窗重复弹出两次。
+
+### 弹窗组件定义
+```razor
+<MudDialog>
+    <TitleContent>标题</TitleContent>
+    <DialogContent>内容</DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">取消</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary">确认</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public string SomeData { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 初始化逻辑（只执行一次）
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+    private void Submit() => MudDialog.Close(DialogResult.Ok(true));
+}
+```
+
+### 调用弹窗
+```csharp
+@inject IDialogService DialogService
+
+private async Task OpenMyDialog()
+{
+    var parameters = new DialogParameters { { "SomeData", "value" } };
+    var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    var dialog = await DialogService.ShowAsync<MyDialog>("弹窗标题", parameters, options);
+    var result = await dialog.Result;
+    if (result is { Canceled: false })
+    {
+        // 用户点击了确认，执行后续操作
+        await RefreshData();
+    }
+}
+```
 
 ## 99. 文档更新原则
 **当学习到新的项目规则、模式或约定时，立即更新此 CLAUDE.md 文件，确保文档始终反映项目最新实践。**

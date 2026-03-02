@@ -13,6 +13,7 @@
 @using AgvDispatch.Shared.Simulation
 @using AgvDispatch.Web.Services
 @using AgvDispatch.Web.Components.Shared
+@using AgvDispatch.Web.Components.Dialogs
 @using System.Timers
 @rendermode InteractiveServer
 @inject IMapClient MapClient
@@ -20,6 +21,7 @@
 @inject IAgvClient AgvClient
 @inject ITaskClient TaskClient
 @inject IPathLockClient PathLockClient
+@inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @implements IDisposable
 
@@ -207,49 +209,6 @@
     </div>
 </div>
 
-@* 任务分配弹窗 *@
-<CallForLoadingDialog Visible="_callForLoadingDialogVisible"
-                      VisibleChanged="(v) => _callForLoadingDialogVisible = v"
-                      Stations="_stations"
-                      OnTaskCreated="RefreshData" />
-
-<SendToUnloadingDialog Visible="_sendToUnloadingDialogVisible"
-                       VisibleChanged="(v) => _sendToUnloadingDialogVisible = v"
-                       Stations="_stations"
-                       OnTaskCreated="RefreshData" />
-
-<ReturnToWaitingDialog Visible="_returnToWaitingDialogVisible"
-                       VisibleChanged="(v) => _returnToWaitingDialogVisible = v"
-                       Stations="_stations"
-                       OnTaskCreated="RefreshData" />
-
-<SendToChargeDialog Visible="_sendToChargeDialogVisible"
-                    VisibleChanged="(v) => _sendToChargeDialogVisible = v"
-                    Stations="_stations"
-                    OnTaskCreated="RefreshData" />
-
-@* 设置对话框 *@
-<TaskMonitorSettingsDialog Visible="_settingsDialogVisible"
-                           VisibleChanged="(v) => _settingsDialogVisible = v"
-                           RenderOptions="_renderOptions"
-                           AutoRefresh="_autoRefresh"
-                           RefreshInterval="_refreshIntervalSeconds"
-                           EnableAutoSimulation="_enableAutoSimulation"
-                           SimulationSpeedRatio="_simulationSpeedRatio"
-                           Agvs="_agvs"
-                           OnRenderOptionsChanged="OnRenderOptionsChanged"
-                           OnAutoRefreshChanged="OnAutoRefreshChanged"
-                           OnRefreshIntervalChanged="OnRefreshIntervalChanged"
-                           OnAutoSimulationChanged="OnAutoSimulationChanged"
-                           OnSimulationSpeedRatioChanged="OnSimulationSpeedRatioChanged"
-                           OnControlSuccess="RefreshData" />
-
-@* 通道详情弹窗 *@
-<ChannelDetailDialog Visible="_channelDetailDialogVisible"
-                     VisibleChanged="(v) => _channelDetailDialogVisible = v"
-                     ChannelName="@_selectedChannelName"
-                     OnChannelReleased="RefreshData" />
-
 @code {
     // 地图数据
     private MapDetailDto? _map;
@@ -264,15 +223,6 @@
 
     // 路径锁定数据
     private List<ActiveChannelDto> _activeChannels = [];
-
-    // 弹窗控制
-    private bool _callForLoadingDialogVisible = false;
-    private bool _sendToUnloadingDialogVisible = false;
-    private bool _returnToWaitingDialogVisible = false;
-    private bool _sendToChargeDialogVisible = false;
-    private bool _settingsDialogVisible = false;
-    private bool _channelDetailDialogVisible = false;
-    private string _selectedChannelName = string.Empty;
 
     // 配置
     private MapRenderOptions _renderOptions = new() 
@@ -387,22 +337,40 @@
 
     #region 任务分配
 
-    private void OpenTaskDialog(TaskJobType taskType)
+    private async Task OpenTaskDialog(TaskJobType taskType)
     {
+        var parameters = new DialogParameters { { "Stations", _stations } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+
+        IDialogReference dialog;
+        string title;
+
         switch (taskType)
         {
             case TaskJobType.CallForLoading:
-                _callForLoadingDialogVisible = true;
+                title = "召唤小车上料";
+                dialog = await DialogService.ShowAsync<CallForLoadingDialog>(title, parameters, options);
                 break;
             case TaskJobType.SendToUnloading:
-                _sendToUnloadingDialogVisible = true;
+                title = "告知小车去下料";
+                dialog = await DialogService.ShowAsync<SendToUnloadingDialog>(title, parameters, options);
                 break;
             case TaskJobType.ReturnToWaiting:
-                _returnToWaitingDialogVisible = true;
+                title = "确认下料去等待区";
+                dialog = await DialogService.ShowAsync<ReturnToWaitingDialog>(title, parameters, options);
                 break;
             case TaskJobType.SendToCharge:
-                _sendToChargeDialogVisible = true;
+                title = "让小车充电";
+                dialog = await DialogService.ShowAsync<SendToChargeDialog>(title, parameters, options);
                 break;
+            default:
+                return;
+        }
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await RefreshData();
         }
     }
 
@@ -410,9 +378,26 @@
 
     #region 设置
 
-    private void OpenSettings()
+    private async Task OpenSettings()
     {
-        _settingsDialogVisible = true;
+        var parameters = new DialogParameters
+        {
+            { "RenderOptions", _renderOptions },
+            { "AutoRefresh", _autoRefresh },
+            { "RefreshInterval", _refreshIntervalSeconds },
+            { "EnableAutoSimulation", _enableAutoSimulation },
+            { "SimulationSpeedRatio", _simulationSpeedRatio },
+            { "Agvs", _agvs },
+            { "OnRenderOptionsChanged", EventCallback.Factory.Create<MapRenderOptions>(this, OnRenderOptionsChanged) },
+            { "OnAutoRefreshChanged", EventCallback.Factory.Create<bool>(this, OnAutoRefreshChanged) },
+            { "OnRefreshIntervalChanged", EventCallback.Factory.Create<int>(this, OnRefreshIntervalChanged) },
+            { "OnAutoSimulationChanged", EventCallback.Factory.Create<bool>(this, OnAutoSimulationChanged) },
+            { "OnSimulationSpeedRatioChanged", EventCallback.Factory.Create<int>(this, OnSimulationSpeedRatioChanged) },
+            { "OnControlSuccess", EventCallback.Factory.Create(this, RefreshData) }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true };
+
+        await DialogService.ShowAsync<TaskMonitorSettingsDialog>("页面设置与控制", parameters, options);
     }
 
     private void OnRenderOptionsChanged(MapRenderOptions options)
@@ -485,10 +470,17 @@
     /// <summary>
     /// 打开通道详情弹窗
     /// </summary>
-    private void OpenChannelDetailDialog(string channelName)
+    private async Task OpenChannelDetailDialog(string channelName)
     {
-        _selectedChannelName = channelName;
-        _channelDetailDialogVisible = true;
+        var parameters = new DialogParameters { { "ChannelName", channelName } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+        var dialog = await DialogService.ShowAsync<ChannelDetailDialog>($"通道详情 - {channelName}", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await RefreshData();
+        }
     }
 
     #endregion
