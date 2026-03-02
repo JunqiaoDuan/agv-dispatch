@@ -139,8 +139,8 @@
                 <components:OperationsTabView DataContext="{Binding}"/>
             </TabItem>
 
-            <!-- Tab 3: 任务 -->
-            <TabItem Header="任务">
+            <!-- Tab 3: 任务（隐藏） -->
+            <TabItem Header="任务" IsVisible="False">
                 <components:TasksTabView DataContext="{Binding}"/>
             </TabItem>
         </TabControl>
