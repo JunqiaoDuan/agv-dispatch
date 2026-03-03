@@ -6,8 +6,7 @@
              x:Class="AgvDispatch.Mobile.Views.Components.TasksTabView"
              x:DataType="vm:TaskMonitorViewModel">
 
-    <ScrollViewer Padding="12"
-                  HorizontalScrollBarVisibility="Disabled"
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto"
                   AllowAutoHide="True">
         <ScrollViewer.Styles>
@@ -16,7 +15,7 @@
                 <Setter Property="Opacity" Value="0"/>
             </Style>
         </ScrollViewer.Styles>
-        <StackPanel>
+        <StackPanel Margin="12">
             <!-- 任务列表 -->
             <ItemsControl ItemsSource="{Binding ExecutingTaskList}">
                 <ItemsControl.ItemTemplate>

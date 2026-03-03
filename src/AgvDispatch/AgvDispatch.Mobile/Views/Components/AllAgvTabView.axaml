@@ -9,8 +9,7 @@
              x:Class="AgvDispatch.Mobile.Views.Components.AllAgvTabView"
              x:DataType="vm:TaskMonitorViewModel">
 
-    <ScrollViewer Padding="12"
-                  HorizontalScrollBarVisibility="Disabled"
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto"
                   AllowAutoHide="True">
         <ScrollViewer.Styles>
@@ -19,7 +18,7 @@
                 <Setter Property="Opacity" Value="0"/>
             </Style>
         </ScrollViewer.Styles>
-        <StackPanel>
+        <StackPanel Margin="12">
             <!-- AGV列表 -->
             <ItemsControl ItemsSource="{Binding AllAgvList}">
                 <ItemsControl.ItemTemplate>

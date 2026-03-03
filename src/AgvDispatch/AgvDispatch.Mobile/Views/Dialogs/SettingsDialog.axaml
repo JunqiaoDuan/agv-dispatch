@@ -22,8 +22,10 @@
         </Border>
 
         <!-- 内容区 -->
-        <ScrollViewer Grid.Row="1" Padding="16,16,16,24">
-            <StackPanel Spacing="24">
+        <ScrollViewer Grid.Row="1"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16,16,16,24" Spacing="24">
                 <!-- 自动刷新设置 -->
                 <StackPanel Spacing="12">
                     <TextBlock Text="自动刷新"
@@ -87,7 +89,7 @@
                     <Border Background="White"
                             CornerRadius="8"
                             BoxShadow="0 2 4 0 #10000000"
-                            Padding="16 16 16 80">
+                            Padding="16">
                         <StackPanel Spacing="8">
                             <TextBlock Text="AGV调度系统 Mobile"
                                        FontSize="14"

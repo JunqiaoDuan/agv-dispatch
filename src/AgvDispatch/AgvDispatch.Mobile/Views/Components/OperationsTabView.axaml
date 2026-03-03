@@ -4,10 +4,9 @@
              x:Class="AgvDispatch.Mobile.Views.Components.OperationsTabView"
              x:DataType="vm:TaskMonitorViewModel">
 
-    <ScrollViewer Padding="16"
-                  HorizontalScrollBarVisibility="Disabled"
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="16" VerticalAlignment="Center">
+        <StackPanel Margin="16" Spacing="16" VerticalAlignment="Center">
             <!-- 去上料按钮 -->
             <Button Command="{Binding OpenCallForLoadingDialogCommand}"
                     HorizontalAlignment="Stretch"

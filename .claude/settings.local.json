@@ -19,7 +19,8 @@
       "Bash(ls:*)",
       "Bash(Select-String \"error\")",
       "Bash(dotnet list:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(Select-String -Pattern \"error\" -Context 2,2)"
     ]
   }
 }

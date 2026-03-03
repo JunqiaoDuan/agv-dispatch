@@ -255,7 +255,7 @@ public class AgvApiService : IAgvApiService
             var response = await client.PostAsJsonAsync("api/tasks/cancel", request);
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
+                var result = await response.Content.ReadFromJsonAsync<ApiResponse<bool>>();
                 return result?.Success == true ? result.Message : result?.Message;
             }
             return null;
