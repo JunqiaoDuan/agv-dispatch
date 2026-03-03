@@ -61,9 +61,6 @@
         <!-- 内容区域 -->
         <ContentControl Grid.Row="1" Content="{Binding CurrentPage}">
             <ContentControl.DataTemplates>
-                <DataTemplate DataType="vm:AgvListViewModel">
-                    <views:AgvListView DataContext="{Binding}"/>
-                </DataTemplate>
                 <DataTemplate DataType="vm:TaskMonitorViewModel">
                     <views:TaskMonitorView DataContext="{Binding}"/>
                 </DataTemplate>

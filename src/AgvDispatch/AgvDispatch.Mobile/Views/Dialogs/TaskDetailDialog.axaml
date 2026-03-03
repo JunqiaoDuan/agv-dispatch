@@ -223,6 +223,8 @@
                         Content="取消任务"
                         Height="40"
                         CornerRadius="8"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         Margin="0,0,8,0"/>
 
                 <Button Grid.Column="1"
@@ -230,6 +232,8 @@
                         Height="40"
                         Width="100"
                         CornerRadius="8"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         Background="{StaticResource PrimaryBrush}"
                         Foreground="White"
                         Click="OnCloseClick"/>

@@ -7,6 +7,8 @@ namespace AgvDispatch.Mobile.Views.Dialogs;
 
 public partial class ToggleCargoDialog : Window
 {
+    private bool _isConfirming = false;
+
     public ToggleCargoDialog()
     {
         InitializeComponent();
@@ -24,12 +26,26 @@ public partial class ToggleCargoDialog : Window
 
     private async void OnConfirmClick(object? sender, RoutedEventArgs e)
     {
+        // 防抖：如果正在处理中，直接返回
+        if (_isConfirming)
+        {
+            return;
+        }
+
         if (DataContext is ToggleCargoDialogViewModel viewModel)
         {
-            var success = await viewModel.ConfirmAsync();
-            if (success)
+            try
             {
-                Close(true);
+                _isConfirming = true;
+                var success = await viewModel.ConfirmAsync();
+                if (success)
+                {
+                    Close(true);
+                }
+            }
+            finally
+            {
+                _isConfirming = false;
             }
         }
     }

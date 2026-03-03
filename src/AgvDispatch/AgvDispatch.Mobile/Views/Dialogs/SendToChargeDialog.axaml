@@ -1,0 +1,78 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="300"
+        x:Class="AgvDispatch.Mobile.Views.Dialogs.SendToChargeDialog"
+        x:DataType="vm:SendToChargeDialogViewModel"
+        Title="让小车充电"
+        MinWidth="320"
+        Width="360"
+        MaxWidth="480"
+        Height="300"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SizeToContent="Manual">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- 标题栏 -->
+        <Border Grid.Row="0" Background="{StaticResource PrimaryBrush}" Padding="16">
+            <StackPanel Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <PathIcon Data="M16.67,4H15V2H9V4H7.33A1.33,1.33 0 0,0 6,5.33V20.67C6,21.4 6.6,22 7.33,22H16.67A1.33,1.33 0 0,0 18,20.67V5.33C18,4.6 17.4,4 16.67,4Z"
+                              Width="24" Height="24"
+                              Foreground="White"/>
+                    <TextBlock Text="让小车充电" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="充电功能说明" FontSize="12" Foreground="White" Opacity="0.9"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 内容区 -->
+        <Border Grid.Row="1" Padding="16" Background="#F5F5F5">
+            <Border Background="#E3F2FD"
+                    CornerRadius="8"
+                    Padding="12">
+                <StackPanel Spacing="12">
+
+                    <!-- 说明文字 -->
+                    <TextBlock Text="卸货点就是充电点"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="#212121"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock FontSize="14"
+                               Foreground="#424242"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap">
+                        <Run Text="每次停在卸货点即可以自动或者手动充电。"/>
+                        <LineBreak/>
+                        <Run Text="无需额外操作。"/>
+                      <LineBreak/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- 底部按钮栏 -->
+        <Border Grid.Row="2"
+                Background="White"
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,1,0,0"
+                Padding="16">
+            <Button Content="我知道了"
+                    Click="OnOkClick"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Padding="16,10"
+                    CornerRadius="6"
+                    Background="{StaticResource PrimaryBrush}"
+                    Foreground="White"/>
+        </Border>
+    </Grid>
+</Window>

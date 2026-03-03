@@ -42,4 +42,9 @@ public class StationListItemDto
     public decimal Y { get; set; }
 
     public DateTimeOffset? CreationDate { get; set; }
+
+    /// <summary>
+    /// 完整显示名称（用于下拉框显示）
+    /// </summary>
+    public string FullDisplayName => $"{StationCode} - {DisplayName}";
 }

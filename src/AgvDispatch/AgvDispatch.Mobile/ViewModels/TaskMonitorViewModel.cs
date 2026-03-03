@@ -88,7 +88,7 @@ public partial class TaskMonitorViewModel : ObservableObject
         {
             // 并行加载数据
             var agvTask = _agvApiService.GetAgvMonitorListAsync();
-            var taskTask = _agvApiService.GetAllTasksAsync();
+            var taskTask = _agvApiService.GetActiveTasksAsync();
             var channelsTask = _agvApiService.GetActiveChannelsAsync();
 
             await Task.WhenAll(agvTask, taskTask, channelsTask);
@@ -118,6 +118,16 @@ public partial class TaskMonitorViewModel : ObservableObject
             ExecutingTaskCount = tasks.Count(t => t.TaskStatus == TaskJobStatus.Executing);
 
             // 加载站点数据（需要先获取地图ID）
+            if (_currentMapId == Guid.Empty)
+            {
+                // 首次加载时获取地图列表
+                var maps = await _agvApiService.GetAllMapsAsync();
+                if (maps.Any())
+                {
+                    _currentMapId = maps.First().Id;
+                }
+            }
+
             if (_currentMapId != Guid.Empty)
             {
                 var stations = await _agvApiService.GetAllStationsAsync(_currentMapId);
@@ -246,9 +256,21 @@ public partial class TaskMonitorViewModel : ObservableObject
 
         if (result == true)
         {
-            // 任务创建成功，刷新数据
+            // 任务创建成功,刷新数据
             await LoadDataAsync();
         }
+    }
+
+    /// <summary>
+    /// 打开充电对话框
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenSendToChargeDialogAsync()
+    {
+        var dialogViewModel = new SendToChargeDialogViewModel();
+        var dialog = new Views.Dialogs.SendToChargeDialog(dialogViewModel);
+
+        await dialog.ShowDialog<bool?>(GetMainWindow());
     }
 
     /// <summary>

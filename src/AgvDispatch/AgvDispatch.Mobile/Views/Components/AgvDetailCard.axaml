@@ -11,7 +11,7 @@
             Padding="16"
             Margin="0,0,0,12">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto">
-            <!-- 第一行：名称 + 异常 + 状态 -->
+            <!-- 第一行:名称 + 异常 + 状态 -->
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
                 <TextBlock Grid.Column="0" FontSize="16" FontWeight="SemiBold" Foreground="#212121"
                            VerticalAlignment="Center">
@@ -51,35 +51,44 @@
                 </Border>
             </Grid>
 
-            <!-- 第二行：任务 + 站点 -->
+            <!-- 第二行:任务 + 站点 -->
             <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
-                <!-- 任务信息（从 Tasks 中查找） -->
-                <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,12,4">
-                    <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"
-                              Width="14" Height="14"
-                              Foreground="{StaticResource InfoBrush}"/>
-                    <TextBlock Text="任务:" FontSize="12" Foreground="#757575"/>
-                    <TextBlock Text="--" FontSize="12" Foreground="#424242"/>
-                </StackPanel>
+                <!-- 任务信息 -->
+                <Border x:Name="TaskInfoBorder"
+                        Background="Transparent"
+                        CornerRadius="4"
+                        Padding="0"
+                        Margin="0,0,12,4"
+                        Tapped="OnTaskTapped"
+                        Cursor="Hand">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <PathIcon x:Name="TaskIcon"
+                                  Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M12,19L8,15H10.5V12H13.5V15H16L12,19Z"
+                                  Width="14" Height="14"/>
+                        <TextBlock x:Name="TaskText" FontSize="12"/>
+                    </StackPanel>
+                </Border>
 
                 <!-- 站点信息 -->
                 <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,12,4">
                     <PathIcon Data="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"
                               Width="14" Height="14"
                               Foreground="{StaticResource PrimaryBrush}"/>
-                    <TextBlock Text="位置:" FontSize="12" Foreground="#757575"/>
-                    <TextBlock Text="{Binding CurrentStationCode}" FontSize="12" Foreground="#424242"/>
+                    <TextBlock Text="站点:" FontSize="12" Foreground="#757575"/>
+                    <TextBlock Text="{Binding CurrentStationCode, FallbackValue='不在站点'}" FontSize="12" Foreground="#424242"/>
                 </StackPanel>
             </WrapPanel>
 
-            <!-- 第三行：电量 + 速度 + 货物 -->
+            <!-- 第三行:电量 + 速度 + 货物 -->
             <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
-                <!-- 电量 -->
+                <!-- 电量(显示电压和百分比) -->
                 <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,12,4">
                     <PathIcon Data="M16.67,4H15V2H9V4H7.33A1.33,1.33 0 0,0 6,5.33V20.67C6,21.4 6.6,22 7.33,22H16.67A1.33,1.33 0 0,0 18,20.67V5.33C18,4.6 17.4,4 16.67,4Z"
                               Width="14" Height="14"
                               Foreground="{StaticResource SuccessBrush}"/>
                     <TextBlock FontSize="12" Foreground="#424242">
+                        <Run Text="{Binding BatteryVoltage, StringFormat='{}{0:F1}'}"/>
+                        <Run Text="V / "/>
                         <Run Text="{Binding Battery}"/>
                         <Run Text="%"/>
                     </TextBlock>
@@ -114,12 +123,12 @@
                 </Border>
             </WrapPanel>
 
-            <!-- 第四行：坐标 -->
+            <!-- 第四行:坐标 -->
             <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="4">
                 <PathIcon Data="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z"
                           Width="14" Height="14"
                           Foreground="#757575"/>
-                <TextBlock Text="位置:" FontSize="11" Foreground="#757575"/>
+                <TextBlock Text="坐标:" FontSize="11" Foreground="#757575"/>
                 <TextBlock FontSize="11" Foreground="#616161">
                     <Run Text="("/>
                     <Run Text="{Binding PositionX, StringFormat='{}{0:F0}'}"/>

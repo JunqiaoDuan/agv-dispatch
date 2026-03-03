@@ -5,6 +5,7 @@ using AgvDispatch.Shared.DTOs.Stations;
 using AgvDispatch.Shared.DTOs.Tasks;
 using AgvDispatch.Shared.Enums;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AgvDispatch.Mobile.ViewModels;
@@ -23,10 +24,13 @@ public partial class SendToUnloadingDialogViewModel : ObservableObject
     private StationListItemDto? _selectedStation;
 
     [ObservableProperty]
-    private ObservableCollection<AgvPendingItemDto> _pendingItems = new();
+    private ObservableCollection<SelectableAgvPendingItem> _pendingItems = new();
 
     [ObservableProperty]
-    private AgvPendingItemDto? _selectedItem;
+    private ObservableCollection<SelectableAgvPendingItem> _filteredPendingItems = new();
+
+    [ObservableProperty]
+    private SelectableAgvPendingItem? _selectedItem;
 
     [ObservableProperty]
     private bool _isLoadingItems;
@@ -39,6 +43,9 @@ public partial class SendToUnloadingDialogViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _showAllItems;
+
+    [ObservableProperty]
+    private int _availableCount;
 
     public SendToUnloadingDialogViewModel(IAgvApiService agvApiService)
     {
@@ -67,12 +74,21 @@ public partial class SendToUnloadingDialogViewModel : ObservableObject
         IsLoadingItems = true;
         ErrorMessage = null;
         PendingItems.Clear();
+        FilteredPendingItems.Clear();
         SelectedItem = null;
+        AvailableCount = 0;
 
         try
         {
             var items = await _agvApiService.GetPendingUnloadingAgvsAsync();
-            PendingItems = new ObservableCollection<AgvPendingItemDto>(items);
+            var selectableItems = items.Select(i => new SelectableAgvPendingItem(i)).ToList();
+            PendingItems = new ObservableCollection<SelectableAgvPendingItem>(selectableItems);
+
+            // 计算可用数量
+            AvailableCount = PendingItems.Count(x => x.Dto.IsAvailable);
+
+            // 更新过滤后的列表
+            UpdateFilteredPendingItems();
         }
         catch (Exception ex)
         {
@@ -87,22 +103,60 @@ public partial class SendToUnloadingDialogViewModel : ObservableObject
     /// <summary>
     /// 切换显示所有项
     /// </summary>
-    [RelayCommand]
-    private void ToggleShowAll()
+    public void ToggleShowAll()
     {
         ShowAllItems = !ShowAllItems;
+        UpdateFilteredPendingItems();
+    }
+
+    /// <summary>
+    /// 更新过滤后的小车列表
+    /// </summary>
+    private void UpdateFilteredPendingItems()
+    {
+        FilteredPendingItems.Clear();
+
+        if (ShowAllItems)
+        {
+            // 显示所有小车
+            foreach (var item in PendingItems)
+            {
+                FilteredPendingItems.Add(item);
+            }
+        }
+        else
+        {
+            // 只显示所有可用的小车（而不是只第一个）
+            foreach (var item in PendingItems.Where(x => x.Dto.IsAvailable))
+            {
+                FilteredPendingItems.Add(item);
+            }
+        }
+
+        // 注意：下料弹窗不自动选择任何小车
     }
 
     /// <summary>
     /// 选择小车
     /// </summary>
     [RelayCommand]
-    public void SelectItem(AgvPendingItemDto item)
+    public void SelectItem(SelectableAgvPendingItem item)
     {
+        // 取消之前的选中状态
+        if (SelectedItem != null)
+        {
+            SelectedItem.IsSelected = false;
+        }
+
+        // 设置新的选中状态
         SelectedItem = item;
+        if (SelectedItem != null)
+        {
+            SelectedItem.IsSelected = true;
+        }
 
         // haining 项目特殊处理：根据小车编号自动设置默认目标站点
-        var defaultStationCode = GetDefaultStationCodeForAgv(item.AgvCode);
+        var defaultStationCode = GetDefaultStationCodeForAgv(item.Dto.AgvCode);
         if (!string.IsNullOrEmpty(defaultStationCode))
         {
             var defaultStation = Stations.FirstOrDefault(s => s.StationCode == defaultStationCode);
@@ -149,7 +203,7 @@ public partial class SendToUnloadingDialogViewModel : ObservableObject
             {
                 TaskType = TaskJobType.SendToUnloading,
                 TargetStationCode = SelectedStation.StationCode,
-                SelectedAgvCode = SelectedItem.AgvCode
+                SelectedAgvCode = SelectedItem.Dto.AgvCode
             };
 
             var response = await _agvApiService.CreateTaskAsync(request);
@@ -173,22 +227,5 @@ public partial class SendToUnloadingDialogViewModel : ObservableObject
         {
             IsCreatingTask = false;
         }
-    }
-
-    /// <summary>
-    /// 判断是否应该显示该项
-    /// </summary>
-    public bool ShouldShowItem(int index, bool isAvailable)
-    {
-        if (ShowAllItems)
-            return true;
-
-        var hasAvailable = PendingItems.Any(x => x.IsAvailable);
-
-        if (!hasAvailable)
-            return false;
-
-        var firstAvailableIndex = PendingItems.ToList().FindIndex(x => x.IsAvailable);
-        return index == firstAvailableIndex;
     }
 }

@@ -5,6 +5,7 @@ using AgvDispatch.Shared.DTOs.Stations;
 using AgvDispatch.Shared.DTOs.Tasks;
 using AgvDispatch.Shared.Enums;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AgvDispatch.Mobile.ViewModels;
@@ -23,10 +24,13 @@ public partial class CallForLoadingDialogViewModel : ObservableObject
     private StationListItemDto? _selectedStation;
 
     [ObservableProperty]
-    private ObservableCollection<AgvRecommendationDto> _recommendations = new();
+    private ObservableCollection<SelectableAgvRecommendation> _recommendations = new();
 
     [ObservableProperty]
-    private AgvRecommendationDto? _selectedRecommendation;
+    private ObservableCollection<SelectableAgvRecommendation> _filteredRecommendations = new();
+
+    [ObservableProperty]
+    private SelectableAgvRecommendation? _selectedRecommendation;
 
     [ObservableProperty]
     private bool _isLoadingRecommendations;
@@ -39,6 +43,9 @@ public partial class CallForLoadingDialogViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _showAllRecommendations;
+
+    [ObservableProperty]
+    private int _availableCount;
 
     public CallForLoadingDialogViewModel(IAgvApiService agvApiService)
     {
@@ -67,7 +74,9 @@ public partial class CallForLoadingDialogViewModel : ObservableObject
         IsLoadingRecommendations = true;
         ErrorMessage = null;
         Recommendations.Clear();
+        FilteredRecommendations.Clear();
         SelectedRecommendation = null;
+        AvailableCount = 0;
 
         try
         {
@@ -77,7 +86,14 @@ public partial class CallForLoadingDialogViewModel : ObservableObject
             };
 
             var recommendations = await _agvApiService.GetRecommendationsAsync(request);
-            Recommendations = new ObservableCollection<AgvRecommendationDto>(recommendations);
+            var selectableRecommendations = recommendations.Select(r => new SelectableAgvRecommendation(r)).ToList();
+            Recommendations = new ObservableCollection<SelectableAgvRecommendation>(selectableRecommendations);
+
+            // 计算可用数量
+            AvailableCount = Recommendations.Count(x => x.Dto.IsAvailable);
+
+            // 更新过滤后的列表
+            UpdateFilteredRecommendations();
         }
         catch (Exception ex)
         {
@@ -92,19 +108,71 @@ public partial class CallForLoadingDialogViewModel : ObservableObject
     /// <summary>
     /// 切换显示所有推荐
     /// </summary>
-    [RelayCommand]
-    private void ToggleShowAll()
+    public void ToggleShowAll()
     {
         ShowAllRecommendations = !ShowAllRecommendations;
+        UpdateFilteredRecommendations();
+    }
+
+    /// <summary>
+    /// 更新过滤后的推荐列表
+    /// </summary>
+    private void UpdateFilteredRecommendations()
+    {
+        FilteredRecommendations.Clear();
+
+        if (ShowAllRecommendations)
+        {
+            // 显示所有推荐
+            foreach (var recommendation in Recommendations)
+            {
+                FilteredRecommendations.Add(recommendation);
+            }
+        }
+        else
+        {
+            // 只显示第一个可用的推荐
+            var hasAvailable = Recommendations.Any(x => x.Dto.IsAvailable);
+
+            if (hasAvailable)
+            {
+                var firstAvailable = Recommendations.FirstOrDefault(x => x.Dto.IsAvailable);
+                if (firstAvailable != null)
+                {
+                    FilteredRecommendations.Add(firstAvailable);
+                }
+            }
+        }
+
+        // 自动选中第一个可用的推荐
+        if (SelectedRecommendation == null && FilteredRecommendations.Any(x => x.Dto.IsAvailable))
+        {
+            var firstAvailable = FilteredRecommendations.FirstOrDefault(x => x.Dto.IsAvailable);
+            if (firstAvailable != null)
+            {
+                SelectRecommendation(firstAvailable);
+            }
+        }
     }
 
     /// <summary>
     /// 选择推荐小车
     /// </summary>
     [RelayCommand]
-    public void SelectRecommendation(AgvRecommendationDto recommendation)
+    public void SelectRecommendation(SelectableAgvRecommendation recommendation)
     {
+        // 取消之前的选中状态
+        if (SelectedRecommendation != null)
+        {
+            SelectedRecommendation.IsSelected = false;
+        }
+
+        // 设置新的选中状态
         SelectedRecommendation = recommendation;
+        if (SelectedRecommendation != null)
+        {
+            SelectedRecommendation.IsSelected = true;
+        }
     }
 
     /// <summary>
@@ -128,7 +196,7 @@ public partial class CallForLoadingDialogViewModel : ObservableObject
             {
                 TaskType = TaskJobType.CallForLoading,
                 TargetStationCode = SelectedStation.StationCode,
-                SelectedAgvCode = SelectedRecommendation.AgvCode
+                SelectedAgvCode = SelectedRecommendation.Dto.AgvCode
             };
 
             var response = await _agvApiService.CreateTaskAsync(request);
@@ -162,12 +230,12 @@ public partial class CallForLoadingDialogViewModel : ObservableObject
         if (ShowAllRecommendations)
             return true;
 
-        var hasAvailable = Recommendations.Any(x => x.IsAvailable);
+        var hasAvailable = Recommendations.Any(x => x.Dto.IsAvailable);
 
         if (!hasAvailable)
             return false;
 
-        var firstAvailableIndex = Recommendations.ToList().FindIndex(x => x.IsAvailable);
+        var firstAvailableIndex = Recommendations.ToList().FindIndex(x => x.Dto.IsAvailable);
         return index == firstAvailableIndex;
     }
 }

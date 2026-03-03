@@ -105,6 +105,7 @@
                                 Content="登 录"
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
                                 Height="52"
                                 FontSize="16"
                                 FontWeight="SemiBold"

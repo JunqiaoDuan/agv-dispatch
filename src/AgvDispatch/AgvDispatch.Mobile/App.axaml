@@ -37,6 +37,10 @@
         <converters:AgvStatusToBrushConverter x:Key="AgvStatusToBrushConverter"/>
         <converters:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
         <converters:BoolToCargoTextConverter x:Key="BoolToCargoTextConverter"/>
+        <converters:BoolToSelectedBorderBrushConverter x:Key="BoolToSelectedBorderBrushConverter"/>
+        <converters:BoolToSelectedBackgroundConverter x:Key="BoolToSelectedBackgroundConverter"/>
+        <converters:BoolToSelectedBorderThicknessConverter x:Key="BoolToSelectedBorderThicknessConverter"/>
+        <converters:BoolToSelectedButtonTextConverter x:Key="BoolToSelectedButtonTextConverter"/>
         <converters:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter"/>
         <converters:BoolToSelectTextConverter x:Key="BoolToSelectTextConverter"/>
         <converters:TaskJobTypeToTextConverter x:Key="TaskJobTypeToTextConverter"/>

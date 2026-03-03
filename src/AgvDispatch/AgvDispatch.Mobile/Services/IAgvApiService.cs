@@ -2,6 +2,7 @@ using AgvDispatch.Shared.DTOs;
 using AgvDispatch.Shared.DTOs.Agvs;
 using AgvDispatch.Shared.DTOs.PathLocks;
 using AgvDispatch.Shared.DTOs.Stations;
+using AgvDispatch.Shared.DTOs.Maps;
 using AgvDispatch.Shared.DTOs.Tasks;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -22,11 +23,13 @@ public interface IAgvApiService
     Task<bool> ResolveExceptionsAsync(List<Guid> exceptionIds);
     Task<string?> ManualControlAsync(Guid id, ManualControlAgvRequest request);
 
+    // 地图相关
+    Task<List<MapListItemDto>> GetAllMapsAsync();
+
     // 站点相关
     Task<List<StationListItemDto>> GetAllStationsAsync(Guid mapId);
 
     // 任务相关
-    Task<List<TaskListItemDto>> GetAllTasksAsync();
     Task<List<TaskListItemDto>> GetActiveTasksAsync();
     Task<TaskDetailDto?> GetTaskDetailAsync(Guid taskId);
     Task<List<AgvRecommendationDto>> GetRecommendationsAsync(GetRecommendationsRequestDto request);

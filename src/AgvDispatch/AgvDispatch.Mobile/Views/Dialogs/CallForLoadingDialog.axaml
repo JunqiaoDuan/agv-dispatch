@@ -3,14 +3,17 @@
         xmlns:vm="using:AgvDispatch.Mobile.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="600"
         x:Class="AgvDispatch.Mobile.Views.Dialogs.CallForLoadingDialog"
         x:DataType="vm:CallForLoadingDialogViewModel"
         Title="召唤小车上料"
-        Width="400"
+        MinWidth="320"
+        Width="360"
+        MaxWidth="480"
         Height="600"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="Manual">
 
     <Grid RowDefinitions="Auto,*,Auto">
         <!-- 标题栏 -->
@@ -22,21 +25,20 @@
         </Border>
 
         <!-- 内容区 -->
-        <ScrollViewer Grid.Row="1" Padding="16">
-            <StackPanel Spacing="16">
+        <ScrollViewer Grid.Row="1"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16" Margin="12">
                 <!-- 目标站点选择 -->
                 <StackPanel Spacing="8">
                     <TextBlock Text="目标站点" FontSize="14" FontWeight="SemiBold" Foreground="#212121"/>
                     <ComboBox ItemsSource="{Binding Stations}"
                               SelectedItem="{Binding SelectedStation}"
-                              HorizontalAlignment="Stretch">
+                              HorizontalAlignment="Stretch"
+                              PlaceholderText="请选择上料站点">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock>
-                                    <Run Text="{Binding StationCode}"/>
-                                    <Run Text=" - "/>
-                                    <Run Text="{Binding DisplayName}"/>
-                                </TextBlock>
+                                <TextBlock Text="{Binding FullDisplayName}" TextWrapping="Wrap"/>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
@@ -51,11 +53,39 @@
 
                 <!-- 推荐列表 -->
                 <StackPanel Spacing="12" IsVisible="{Binding !IsLoadingRecommendations}">
-                    <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="#212121">
-                        <Run Text="推荐小车 ("/>
-                        <Run Text="{Binding Recommendations.Count}"/>
-                        <Run Text=" 辆)"/>
-                    </TextBlock>
+                    <!-- 标题和展开/折叠按钮 -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="#212121">
+                                <Run Text="推荐小车"/>
+                            </TextBlock>
+                            <TextBlock FontSize="12" Foreground="#757575" VerticalAlignment="Center" Margin="0,2,0,0">
+                                <Run Text="("/>
+                                <Run Text="{Binding AvailableCount}"/>
+                                <Run Text=" 可用 / "/>
+                                <Run Text="{Binding Recommendations.Count}"/>
+                                <Run Text=" 总计)"/>
+                            </TextBlock>
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                x:Name="ToggleButton"
+                                Click="OnToggleShowAllClick"
+                                IsVisible="{Binding Recommendations.Count}"
+                                Padding="12,6"
+                                Background="Transparent"
+                                BorderThickness="0">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock x:Name="ToggleButtonText"
+                                           Text="展开"
+                                           FontSize="12"
+                                           Foreground="#2196F3"/>
+                                <TextBlock x:Name="ToggleIcon"
+                                           Text="▼"
+                                           FontSize="10"
+                                           Foreground="#2196F3"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
 
                     <!-- 无推荐提示 -->
                     <Border Background="#FFF3E0"
@@ -66,63 +96,91 @@
                     </Border>
 
                     <!-- 推荐小车列表 -->
-                    <ItemsControl ItemsSource="{Binding Recommendations}">
+                    <ItemsControl x:Name="RecommendationsList"
+                                  ItemsSource="{Binding FilteredRecommendations}"
+                                  HorizontalAlignment="Stretch">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="8"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="White"
+                                <Border x:Name="RecommendationCard"
+                                        Background="{Binding IsSelected, Converter={StaticResource BoolToSelectedBackgroundConverter}}"
+                                        BorderBrush="{Binding IsSelected, Converter={StaticResource BoolToSelectedBorderBrushConverter}}"
+                                        BorderThickness="{Binding IsSelected, Converter={StaticResource BoolToSelectedBorderThicknessConverter}}"
                                         CornerRadius="8"
                                         BoxShadow="0 2 4 0 #10000000"
-                                        Padding="12"
-                                        Margin="0,0,0,8">
-                                    <StackPanel Spacing="8">
+                                        Padding="10"
+                                        HorizontalAlignment="Stretch">
+                                    <StackPanel Spacing="6">
                                         <!-- AGV信息 -->
-                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                             <TextBlock Grid.Column="0"
-                                                       Text="{Binding AgvCode}"
+                                                       Text="{Binding Dto.AgvCode}"
                                                        FontSize="14"
                                                        FontWeight="Bold"
                                                        Foreground="#212121"
                                                        Margin="0,0,8,0"/>
+                                            <!-- 选中图标 -->
                                             <Border Grid.Column="2"
-                                                    Background="{Binding Status, Converter={StaticResource AgvStatusToBrushConverter}}"
+                                                    Background="{StaticResource SuccessBrush}"
+                                                    CornerRadius="12"
+                                                    Width="24"
+                                                    Height="24"
+                                                    Margin="0,0,8,0"
+                                                    IsVisible="{Binding IsSelected}">
+                                                <TextBlock Text="✓"
+                                                           FontSize="16"
+                                                           FontWeight="Bold"
+                                                           Foreground="White"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <Border Grid.Column="3"
+                                                    Background="{Binding Dto.Status, Converter={StaticResource AgvStatusToBrushConverter}}"
                                                     CornerRadius="4"
                                                     Padding="6,2">
-                                                <TextBlock Text="{Binding Status}"
+                                                <TextBlock Text="{Binding Dto.Status}"
                                                            FontSize="11"
                                                            Foreground="White"/>
                                             </Border>
                                         </Grid>
 
                                         <!-- 详细信息 -->
-                                        <TextBlock FontSize="12" Foreground="#757575">
+                                        <TextBlock FontSize="12" Foreground="#757575" TextWrapping="Wrap">
                                             <Run Text="电量: "/>
-                                            <Run Text="{Binding Battery}"/>
+                                            <Run Text="{Binding Dto.Battery}"/>
                                             <Run Text="% | 得分: "/>
-                                            <Run Text="{Binding TotalScore, StringFormat={}{0:F1}}"/>
+                                            <Run Text="{Binding Dto.TotalScore, StringFormat={}{0:F1}}"/>
                                         </TextBlock>
 
                                         <!-- 推荐理由 -->
-                                        <TextBlock Text="{Binding RecommendReason}"
-                                                   FontSize="12"
+                                        <TextBlock Text="{Binding Dto.RecommendReason}"
+                                                   FontSize="11"
                                                    Foreground="#2196F3"
                                                    TextWrapping="Wrap"
-                                                   IsVisible="{Binding !!RecommendReason}"/>
+                                                   IsVisible="{Binding !!Dto.RecommendReason}"/>
 
                                         <!-- 可用性标识 -->
                                         <Border Background="#FFEBEE"
                                                 CornerRadius="4"
                                                 Padding="6,2"
-                                                IsVisible="{Binding !IsAvailable}">
+                                                IsVisible="{Binding !Dto.IsAvailable}">
                                             <TextBlock Text="不可用" FontSize="11" Foreground="#C62828"/>
                                         </Border>
 
                                         <!-- 选择按钮 -->
-                                        <Button Content="选择"
+                                        <Button x:Name="SelectButton"
+                                                Content="{Binding IsSelected, Converter={StaticResource BoolToSelectedButtonTextConverter}}"
                                                 Click="OnSelectRecommendationClick"
                                                 Tag="{Binding}"
-                                                IsEnabled="{Binding IsAvailable}"
+                                                IsEnabled="{Binding Dto.IsAvailable}"
                                                 HorizontalAlignment="Stretch"
-                                                Padding="0,8"
+                                                HorizontalContentAlignment="Center"
+                                                VerticalContentAlignment="Center"
+                                                Padding="0,6"
                                                 Background="{StaticResource PrimaryBrush}"
                                                 Foreground="White"/>
                                     </StackPanel>
@@ -155,6 +213,8 @@
                         Content="取消"
                         Click="OnCancelClick"
                         HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         Padding="16,10"
                         CornerRadius="6"
                         Background="#E0E0E0"
@@ -162,10 +222,11 @@
                         Margin="0,0,4,0"/>
                 <Button Grid.Column="1"
                         Content="确认分配"
-                        Command="{Binding ConfirmCommand}"
                         Click="OnConfirmClick"
                         IsEnabled="{Binding !IsCreatingTask}"
                         HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         Padding="16,10"
                         CornerRadius="6"
                         Background="{StaticResource SuccessBrush}"

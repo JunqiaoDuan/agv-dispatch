@@ -1,12 +1,14 @@
 using AgvDispatch.Shared.DTOs;
 using AgvDispatch.Shared.DTOs.Agvs;
 using AgvDispatch.Shared.DTOs.Stations;
+using AgvDispatch.Shared.DTOs.Maps;
 using AgvDispatch.Shared.DTOs.Tasks;
+using AgvDispatch.Shared.DTOs.PathLocks;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using AgvDispatch.Shared.DTOs.PathLocks;
 
 namespace AgvDispatch.Mobile.Services;
 
@@ -149,33 +151,33 @@ public class AgvApiService : IAgvApiService
         }
     }
 
+    // 地图相关
+    public async Task<List<MapListItemDto>> GetAllMapsAsync()
+    {
+        try
+        {
+            var client = GetHttpClient();
+            var response = await client.GetFromJsonAsync<ApiResponse<List<MapListItemDto>>>("api/maps");
+            return response?.Success == true && response.Data != null ? response.Data : [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     // 站点相关
     public async Task<List<StationListItemDto>> GetAllStationsAsync(Guid mapId)
     {
         try
         {
             var client = GetHttpClient();
-            var response = await client.GetFromJsonAsync<ApiResponse<List<StationListItemDto>>>($"api/stations?mapId={mapId}");
+            var response = await client.GetFromJsonAsync<ApiResponse<List<StationListItemDto>>>($"api/maps/{mapId}/stations");
             return response?.Success == true && response.Data != null ? response.Data : new List<StationListItemDto>();
         }
         catch
         {
             return new List<StationListItemDto>();
-        }
-    }
-
-    // 任务相关
-    public async Task<List<TaskListItemDto>> GetAllTasksAsync()
-    {
-        try
-        {
-            var client = GetHttpClient();
-            var response = await client.GetFromJsonAsync<ApiResponse<List<TaskListItemDto>>>("api/tasks");
-            return response?.Success == true && response.Data != null ? response.Data : new List<TaskListItemDto>();
-        }
-        catch
-        {
-            return new List<TaskListItemDto>();
         }
     }
 
@@ -231,7 +233,7 @@ public class AgvApiService : IAgvApiService
         try
         {
             var client = GetHttpClient();
-            var response = await client.PostAsJsonAsync("api/tasks", request);
+            var response = await client.PostAsJsonAsync("api/tasks/create", request);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<ApiResponse<CreateTaskResponseDto>>();

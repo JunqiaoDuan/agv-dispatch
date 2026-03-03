@@ -18,7 +18,8 @@
       "Bash(dotnet sln:*)",
       "Bash(ls:*)",
       "Bash(Select-String \"error\")",
-      "Bash(dotnet list:*)"
+      "Bash(dotnet list:*)",
+      "Bash(grep:*)"
     ]
   }
 }

@@ -77,7 +77,6 @@ public partial class App : Application
         // ViewModels
         services.AddTransient<LoginViewModel>();
         services.AddTransient<MainWindowViewModel>();
-        services.AddTransient<AgvListViewModel>();
         services.AddTransient<TaskMonitorViewModel>();
     }
 }
