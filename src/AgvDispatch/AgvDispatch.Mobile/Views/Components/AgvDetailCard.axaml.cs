@@ -7,12 +7,14 @@ using AgvDispatch.Shared.DTOs.Tasks;
 using AgvDispatch.Shared.Enums;
 using AgvDispatch.Mobile.ViewModels;
 using System.Linq;
+using System.ComponentModel;
 
 namespace AgvDispatch.Mobile.Views.Components;
 
 public partial class AgvDetailCard : UserControl
 {
     private TaskListItemDto? _currentTask;
+    private TaskMonitorViewModel? _viewModel;
 
     public AgvDetailCard()
     {
@@ -23,6 +25,54 @@ public partial class AgvDetailCard : UserControl
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (DataContext is AgvMonitorItemDto agv)
+        {
+            // 订阅父 ViewModel 的属性变化通知
+            SubscribeToViewModelChanges();
+            UpdateTaskInfo(agv);
+        }
+    }
+
+    /// <summary>
+    /// 控件添加到可视树时
+    /// </summary>
+    protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        // 在添加到可视树时再次尝试更新（此时 Parent 已经设置）
+        if (DataContext is AgvMonitorItemDto agv)
+        {
+            SubscribeToViewModelChanges();
+            UpdateTaskInfo(agv);
+        }
+    }
+
+    /// <summary>
+    /// 订阅父 ViewModel 的属性变化通知
+    /// </summary>
+    private void SubscribeToViewModelChanges()
+    {
+        // 取消之前的订阅
+        if (_viewModel != null)
+        {
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        }
+
+        // 获取父 ViewModel 并订阅
+        _viewModel = GetTaskMonitorViewModel();
+        if (_viewModel != null)
+        {
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        }
+    }
+
+    /// <summary>
+    /// 处理 ViewModel 属性变化
+    /// </summary>
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // 当 Tasks 属性变化时，重新更新任务信息
+        if (e.PropertyName == nameof(TaskMonitorViewModel.Tasks) && DataContext is AgvMonitorItemDto agv)
         {
             UpdateTaskInfo(agv);
         }
@@ -142,5 +192,20 @@ public partial class AgvDetailCard : UserControl
             parent = parent.Parent;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 组件卸载时清理资源
+    /// </summary>
+    protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+
+        // 取消 ViewModel 订阅
+        if (_viewModel != null)
+        {
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _viewModel = null;
+        }
     }
 }
